@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus } from '@/lib/types'
+import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus, formatDateRange } from '@/lib/types'
 
 export default function AkcePage() {
   const [events, setEvents] = useState<Event[]>([])
@@ -77,7 +77,7 @@ export default function AkcePage() {
                 <div>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#f1f5f9' }}>{event.name}</div>
                   <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
-                    {event.date && <span>📅 {new Date(event.date).toLocaleDateString('cs-CZ')}</span>}
+                    <span>📅 {formatDateRange(event.date, event.date_end)}</span>
                     {event.location && <span>📍 {event.location}</span>}
                     {event.type && <span>🎪 {event.type}</span>}
                   </div>

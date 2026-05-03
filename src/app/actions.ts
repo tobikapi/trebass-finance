@@ -11,12 +11,13 @@ function getSupabase() {
 
 // EVENTS
 export async function createEvent(form: {
-  name: string; date: string; location: string; type: string; status: string; description: string
+  name: string; date: string; date_end: string; location: string; type: string; status: string; description: string
 }) {
   const supabase = getSupabase()
   const payload = {
     name: form.name,
     date: form.date || null,
+    date_end: form.date_end || null,
     location: form.location || null,
     type: form.type || null,
     status: form.status,

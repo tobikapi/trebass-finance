@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-interface Event { id: string; name: string; date: string | null; location: string | null; status: string }
+interface Event { id: string; name: string; date: string | null; date_end: string | null; location: string | null; status: string }
 interface Task { id: string; title: string; assigned_to: string | null; status: string; priority: string; due_date: string | null }
 
 const PRIORITY_COLOR: Record<string, string> = { low: '#6b7280', medium: '#f4978e', high: '#e05555' }
@@ -24,7 +24,7 @@ export default function KalendarPage() {
   useEffect(() => {
     async function load() {
       const [{ data: e }, { data: t }] = await Promise.all([
-        supabase.from('events').select('id, name, date, location, status').not('date', 'is', null),
+        supabase.from('events').select('id, name, date, date_end, location, status').not('date', 'is', null),
         supabase.from('tasks').select('id, title, assigned_to, status, priority, due_date').not('due_date', 'is', null),
       ])
       setEvents(e || [])
@@ -55,8 +55,13 @@ export default function KalendarPage() {
   while (cells.length % 7 !== 0) cells.push(null)
 
   function getEventsForDay(day: number) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return events.filter(e => e.date && e.date.startsWith(dateStr))
+    const cellDate = new Date(year, month, day)
+    return events.filter(e => {
+      if (!e.date) return false
+      const start = new Date(e.date)
+      const end = e.date_end ? new Date(e.date_end) : start
+      return cellDate >= start && cellDate <= end
+    })
   }
 
   function getTasksForDay(day: number) {
@@ -186,7 +191,9 @@ export default function KalendarPage() {
               <div key={ev.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #1e1e1e' }}>
                 <div style={{ fontSize: '12px', color: '#f1f5f9' }}>{ev.name}</div>
                 <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
-                  {ev.date && new Date(ev.date).toLocaleDateString('cs-CZ')}
+                  {ev.date_end
+                    ? `${new Date(ev.date!).toLocaleDateString('cs-CZ')} – ${new Date(ev.date_end).toLocaleDateString('cs-CZ')}`
+                    : ev.date && new Date(ev.date).toLocaleDateString('cs-CZ')}
                   {ev.location && <span> · {ev.location}</span>}
                 </div>
               </div>

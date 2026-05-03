@@ -5,11 +5,23 @@ export interface Event {
   id: string
   name: string
   date: string | null
+  date_end: string | null
   location: string | null
   type: string | null
   status: EventStatus
   description: string | null
   created_at: string
+}
+
+export function formatDateRange(date: string | null, dateEnd: string | null): string {
+  if (!date) return 'Datum neurčeno'
+  const d = new Date(date)
+  if (!dateEnd) return d.toLocaleDateString('cs-CZ')
+  const e = new Date(dateEnd)
+  if (d.getMonth() === e.getMonth() && d.getFullYear() === e.getFullYear()) {
+    return `${d.getDate()}.–${e.toLocaleDateString('cs-CZ')}`
+  }
+  return `${d.toLocaleDateString('cs-CZ')} – ${e.toLocaleDateString('cs-CZ')}`
 }
 
 export interface Expense {

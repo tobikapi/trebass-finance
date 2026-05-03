@@ -8,7 +8,7 @@ import { EventStatus } from '@/lib/types'
 export default function NovaAkcePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ name: '', date: '', location: '', type: '', status: 'pripravuje_se' as EventStatus, description: '' })
+  const [form, setForm] = useState({ name: '', date: '', date_end: '', location: '', type: '', status: 'pripravuje_se' as EventStatus, description: '' })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -33,10 +33,14 @@ export default function NovaAkcePage() {
           <label style={labelStyle}>Název akce *</label>
           <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="např. TŘEBASS OPEN AIR 2026" style={inputStyle} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
           <div>
-            <label style={labelStyle}>Datum</label>
+            <label style={labelStyle}>Datum od</label>
             <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Datum do</label>
+            <input type="date" value={form.date_end} min={form.date} onChange={(e) => setForm({ ...form, date_end: e.target.value })} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Místo konání</label>

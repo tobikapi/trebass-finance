@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Event } from '@/lib/types'
+import { Event, formatDateRange } from '@/lib/types'
 
 export default function ArchivPage() {
   const [events, setEvents] = useState<Event[]>([])
@@ -69,7 +69,7 @@ export default function ArchivPage() {
                   <div>
                     <div className="text-lg font-semibold" style={{ color: '#f1f5f9' }}>{event.name}</div>
                     <div className="flex gap-4 mt-1 text-sm" style={{ color: '#6b7280' }}>
-                      {event.date && <span>📅 {new Date(event.date).toLocaleDateString('cs-CZ')}</span>}
+                      <span>📅 {formatDateRange(event.date, event.date_end)}</span>
                       {event.location && <span>📍 {event.location}</span>}
                     </div>
                   </div>

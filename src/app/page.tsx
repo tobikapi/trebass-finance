@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Event, STATUS_LABELS, STATUS_COLORS } from '@/lib/types'
+import { Event, STATUS_LABELS, STATUS_COLORS, formatDateRange } from '@/lib/types'
 
 interface DashboardStats {
   totalEvents: number
@@ -78,7 +78,7 @@ export default function Dashboard() {
                 <div>
                   <div style={{ fontWeight: '500', color: '#f1f5f9', fontSize: '14px' }}>{event.name}</div>
                   <div style={{ fontSize: '12px', marginTop: '2px', color: '#6b7280' }}>
-                    {event.date ? new Date(event.date).toLocaleDateString('cs-CZ') : 'Datum neurčeno'}
+                    {formatDateRange(event.date, event.date_end)}
                     {event.location && ` · ${event.location}`}
                   </div>
                 </div>
