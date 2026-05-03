@@ -56,22 +56,9 @@ export interface TeamContribution {
 }
 
 export const CATEGORIES = [
-  'INFRASTRUKTURA',
-  'LINEUP',
-  'SECURITY',
-  'VÝSTUPY',
-  'POMOCNÁ SÍLA',
-  'TISK',
-  'TOPENÍ',
-  'LOKALITA',
-  'DEKORACE',
-  'TECHNIKA',
-  'POWER',
-  'DOPRAVA',
-  'BAR',
-  'POJISTKA',
-  'REKLAMA',
-  'JINÉ',
+  'INFRASTRUKTURA', 'LINEUP', 'SECURITY', 'VÝSTUPY', 'POMOCNÁ SÍLA',
+  'TISK', 'TOPENÍ', 'LOKALITA', 'DEKORACE', 'TECHNIKA',
+  'POWER', 'DOPRAVA', 'BAR', 'POJISTKA', 'REKLAMA', 'JINÉ',
 ]
 
 export const INCOME_SOURCES = ['VSTUPNÉ', 'BAR', 'SPONZOR', 'DOTACE', 'JINÉ']
@@ -84,8 +71,8 @@ export const STATUS_LABELS: Record<EventStatus, string> = {
 }
 
 export const STATUS_COLORS: Record<EventStatus, string> = {
-  pripravuje_se: 'bg-blue-500/20 text-blue-300',
-  probihá: 'bg-green-500/20 text-green-300',
-  dokonceno: 'bg-gray-500/20 text-gray-300',
-  archivovano: 'bg-yellow-500/20 text-yellow-300',
+  pripravuje_se: 'bg-blue-900/40 text-blue-300',
+  probihá: 'bg-green-900/40 text-green-300',
+  dokonceno: 'bg-zinc-800 text-zinc-400',
+  archivovano: 'bg-red-900/20 text-red-400',
 }
