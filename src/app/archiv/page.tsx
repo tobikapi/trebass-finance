@@ -69,7 +69,7 @@ export default function ArchivPage() {
                   <div>
                     <div className="text-lg font-semibold" style={{ color: '#f1f5f9' }}>{event.name}</div>
                     <div className="flex gap-4 mt-1 text-sm" style={{ color: '#6b7280' }}>
-                      <span>📅 {formatDateRange(event.date, event.date_end)}</span>
+                      <span>📅 {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}</span>
                       {event.location && <span>📍 {event.location}</span>}
                     </div>
                   </div>

@@ -11,13 +11,16 @@ function getSupabase() {
 
 // EVENTS
 export async function createEvent(form: {
-  name: string; date: string; date_end: string; location: string; type: string; status: string; description: string
+  name: string; date: string; date_end: string; time_start: string; time_end: string
+  location: string; type: string; status: string; description: string
 }) {
   const supabase = getSupabase()
   const payload = {
     name: form.name,
     date: form.date || null,
     date_end: form.date_end || null,
+    time_start: form.time_start || null,
+    time_end: form.time_end || null,
     location: form.location || null,
     type: form.type || null,
     status: form.status,
@@ -26,6 +29,27 @@ export async function createEvent(form: {
   const { data, error } = await supabase.from('events').insert([payload]).select().single()
   if (error) return { error: error.message }
   return { data }
+}
+
+export async function updateEvent(id: string, form: {
+  name: string; date: string; date_end: string; time_start: string; time_end: string
+  location: string; type: string; status: string; description: string
+}) {
+  const supabase = getSupabase()
+  const payload = {
+    name: form.name,
+    date: form.date || null,
+    date_end: form.date_end || null,
+    time_start: form.time_start || null,
+    time_end: form.time_end || null,
+    location: form.location || null,
+    type: form.type || null,
+    status: form.status,
+    description: form.description || null,
+  }
+  const { error } = await supabase.from('events').update(payload).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
 }
 
 // EXPENSES

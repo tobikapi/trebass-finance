@@ -78,7 +78,7 @@ export default function Dashboard() {
                 <div>
                   <div style={{ fontWeight: '500', color: '#f1f5f9', fontSize: '14px' }}>{event.name}</div>
                   <div style={{ fontSize: '12px', marginTop: '2px', color: '#6b7280' }}>
-                    {formatDateRange(event.date, event.date_end)}
+                    {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}
                     {event.location && ` · ${event.location}`}
                   </div>
                 </div>

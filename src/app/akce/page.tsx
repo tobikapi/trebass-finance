@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus, formatDateRange } from '@/lib/types'
 
 export default function AkcePage() {
+  const router = useRouter()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<EventStatus | 'vse'>('vse')
@@ -68,26 +70,35 @@ export default function AkcePage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {filtered.map((event) => (
-            <Link
-              key={event.id}
-              href={`/akce/${event.id}/vydaje`}
-              style={{ display: 'block', padding: '20px 24px', backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', textDecoration: 'none' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: '#f1f5f9' }}>{event.name}</div>
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
-                    <span>📅 {formatDateRange(event.date, event.date_end)}</span>
-                    {event.location && <span>📍 {event.location}</span>}
-                    {event.type && <span>🎪 {event.type}</span>}
+            <div key={event.id} style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', overflow: 'hidden' }}>
+              <Link
+                href={`/akce/${event.id}/vydaje`}
+                style={{ display: 'block', padding: '20px 24px', textDecoration: 'none' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: '600', color: '#f1f5f9' }}>{event.name}</div>
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
+                      <span>📅 {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}</span>
+                      {event.location && <span>📍 {event.location}</span>}
+                      {event.type && <span>🎪 {event.type}</span>}
+                    </div>
+                    {event.description && <div style={{ marginTop: '8px', fontSize: '13px', color: '#9ca3af' }}>{event.description}</div>}
                   </div>
-                  {event.description && <div style={{ marginTop: '8px', fontSize: '13px', color: '#9ca3af' }}>{event.description}</div>}
+                  <span className={`${STATUS_COLORS[event.status]}`} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', flexShrink: 0 }}>
+                    {STATUS_LABELS[event.status]}
+                  </span>
                 </div>
-                <span className={`${STATUS_COLORS[event.status]}`} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', flexShrink: 0 }}>
-                  {STATUS_LABELS[event.status]}
-                </span>
+              </Link>
+              <div style={{ borderTop: '1px solid #1e1e1e', padding: '8px 24px', display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => router.push(`/akce/${event.id}/upravit`)}
+                  style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+                >
+                  ✏️ Upravit
+                </button>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

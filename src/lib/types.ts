@@ -6,6 +6,8 @@ export interface Event {
   name: string
   date: string | null
   date_end: string | null
+  time_start: string | null
+  time_end: string | null
   location: string | null
   type: string | null
   status: EventStatus
@@ -13,15 +15,26 @@ export interface Event {
   created_at: string
 }
 
-export function formatDateRange(date: string | null, dateEnd: string | null): string {
+export function formatDateRange(date: string | null, dateEnd: string | null, timeStart?: string | null, timeEnd?: string | null): string {
   if (!date) return 'Datum neurčeno'
   const d = new Date(date)
-  if (!dateEnd) return d.toLocaleDateString('cs-CZ')
-  const e = new Date(dateEnd)
-  if (d.getMonth() === e.getMonth() && d.getFullYear() === e.getFullYear()) {
-    return `${d.getDate()}.–${e.toLocaleDateString('cs-CZ')}`
+  let dateStr: string
+  if (!dateEnd) {
+    dateStr = d.toLocaleDateString('cs-CZ')
+  } else {
+    const e = new Date(dateEnd)
+    if (d.getMonth() === e.getMonth() && d.getFullYear() === e.getFullYear()) {
+      dateStr = `${d.getDate()}.–${e.toLocaleDateString('cs-CZ')}`
+    } else {
+      dateStr = `${d.toLocaleDateString('cs-CZ')} – ${e.toLocaleDateString('cs-CZ')}`
+    }
   }
-  return `${d.toLocaleDateString('cs-CZ')} – ${e.toLocaleDateString('cs-CZ')}`
+  if (timeStart) {
+    const t = timeStart.slice(0, 5)
+    dateStr += ` ${t}`
+    if (timeEnd) dateStr += `–${timeEnd.slice(0, 5)}`
+  }
+  return dateStr
 }
 
 export interface Expense {
