@@ -176,7 +176,7 @@ export async function deleteContribution(id: string) {
 
 // CONTACTS
 export async function createContact(payload: {
-  name: string; type: string; email: string | null; phone: string | null; note: string | null
+  name: string; type: string; fee: number; email: string | null; phone: string | null; note: string | null
 }) {
   const supabase = getSupabase()
   const { data, error } = await supabase.from('contacts').insert([payload]).select().single()
@@ -185,7 +185,7 @@ export async function createContact(payload: {
 }
 
 export async function updateContact(id: string, payload: {
-  name: string; type: string; email: string | null; phone: string | null; note: string | null
+  name: string; type: string; fee: number; email: string | null; phone: string | null; note: string | null
 }) {
   const supabase = getSupabase()
   const { error } = await supabase.from('contacts').update(payload).eq('id', id)
