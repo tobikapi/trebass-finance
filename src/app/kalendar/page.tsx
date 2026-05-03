@@ -93,9 +93,17 @@ export default function KalendarPage() {
         <div style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '24px' }}>
           {/* Month nav */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <button onClick={prevMonth} style={{ padding: '6px 14px', backgroundColor: '#1e1e1e', color: '#9ca3af', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}>‹</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button onClick={prevMonth} style={{ padding: '6px 14px', backgroundColor: '#1e1e1e', color: '#9ca3af', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}>‹</button>
+              <button onClick={nextMonth} style={{ padding: '6px 14px', backgroundColor: '#1e1e1e', color: '#9ca3af', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}>›</button>
+            </div>
             <span style={{ fontSize: '18px', fontWeight: '600', color: '#f1f5f9' }}>{MONTHS[month]} {year}</span>
-            <button onClick={nextMonth} style={{ padding: '6px 14px', backgroundColor: '#1e1e1e', color: '#9ca3af', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}>›</button>
+            <button
+              onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()) }}
+              style={{ padding: '6px 14px', backgroundColor: month === today.getMonth() && year === today.getFullYear() ? '#2d1515' : '#1e1e1e', color: month === today.getMonth() && year === today.getFullYear() ? '#f4978e' : '#9ca3af', border: `1px solid ${month === today.getMonth() && year === today.getFullYear() ? '#e05555' : 'transparent'}`, borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+            >
+              Dnes
+            </button>
           </div>
 
           {/* Day headers */}
