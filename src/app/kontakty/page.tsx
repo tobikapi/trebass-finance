@@ -4,19 +4,16 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { createContact, updateContact, deleteContact } from '@/app/actions'
 
-const TYPES = ['DJ', 'MC', 'live act', 'stage manager', 'technik zvuku', 'technik světel', 'produkce', 'security', 'dodavatel', 'venue', 'jiné']
+const TYPES = ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security', 'jiné']
 const TYPE_COLORS: Record<string, { color: string; bg: string }> = {
-  'DJ':               { color: '#f4978e', bg: '#2d1515' },
-  'MC':               { color: '#f4978e', bg: '#2d1515' },
-  'live act':         { color: '#fb923c', bg: '#2d1a05' },
-  'stage manager':    { color: '#a78bfa', bg: '#1e1535' },
-  'technik zvuku':    { color: '#60a5fa', bg: '#1e2d3d' },
-  'technik světel':   { color: '#38bdf8', bg: '#0c2233' },
-  'produkce':         { color: '#34d399', bg: '#052e16' },
-  'security':         { color: '#fbbf24', bg: '#2d2005' },
-  'dodavatel':        { color: '#c084fc', bg: '#1e1535' },
-  'venue':            { color: '#4ade80', bg: '#052e16' },
-  'jiné':             { color: '#9ca3af', bg: '#1e1e1e' },
+  'DJ':             { color: '#f4978e', bg: '#2d1515' },
+  'MC':             { color: '#fb923c', bg: '#2d1a05' },
+  'Stage manager':  { color: '#a78bfa', bg: '#1e1535' },
+  'Technik':        { color: '#60a5fa', bg: '#1e2d3d' },
+  'Produkce':       { color: '#34d399', bg: '#052e16' },
+  'Bednák':         { color: '#fbbf24', bg: '#2d2005' },
+  'Security':       { color: '#f87171', bg: '#2d0a0a' },
+  'jiné':           { color: '#9ca3af', bg: '#1e1e1e' },
 }
 
 interface Contact {
@@ -24,7 +21,7 @@ interface Contact {
   email: string | null; phone: string | null; note: string | null; created_at: string
 }
 
-const emptyForm = { name: '', type: 'DJ', email: '', phone: '', note: '', fee: '' }
+const emptyForm = { name: '', type: 'DJ', email: '', phone: '', note: '', fee: '0' }
 
 export default function KontaktyPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
