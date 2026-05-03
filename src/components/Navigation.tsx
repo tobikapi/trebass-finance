@@ -39,8 +39,10 @@ export default function Navigation() {
                 style={{
                   padding: '6px 16px',
                   borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: isActive ? '600' : '400',
+                  fontSize: '15px',
+                  fontFamily: 'Awakenning, sans-serif',
+                  letterSpacing: '0.08em',
+                  fontWeight: '400',
                   color: isActive ? '#f4978e' : '#9ca3af',
                   backgroundColor: isActive ? '#2d1515' : 'transparent',
                   textDecoration: 'none',
@@ -58,7 +60,7 @@ export default function Navigation() {
         <div style={{ flex: 1 }} />
 
         {/* Right side label */}
-        <div style={{ fontSize: '12px', color: '#4b5563' }}>Finance System</div>
+        <div style={{ fontSize: '13px', color: '#4b5563', fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.1em' }}>Finance System</div>
       </div>
     </header>
   )
