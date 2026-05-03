@@ -4,9 +4,9 @@ import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import { LineupArtist } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import { createArtist, updateArtist, deleteArtist, toggleArtistPaid } from '@/app/actions'
 
 interface Props { params: Promise<{ id: string }> }
-
 const emptyForm = { artist_name: '', fee: '', deposit: '', paid: false, set_time: '', notes: '' }
 
 export default function LineupPage({ params }: Props) {
@@ -20,51 +20,31 @@ export default function LineupPage({ params }: Props) {
 
   async function load() {
     const { data } = await supabase.from('lineup').select('*').eq('event_id', id).order('set_time').order('artist_name')
-    setArtists(data || [])
-    setLoading(false)
+    setArtists(data || []); setLoading(false)
   }
 
   useEffect(() => { load() }, [id])
 
   async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    const payload = {
-      event_id: id,
-      artist_name: form.artist_name,
-      fee: parseFloat(form.fee) || 0,
-      deposit: parseFloat(form.deposit) || 0,
-      paid: form.paid,
-      set_time: form.set_time || null,
-      notes: form.notes || null,
-    }
-    if (editId) {
-      await supabase.from('lineup').update(payload).eq('id', editId)
-    } else {
-      await supabase.from('lineup').insert([payload])
-    }
-    await load()
-    setForm(emptyForm)
-    setShowForm(false)
-    setEditId(null)
-    setSaving(false)
+    e.preventDefault(); setSaving(true)
+    const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid, set_time: form.set_time || null, notes: form.notes || null }
+    const result = editId ? await updateArtist(editId, payload) : await createArtist(payload)
+    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(artId: string) {
-    if (!confirm('Smazat tohoto artistu?')) return
-    await supabase.from('lineup').delete().eq('id', artId)
-    await load()
+    if (!confirm('Smazat tohoto artista?')) return
+    await deleteArtist(artId); await load()
   }
 
-  async function togglePaid(art: LineupArtist) {
-    await supabase.from('lineup').update({ paid: !art.paid }).eq('id', art.id)
-    await load()
+  async function handleTogglePaid(art: LineupArtist) {
+    await toggleArtistPaid(art.id, !art.paid); await load()
   }
 
   function startEdit(art: LineupArtist) {
     setForm({ artist_name: art.artist_name, fee: art.fee.toString(), deposit: art.deposit.toString(), paid: art.paid, set_time: art.set_time || '', notes: art.notes || '' })
-    setEditId(art.id)
-    setShowForm(true)
+    setEditId(art.id); setShowForm(true)
   }
 
   const totalFees = artists.reduce((s, a) => s + a.fee, 0)
@@ -160,11 +140,9 @@ export default function LineupPage({ params }: Props) {
                   <td className="px-4 py-3" style={{ color: '#9ca3af' }}>{art.set_time || '—'}</td>
                   <td className="px-4 py-3 font-medium" style={{ color: '#f1f5f9' }}>{art.fee.toLocaleString('cs-CZ')} Kč</td>
                   <td className="px-4 py-3" style={{ color: '#60a5fa' }}>{art.deposit > 0 ? art.deposit.toLocaleString('cs-CZ') + ' Kč' : '—'}</td>
-                  <td className="px-4 py-3 font-medium" style={{ color: art.fee - art.deposit > 0 ? '#f87171' : '#34d399' }}>
-                    {(art.fee - art.deposit).toLocaleString('cs-CZ')} Kč
-                  </td>
+                  <td className="px-4 py-3 font-medium" style={{ color: art.fee - art.deposit > 0 ? '#f87171' : '#34d399' }}>{(art.fee - art.deposit).toLocaleString('cs-CZ')} Kč</td>
                   <td className="px-4 py-3">
-                    <button onClick={() => togglePaid(art)} className="px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: art.paid ? '#14532d' : '#1e1e2e', color: art.paid ? '#34d399' : '#f87171' }}>
+                    <button onClick={() => handleTogglePaid(art)} className="px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: art.paid ? '#14532d' : '#1e1e2e', color: art.paid ? '#34d399' : '#f87171' }}>
                       {art.paid ? 'ANO' : 'NE'}
                     </button>
                   </td>

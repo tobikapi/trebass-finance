@@ -4,9 +4,9 @@ import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TeamContribution } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import { createContribution, updateContribution, deleteContribution } from '@/app/actions'
 
 interface Props { params: Promise<{ id: string }> }
-
 const emptyForm = { name: '', amount: '', note: '' }
 
 export default function TymPage({ params }: Props) {
@@ -20,38 +20,27 @@ export default function TymPage({ params }: Props) {
 
   async function load() {
     const { data } = await supabase.from('team_contributions').select('*').eq('event_id', id).order('amount', { ascending: false })
-    setContributions(data || [])
-    setLoading(false)
+    setContributions(data || []); setLoading(false)
   }
 
   useEffect(() => { load() }, [id])
 
   async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault(); setSaving(true)
     const payload = { event_id: id, name: form.name, amount: parseFloat(form.amount) || 0, note: form.note || null }
-    if (editId) {
-      await supabase.from('team_contributions').update(payload).eq('id', editId)
-    } else {
-      await supabase.from('team_contributions').insert([payload])
-    }
-    await load()
-    setForm(emptyForm)
-    setShowForm(false)
-    setEditId(null)
-    setSaving(false)
+    const result = editId ? await updateContribution(editId, payload) : await createContribution(payload)
+    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(contId: string) {
     if (!confirm('Smazat tento příspěvek?')) return
-    await supabase.from('team_contributions').delete().eq('id', contId)
-    await load()
+    await deleteContribution(contId); await load()
   }
 
   function startEdit(c: TeamContribution) {
     setForm({ name: c.name, amount: c.amount.toString(), note: c.note || '' })
-    setEditId(c.id)
-    setShowForm(true)
+    setEditId(c.id); setShowForm(true)
   }
 
   const total = contributions.reduce((s, c) => s + c.amount, 0)

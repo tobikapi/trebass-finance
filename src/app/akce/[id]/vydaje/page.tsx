@@ -4,20 +4,12 @@ import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Expense, CATEGORIES, PaymentTiming } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
 
 interface Props { params: Promise<{ id: string }> }
 
 const TIMINGS: PaymentTiming[] = ['PŘED AKCÍ', 'BĚHEM AKCE', 'PO AKCI']
-
-const emptyForm = {
-  category: CATEGORIES[0],
-  item: '',
-  note: '',
-  payment_timing: '' as PaymentTiming | '',
-  price: '',
-  deposit: '',
-  paid: false,
-}
+const emptyForm = { category: CATEGORIES[0], item: '', note: '', payment_timing: '' as PaymentTiming | '', price: '', deposit: '', paid: false }
 
 export default function VydajePage({ params }: Props) {
   const { id } = use(params)
@@ -40,50 +32,30 @@ export default function VydajePage({ params }: Props) {
     e.preventDefault()
     setSaving(true)
     const payload = {
-      event_id: id,
-      category: form.category,
-      item: form.item,
-      note: form.note || null,
-      payment_timing: form.payment_timing || null,
-      price: parseFloat(form.price) || 0,
-      deposit: parseFloat(form.deposit) || 0,
-      paid: form.paid,
+      event_id: id, category: form.category, item: form.item,
+      note: form.note || null, payment_timing: form.payment_timing || null,
+      price: parseFloat(form.price) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid,
     }
-    if (editId) {
-      await supabase.from('expenses').update(payload).eq('id', editId)
-    } else {
-      await supabase.from('expenses').insert([payload])
-    }
+    const result = editId ? await updateExpense(editId, payload) : await createExpense(payload)
+    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load()
-    setForm(emptyForm)
-    setShowForm(false)
-    setEditId(null)
-    setSaving(false)
+    setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(expId: string) {
     if (!confirm('Smazat tento výdaj?')) return
-    await supabase.from('expenses').delete().eq('id', expId)
+    await deleteExpense(expId)
     await load()
   }
 
-  async function togglePaid(exp: Expense) {
-    await supabase.from('expenses').update({ paid: !exp.paid }).eq('id', exp.id)
+  async function handleTogglePaid(exp: Expense) {
+    await toggleExpensePaid(exp.id, !exp.paid)
     await load()
   }
 
   function startEdit(exp: Expense) {
-    setForm({
-      category: exp.category,
-      item: exp.item,
-      note: exp.note || '',
-      payment_timing: exp.payment_timing || '',
-      price: exp.price.toString(),
-      deposit: exp.deposit.toString(),
-      paid: exp.paid,
-    })
-    setEditId(exp.id)
-    setShowForm(true)
+    setForm({ category: exp.category, item: exp.item, note: exp.note || '', payment_timing: exp.payment_timing || '', price: exp.price.toString(), deposit: exp.deposit.toString(), paid: exp.paid })
+    setEditId(exp.id); setShowForm(true)
   }
 
   const grouped = CATEGORIES.reduce((acc, cat) => {
@@ -202,17 +174,13 @@ export default function VydajePage({ params }: Props) {
                         <td className="px-4 py-2.5" style={{ color: '#f1f5f9' }}>{exp.item}</td>
                         <td className="px-4 py-2.5 text-xs max-w-xs truncate" style={{ color: '#6b7280' }}>{exp.note || '—'}</td>
                         <td className="px-4 py-2.5">
-                          {exp.payment_timing ? (
-                            <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: '#1e1e2e', color: '#9ca3af' }}>{exp.payment_timing}</span>
-                          ) : '—'}
+                          {exp.payment_timing ? <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: '#1e1e2e', color: '#9ca3af' }}>{exp.payment_timing}</span> : '—'}
                         </td>
                         <td className="px-4 py-2.5 font-medium" style={{ color: '#f1f5f9' }}>{exp.price.toLocaleString('cs-CZ')}</td>
                         <td className="px-4 py-2.5" style={{ color: '#60a5fa' }}>{exp.deposit > 0 ? exp.deposit.toLocaleString('cs-CZ') : '—'}</td>
-                        <td className="px-4 py-2.5 font-medium" style={{ color: exp.price - exp.deposit > 0 ? '#f87171' : '#34d399' }}>
-                          {(exp.price - exp.deposit).toLocaleString('cs-CZ')}
-                        </td>
+                        <td className="px-4 py-2.5 font-medium" style={{ color: exp.price - exp.deposit > 0 ? '#f87171' : '#34d399' }}>{(exp.price - exp.deposit).toLocaleString('cs-CZ')}</td>
                         <td className="px-4 py-2.5">
-                          <button onClick={() => togglePaid(exp)} className="px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: exp.paid ? '#14532d' : '#1e1e2e', color: exp.paid ? '#34d399' : '#f87171' }}>
+                          <button onClick={() => handleTogglePaid(exp)} className="px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: exp.paid ? '#14532d' : '#1e1e2e', color: exp.paid ? '#34d399' : '#f87171' }}>
                             {exp.paid ? 'ANO' : 'NE'}
                           </button>
                         </td>

@@ -4,9 +4,9 @@ import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Income, INCOME_SOURCES } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import { createIncome, updateIncome, deleteIncome } from '@/app/actions'
 
 interface Props { params: Promise<{ id: string }> }
-
 const emptyForm = { source: INCOME_SOURCES[0], amount: '', note: '' }
 
 export default function PrijmyPage({ params }: Props) {
@@ -24,39 +24,27 @@ export default function PrijmyPage({ params }: Props) {
       supabase.from('income').select('*').eq('event_id', id).order('created_at'),
       supabase.from('expenses').select('price').eq('event_id', id),
     ])
-    setIncome(inc || [])
-    setExpenses(exp || [])
-    setLoading(false)
+    setIncome(inc || []); setExpenses(exp || []); setLoading(false)
   }
 
   useEffect(() => { load() }, [id])
 
   async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault(); setSaving(true)
     const payload = { event_id: id, source: form.source, amount: parseFloat(form.amount) || 0, note: form.note || null }
-    if (editId) {
-      await supabase.from('income').update(payload).eq('id', editId)
-    } else {
-      await supabase.from('income').insert([payload])
-    }
-    await load()
-    setForm(emptyForm)
-    setShowForm(false)
-    setEditId(null)
-    setSaving(false)
+    const result = editId ? await updateIncome(editId, payload) : await createIncome(payload)
+    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(incId: string) {
     if (!confirm('Smazat tento příjem?')) return
-    await supabase.from('income').delete().eq('id', incId)
-    await load()
+    await deleteIncome(incId); await load()
   }
 
   function startEdit(inc: Income) {
     setForm({ source: inc.source, amount: inc.amount.toString(), note: inc.note || '' })
-    setEditId(inc.id)
-    setShowForm(true)
+    setEditId(inc.id); setShowForm(true)
   }
 
   const totalIncome = income.reduce((s, i) => s + i.amount, 0)
@@ -68,8 +56,6 @@ export default function PrijmyPage({ params }: Props) {
     if (items.length > 0) acc[src] = items
     return acc
   }, {} as Record<string, Income[]>)
-  const otherItems = income.filter((i) => !INCOME_SOURCES.includes(i.source))
-  if (otherItems.length > 0) bySource['OSTATNÍ'] = otherItems
 
   const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
   const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block', marginBottom: '4px' }
