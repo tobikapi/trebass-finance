@@ -22,3 +22,10 @@ h1, h2, h3, .font-awakenning {
 * {
   box-sizing: border-box;
 }
+
+@media print {
+  .no-print { display: none !important; }
+  header { display: none !important; }
+  body { background: #fff !important; color: #111 !important; }
+  .print-page { color: #111; }
+}
