@@ -174,6 +174,32 @@ export async function deleteContribution(id: string) {
   return { data: true }
 }
 
+// CONTACTS
+export async function createContact(payload: {
+  name: string; type: string; email: string | null; phone: string | null; note: string | null
+}) {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from('contacts').insert([payload]).select().single()
+  if (error) return { error: error.message }
+  return { data }
+}
+
+export async function updateContact(id: string, payload: {
+  name: string; type: string; email: string | null; phone: string | null; note: string | null
+}) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('contacts').update(payload).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function deleteContact(id: string) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('contacts').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
 // TASKS
 export async function createTask(payload: {
   title: string; description: string | null; assigned_to: string | null;

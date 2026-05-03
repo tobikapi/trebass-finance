@@ -9,6 +9,7 @@ const navItems = [
   { href: '/akce', label: 'Akce' },
   { href: '/kalendar', label: 'Kalendář' },
   { href: '/ukoly', label: 'Úkoly' },
+  { href: '/kontakty', label: 'Kontakty' },
   { href: '/archiv', label: 'Archiv' },
 ]
 
