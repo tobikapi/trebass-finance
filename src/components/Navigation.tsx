@@ -8,6 +8,8 @@ const navItems = [
   { href: '/', label: 'Dashboard' },
   { href: '/akce', label: 'Akce' },
   { href: '/archiv', label: 'Archiv' },
+  { href: '/ukoly', label: 'Úkoly' },
+  { href: '/kalendar', label: 'Kalendář' },
 ]
 
 export default function Navigation() {

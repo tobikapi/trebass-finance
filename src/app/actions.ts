@@ -148,3 +148,38 @@ export async function deleteContribution(id: string) {
   if (error) return { error: error.message }
   return { data: true }
 }
+
+// TASKS
+export async function createTask(payload: {
+  title: string; description: string | null; assigned_to: string | null;
+  status: string; priority: string; due_date: string | null; event_id: string | null
+}) {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from('tasks').insert([payload]).select().single()
+  if (error) return { error: error.message }
+  return { data }
+}
+
+export async function updateTask(id: string, payload: {
+  title: string; description: string | null; assigned_to: string | null;
+  status: string; priority: string; due_date: string | null; event_id: string | null
+}) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('tasks').update(payload).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function updateTaskStatus(id: string, status: string) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('tasks').update({ status }).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function deleteTask(id: string) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('tasks').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
