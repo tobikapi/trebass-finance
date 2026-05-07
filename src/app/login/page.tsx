@@ -57,11 +57,11 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '7px', letterSpacing: '0.1em' }}>
-              EMAIL
+              UŽIVATELSKÉ JMÉNO
             </label>
             <input
-              name="email" type="email" required autoFocus
-              placeholder="tvuj@email.cz"
+              name="username" type="text" required autoFocus autoComplete="username"
+              placeholder="admin / clen / host"
               style={{
                 width: '100%', backgroundColor: 'rgba(12,12,12,0.8)', border: '1px solid #2d1515',
                 borderRadius: '8px', padding: '12px 14px', color: '#f1f5f9',

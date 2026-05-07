@@ -22,14 +22,15 @@ function makeSupabase(cookieStore: Awaited<ReturnType<typeof cookies>>) {
 }
 
 export async function signIn(formData: FormData): Promise<{ error: string } | undefined> {
-  const email = formData.get('email') as string
+  const username = (formData.get('username') as string).trim().toLowerCase()
   const password = formData.get('password') as string
+  const email = `${username}@trebass.cz`
 
   const cookieStore = await cookies()
   const supabase = makeSupabase(cookieStore)
 
   const { error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) return { error: 'Špatný email nebo heslo.' }
+  if (error) return { error: 'Špatné uživatelské jméno nebo heslo.' }
 
   redirect('/')
 }
