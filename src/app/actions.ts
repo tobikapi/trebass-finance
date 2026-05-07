@@ -174,6 +174,15 @@ export async function deleteContribution(id: string) {
   return { data: true }
 }
 
+// DOCUMENTS
+export async function deleteDocument(id: string, filePath: string) {
+  const supabase = getSupabase()
+  await supabase.storage.from('documents').remove([filePath])
+  const { error } = await supabase.from('documents').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
 // NOTES
 export async function createNote(payload: { event_id: string; author: string; content: string }) {
   const supabase = getSupabase()
