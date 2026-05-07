@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Navigation from './Navigation'
+import IdleTimer from './IdleTimer'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -24,6 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Content */}
       <div style={{ position: 'relative', zIndex: 1 }}>
+        <IdleTimer />
         <Navigation />
         <main className="page-main">
           {children}

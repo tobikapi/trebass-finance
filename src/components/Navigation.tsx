@@ -103,16 +103,23 @@ export default function Navigation() {
               </div>
             </div>
             <button disabled={isPending} onClick={() => startTransition(() => signOut())}
-              style={{ fontSize: '12px', color: '#4b5563', background: 'none', border: '1px solid #2d2d2d', borderRadius: '6px', cursor: 'pointer', padding: '4px 12px' }}>
+              style={{ fontSize: '12px', color: '#e05555', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 14px', transition: 'all 0.15s' }}>
               Odhlásit
             </button>
           </div>
         )}
 
-        {/* Mobile hamburger */}
-        <button className="nav-hamburger" onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
-          {menuOpen ? '✕' : '☰'}
-        </button>
+        {/* Mobile — logout + hamburger */}
+        <div className="nav-hamburger" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button disabled={isPending} onClick={() => startTransition(() => signOut())}
+            style={{ fontSize: '12px', color: '#e05555', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 10px' }}>
+            Odhlásit
+          </button>
+          <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu"
+            style={{ fontSize: '20px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+            {menuOpen ? '✕' : '☰'}
+          </button>
+        </div>
       </div>
 
       {/* Mobile dropdown */}
