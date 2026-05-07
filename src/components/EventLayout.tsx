@@ -26,6 +26,7 @@ export default function EventLayout({ eventId, children }: Props) {
     { href: `/akce/${eventId}/prijmy`, label: '💰 Příjmy' },
     { href: `/akce/${eventId}/lineup`, label: '🎧 Lineup' },
     { href: `/akce/${eventId}/tym`, label: '👥 Tým' },
+    { href: `/akce/${eventId}/poznamky`, label: '📝 Poznámky' },
   ]
 
   return (
