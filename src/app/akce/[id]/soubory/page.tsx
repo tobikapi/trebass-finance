@@ -86,6 +86,17 @@ export default function SouboryPage({ params }: Props) {
     return data.publicUrl
   }
 
+  async function handleDownload(doc: Document) {
+    const { data, error } = await supabase.storage.from('documents').download(doc.file_path)
+    if (error || !data) { alert('Chyba při stahování'); return }
+    const url = URL.createObjectURL(data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = doc.name
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function formatTime(ts: string) {
     return new Date(ts).toLocaleDateString('cs-CZ') + ' ' +
       new Date(ts).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })
@@ -151,7 +162,7 @@ export default function SouboryPage({ params }: Props) {
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0, marginLeft: '16px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginLeft: '16px' }}>
                 <a
                   href={getPublicUrl(doc.file_path)}
                   target="_blank"
@@ -160,6 +171,10 @@ export default function SouboryPage({ params }: Props) {
                 >
                   Otevřít
                 </a>
+                <button onClick={() => handleDownload(doc)}
+                  style={{ fontSize: '12px', color: '#60a5fa', background: 'none', border: '1px solid #1e2d3d', borderRadius: '6px', cursor: 'pointer', padding: '4px 12px' }}>
+                  ⬇ Stáhnout
+                </button>
                 <button onClick={() => handleDelete(doc)}
                   style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>
                   Smazat
