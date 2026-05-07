@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import Image from 'next/image'
 import { signIn } from './actions'
 
 export default function LoginPage() {
@@ -47,8 +46,8 @@ export default function LoginPage() {
       }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <Image src="/logo.png" alt="Třebass" width={140} height={52}
-            style={{ objectFit: 'contain', height: '42px', width: 'auto' }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Třebass" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
           <div style={{ marginTop: '8px', fontSize: '11px', color: '#4b5563', fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.14em' }}>
             Finance System
           </div>
