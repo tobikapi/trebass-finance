@@ -66,8 +66,8 @@ export default function VydajePage({ params }: Props) {
 
   const totalPrice = expenses.reduce((s, e) => s + e.price, 0)
   const totalDeposit = expenses.reduce((s, e) => s + e.deposit, 0)
-  const totalBalance = totalPrice - totalDeposit
   const totalUnpaid = expenses.filter((e) => !e.paid).reduce((s, e) => s + (e.price - e.deposit), 0)
+  const totalBalance = totalUnpaid
 
   const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
   const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block', marginBottom: '4px' }
@@ -178,7 +178,7 @@ export default function VydajePage({ params }: Props) {
                         </td>
                         <td className="px-4 py-2.5 font-medium" style={{ color: '#f1f5f9' }}>{exp.price.toLocaleString('cs-CZ')}</td>
                         <td className="px-4 py-2.5" style={{ color: '#60a5fa' }}>{exp.deposit > 0 ? exp.deposit.toLocaleString('cs-CZ') : '—'}</td>
-                        <td className="px-4 py-2.5 font-medium" style={{ color: exp.price - exp.deposit > 0 ? '#f87171' : '#34d399' }}>{(exp.price - exp.deposit).toLocaleString('cs-CZ')}</td>
+                        <td className="px-4 py-2.5 font-medium" style={{ color: exp.paid || exp.price - exp.deposit <= 0 ? '#34d399' : '#f87171' }}>{exp.paid ? '0' : (exp.price - exp.deposit).toLocaleString('cs-CZ')}</td>
                         <td className="px-4 py-2.5">
                           <button onClick={() => handleTogglePaid(exp)} className="px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: exp.paid ? '#14532d' : '#1e1e2e', color: exp.paid ? '#34d399' : '#f87171' }}>
                             {exp.paid ? 'ANO' : 'NE'}
