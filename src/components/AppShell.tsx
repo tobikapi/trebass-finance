@@ -19,7 +19,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           backgroundSize: 'cover',
           backgroundPosition: 'center 40%',
         }} />
-        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(12,12,12,0.91)' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(12,12,12,0.82)' }} />
       </div>
 
       {/* Content */}
