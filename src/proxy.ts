@@ -21,21 +21,21 @@ export async function proxy(req: NextRequest) {
     }
   )
 
-  // AUTH VYPNUTO — zapni až budete připravení (odkomentuj níže)
-  return supabaseResponse
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // const { data: { user } } = await supabase.auth.getUser()
-  // if (!user && !req.nextUrl.pathname.startsWith('/login')) {
-  //   const url = req.nextUrl.clone()
-  //   url.pathname = '/login'
-  //   return NextResponse.redirect(url)
-  // }
-  // if (user && req.nextUrl.pathname === '/login') {
-  //   const url = req.nextUrl.clone()
-  //   url.pathname = '/'
-  //   return NextResponse.redirect(url)
-  // }
-  // return supabaseResponse
+  if (!user && !req.nextUrl.pathname.startsWith('/login')) {
+    const url = req.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  if (user && req.nextUrl.pathname === '/login') {
+    const url = req.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
+  }
+
+  return supabaseResponse
 }
 
 export const config = {

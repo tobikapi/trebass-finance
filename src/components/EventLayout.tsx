@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { Event, STATUS_LABELS, STATUS_COLORS, formatDateRange } from '@/lib/types'
+import { useUser } from '@/lib/user-context'
 
 interface Props {
   eventId: string
@@ -16,19 +17,22 @@ export default function EventLayout({ eventId, children }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [event, setEvent] = useState<Event | null>(null)
+  const { can } = useUser()
 
   useEffect(() => {
     supabase.from('events').select('*').eq('id', eventId).single().then(({ data }) => setEvent(data))
   }, [eventId])
 
-  const tabs = [
-    { href: `/akce/${eventId}/vydaje`, label: '💸 Výdaje' },
-    { href: `/akce/${eventId}/prijmy`, label: '💰 Příjmy' },
-    { href: `/akce/${eventId}/lineup`, label: '🎧 Lineup' },
-    { href: `/akce/${eventId}/tym`, label: '👥 Tým' },
-    { href: `/akce/${eventId}/poznamky`, label: '📝 Poznámky' },
-    { href: `/akce/${eventId}/soubory`, label: '📎 Soubory' },
+  const allTabs = [
+    { href: `/akce/${eventId}/vydaje`, label: '💸 Výdaje', permission: 'viewVydaje' as const },
+    { href: `/akce/${eventId}/prijmy`, label: '💰 Příjmy', permission: 'viewPrijmy' as const },
+    { href: `/akce/${eventId}/lineup`, label: '🎧 Lineup', permission: 'viewLineup' as const },
+    { href: `/akce/${eventId}/tym`, label: '👥 Tým', permission: 'viewTym' as const },
+    { href: `/akce/${eventId}/poznamky`, label: '📝 Poznámky', permission: 'viewPoznamky' as const },
+    { href: `/akce/${eventId}/soubory`, label: '📎 Soubory', permission: 'viewSoubory' as const },
   ]
+
+  const tabs = allTabs.filter(tab => can(tab.permission))
 
   return (
     <div>

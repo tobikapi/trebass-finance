@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useUser } from '@/lib/user-context'
 import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus, formatDateRange } from '@/lib/types'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
@@ -61,10 +63,16 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
 }
 
 export default function Dashboard() {
+  const { can, loading: authLoading } = useUser()
+  const router = useRouter()
   const [allEvents,   setAllEvents]   = useState<Event[]>([])
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!authLoading && !can('viewDashboard')) router.replace('/akce')
+  }, [authLoading, can, router])
 
   const [yearFilter,   setYearFilter]   = useState<string>('vse')
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'vse'>('vse')

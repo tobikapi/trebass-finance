@@ -3,17 +3,18 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState, useTransition } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useState, useTransition } from 'react'
 import { signOut } from '@/app/login/actions'
+import { useUser } from '@/lib/user-context'
+import { ROLE_LABELS, ROLE_COLORS } from '@/lib/permissions'
 
-const navItems = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/akce', label: 'Akce' },
-  { href: '/kalendar', label: 'Kalendář' },
-  { href: '/ukoly', label: 'Úkoly' },
-  { href: '/kontakty', label: 'Kontakty' },
-  { href: '/archiv', label: 'Archiv' },
+const ALL_NAV_ITEMS = [
+  { href: '/', label: 'Dashboard', permission: 'viewDashboard' as const },
+  { href: '/akce', label: 'Akce', permission: 'viewAkce' as const },
+  { href: '/kalendar', label: 'Kalendář', permission: 'viewUkoly' as const },
+  { href: '/ukoly', label: 'Úkoly', permission: 'viewUkoly' as const },
+  { href: '/kontakty', label: 'Kontakty', permission: 'viewKontakty' as const },
+  { href: '/archiv', label: 'Archiv', permission: 'viewArchiv' as const },
 ]
 
 const MEMBER_COLORS: Record<string, string> = {
@@ -22,23 +23,15 @@ const MEMBER_COLORS: Record<string, string> = {
 
 export default function Navigation() {
   const pathname = usePathname()
-  const [userName, setUserName] = useState<string>('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const { profile, role, can } = useUser()
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        const name = user.user_metadata?.name || user.email?.split('@')[0] || ''
-        setUserName(name)
-      }
-    })
-  }, [])
-
-  useEffect(() => { setMenuOpen(false) }, [pathname])
-
+  const userName = profile?.name || ''
   const avatarColor = MEMBER_COLORS[userName] || '#e05555'
   const initials = userName.slice(0, 2).toUpperCase()
+
+  const visibleItems = ALL_NAV_ITEMS.filter(item => can(item.permission))
 
   return (
     <header style={{ backgroundColor: '#111111', borderBottom: '1px solid #2d1515', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -53,7 +46,7 @@ export default function Navigation() {
 
         {/* Desktop nav */}
         <nav className="nav-desktop">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link key={item.href} href={item.href} style={{
@@ -68,6 +61,18 @@ export default function Navigation() {
               </Link>
             )
           })}
+          {can('canManageUsers') && (
+            <Link href="/admin" style={{
+              padding: '6px 16px', borderRadius: '6px', fontSize: '15px',
+              fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.08em',
+              color: pathname === '/admin' ? '#f4978e' : '#9ca3af',
+              backgroundColor: pathname === '/admin' ? '#2d1515' : 'transparent',
+              textDecoration: 'none', transition: 'all 0.15s',
+              borderBottom: pathname === '/admin' ? '2px solid #e05555' : '2px solid transparent',
+            }}>
+              Admin
+            </Link>
+          )}
         </nav>
 
         <div style={{ flex: 1 }} />
@@ -82,9 +87,20 @@ export default function Navigation() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '11px', fontWeight: '700',
               }}>{initials}</div>
-              <span style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.08em' }}>
-                {userName}
-              </span>
+              <div>
+                <span style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.08em', display: 'block' }}>
+                  {userName}
+                </span>
+                {role && (
+                  <span style={{
+                    fontSize: '10px', fontWeight: '600',
+                    color: ROLE_COLORS[role],
+                    letterSpacing: '0.05em',
+                  }}>
+                    {ROLE_LABELS[role]}
+                  </span>
+                )}
+              </div>
             </div>
             <button disabled={isPending} onClick={() => startTransition(() => signOut())}
               style={{ fontSize: '12px', color: '#4b5563', background: 'none', border: '1px solid #2d2d2d', borderRadius: '6px', cursor: 'pointer', padding: '4px 12px' }}>
@@ -101,8 +117,8 @@ export default function Navigation() {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="nav-mobile-dropdown">
-          {navItems.map((item) => {
+        <div className="nav-mobile-dropdown" onClick={() => setMenuOpen(false)}>
+          {visibleItems.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link key={item.href} href={item.href}
@@ -111,6 +127,11 @@ export default function Navigation() {
               </Link>
             )
           })}
+          {can('canManageUsers') && (
+            <Link href="/admin" className={`nav-mobile-link${pathname === '/admin' ? ' active' : ''}`}>
+              Admin
+            </Link>
+          )}
 
           {userName && (
             <>
@@ -123,7 +144,10 @@ export default function Navigation() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '10px', fontWeight: '700',
                   }}>{initials}</div>
-                  <span style={{ fontSize: '14px', color: '#9ca3af' }}>{userName}</span>
+                  <div>
+                    <span style={{ fontSize: '14px', color: '#9ca3af', display: 'block' }}>{userName}</span>
+                    {role && <span style={{ fontSize: '11px', color: ROLE_COLORS[role], fontWeight: '600' }}>{ROLE_LABELS[role]}</span>}
+                  </div>
                 </div>
                 <button disabled={isPending} onClick={() => startTransition(() => signOut())}
                   style={{ fontSize: '13px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
