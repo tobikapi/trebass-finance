@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { Event, STATUS_LABELS, STATUS_COLORS, formatDateRange, CATEGORIES } from '@/lib/types'
 import {
@@ -203,6 +204,26 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Foto strip — vzpomínky */}
+      <div style={{ marginTop: '32px' }}>
+        <div style={{ fontSize: '12px', color: '#374151', marginBottom: '12px', letterSpacing: '0.1em', fontFamily: 'Awakenning, sans-serif' }}>
+          TŘEBASS 2025
+        </div>
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+          {[1,2,3,4,5,6,7].map((n) => (
+            <div key={n} style={{ position: 'relative', flexShrink: 0, width: '200px', height: '130px', borderRadius: '10px', overflow: 'hidden' }}>
+              <Image
+                src={`/photos/photo-${n}.jpg`}
+                alt=""
+                fill
+                style={{ objectFit: 'cover', filter: 'brightness(0.75) saturate(0.9)' }}
+              />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,12,12,0.4) 0%, transparent 60%)' }} />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
