@@ -10,6 +10,10 @@ interface Note { id: string; author: string; content: string; created_at: string
 
 const MEMBERS = ['Tobiáš', 'Jakub', 'Metoděj', 'Artur']
 
+const MEMBER_COLORS: Record<string, string> = {
+  'Tobiáš': '#f4978e', 'Jakub': '#60a5fa', 'Metoděj': '#34d399', 'Artur': '#fbbf24',
+}
+
 export default function PoznamkyPage({ params }: Props) {
   const { id } = use(params)
   const [notes, setNotes] = useState<Note[]>([])
@@ -18,17 +22,23 @@ export default function PoznamkyPage({ params }: Props) {
   const [content, setContent] = useState('')
   const [saving, setSaving] = useState(false)
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const name = user.user_metadata?.name
+        if (name && MEMBERS.includes(name)) setAuthor(name)
+      }
+    })
+    load()
+  }, [id])
+
   async function load() {
     const { data } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('event_id', id)
+      .from('notes').select('*').eq('event_id', id)
       .order('created_at', { ascending: false })
     setNotes(data || [])
     setLoading(false)
   }
-
-  useEffect(() => { load() }, [id])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -52,47 +62,36 @@ export default function PoznamkyPage({ params }: Props) {
     return d.toLocaleDateString('cs-CZ') + ' ' + d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const MEMBER_COLORS: Record<string, string> = {
-    'Tobiáš': '#f4978e', 'Jakub': '#60a5fa', 'Metoděj': '#34d399', 'Artur': '#fbbf24',
-  }
-
   return (
     <EventLayout eventId={id}>
-      {/* Input */}
       <form onSubmit={handleSubmit} style={{ marginBottom: '24px', backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
           <span style={{ fontSize: '13px', color: '#9ca3af', flexShrink: 0 }}>Píše:</span>
           <div style={{ display: 'flex', gap: '6px' }}>
             {MEMBERS.map(m => (
-              <button
-                key={m} type="button"
-                onClick={() => setAuthor(m)}
-                style={{
-                  padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
-                  border: 'none', cursor: 'pointer',
-                  backgroundColor: author === m ? (MEMBER_COLORS[m] || '#e05555') : '#1e1e1e',
-                  color: author === m ? '#0c0c0c' : '#9ca3af',
-                }}
-              >{m}</button>
+              <button key={m} type="button" onClick={() => setAuthor(m)} style={{
+                padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
+                border: 'none', cursor: 'pointer',
+                backgroundColor: author === m ? (MEMBER_COLORS[m] || '#e05555') : '#1e1e1e',
+                color: author === m ? '#0c0c0c' : '#9ca3af',
+              }}>{m}</button>
             ))}
           </div>
         </div>
         <textarea
-          value={content}
-          onChange={e => setContent(e.target.value)}
-          placeholder="Napiš poznámku pro tým..."
-          rows={3}
+          value={content} onChange={e => setContent(e.target.value)}
+          placeholder="Napiš poznámku pro tým..." rows={3}
           style={{ backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px', resize: 'vertical', marginBottom: '12px' }}
         />
-        <button
-          type="submit" disabled={saving || !content.trim()}
-          style={{ padding: '8px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer', opacity: saving || !content.trim() ? 0.5 : 1 }}
-        >
+        <button type="submit" disabled={saving || !content.trim()} style={{
+          padding: '8px 20px', backgroundColor: '#e05555', color: '#fff',
+          borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+          border: 'none', cursor: 'pointer', opacity: saving || !content.trim() ? 0.5 : 1,
+        }}>
           {saving ? 'Odesílám...' : '+ Přidat poznámku'}
         </button>
       </form>
 
-      {/* Notes list */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>Načítám...</div>
       ) : notes.length === 0 ? (

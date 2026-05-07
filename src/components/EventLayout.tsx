@@ -34,16 +34,16 @@ export default function EventLayout({ eventId, children }: Props) {
     <div>
       <div style={{ marginBottom: '24px' }}>
         <Link href="/akce" style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'none' }}>← Zpět na akce</Link>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
+        <div className="event-header-row" style={{ marginTop: '8px' }}>
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#f1f5f9', margin: 0 }}>{event?.name || '...'}</h1>
-            <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '13px', color: '#6b7280' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '4px', fontSize: '13px', color: '#6b7280' }}>
               {event?.date && <span>📅 {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}</span>}
               {event?.location && <span>📍 {event.location}</span>}
             </div>
           </div>
           {event && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="event-header-actions">
               <button
                 onClick={() => router.push(`/akce/${eventId}/tisk`)}
                 style={{ padding: '6px 14px', backgroundColor: '#1e1e1e', color: '#9ca3af', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
@@ -58,28 +58,31 @@ export default function EventLayout({ eventId, children }: Props) {
         </div>
       </div>
 
-      <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '10px', marginBottom: '24px' }}>
-        {tabs.map((tab) => {
-          const isActive = pathname === tab.href
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              style={{
-                padding: '8px 18px',
-                borderRadius: '7px',
-                fontSize: '13px',
-                fontWeight: isActive ? '600' : '400',
-                backgroundColor: isActive ? '#e05555' : 'transparent',
-                color: isActive ? '#fff' : '#9ca3af',
-                textDecoration: 'none',
-                transition: 'all 0.15s',
-              }}
-            >
-              {tab.label}
-            </Link>
-          )
-        })}
+      {/* Tabs — horizontally scrollable on mobile */}
+      <div className="event-tabs-wrap">
+        <div className="event-tabs-inner">
+          {tabs.map((tab) => {
+            const isActive = pathname === tab.href
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '7px',
+                  fontSize: '13px',
+                  fontWeight: isActive ? '600' : '400',
+                  backgroundColor: isActive ? '#e05555' : 'transparent',
+                  color: isActive ? '#fff' : '#9ca3af',
+                  textDecoration: 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {tab.label}
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
       {children}

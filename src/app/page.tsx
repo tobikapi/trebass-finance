@@ -106,7 +106,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+      <div className="stat-grid">
         {statCards.map((card) => (
           <div key={card.label} style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
             <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '6px' }}>{card.label}</div>
@@ -127,7 +127,7 @@ export default function Dashboard() {
 
       {/* Charts */}
       {!loading && eventFinances.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div className="chart-grid">
 
           {/* Bar chart */}
           <div style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>

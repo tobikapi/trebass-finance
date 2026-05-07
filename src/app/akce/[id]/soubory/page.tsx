@@ -40,34 +40,34 @@ export default function SouboryPage({ params }: Props) {
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const name = user.user_metadata?.name
+        if (name && MEMBERS.includes(name)) setUploader(name)
+      }
+    })
+    load()
+  }, [id])
+
   async function load() {
     const { data } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('event_id', id)
+      .from('documents').select('*').eq('event_id', id)
       .order('created_at', { ascending: false })
     setDocuments(data || [])
     setLoading(false)
   }
-
-  useEffect(() => { load() }, [id])
 
   async function uploadFiles(files: FileList | null) {
     if (!files || files.length === 0) return
     setUploading(true)
     for (const file of Array.from(files)) {
       const filePath = `${id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, file)
+      const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
       if (uploadError) { alert('Chyba při nahrávání: ' + uploadError.message); continue }
       await supabase.from('documents').insert([{
-        event_id: id,
-        name: file.name,
-        file_path: filePath,
-        file_size: file.size,
-        file_type: file.type,
-        uploaded_by: uploader,
+        event_id: id, name: file.name, file_path: filePath,
+        file_size: file.size, file_type: file.type, uploaded_by: uploader,
       }])
     }
     await load()
@@ -91,9 +91,7 @@ export default function SouboryPage({ params }: Props) {
     if (error || !data) { alert('Chyba při stahování'); return }
     const url = URL.createObjectURL(data)
     const a = document.createElement('a')
-    a.href = url
-    a.download = doc.name
-    a.click()
+    a.href = url; a.download = doc.name; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -104,20 +102,18 @@ export default function SouboryPage({ params }: Props) {
 
   return (
     <EventLayout eventId={id}>
-      {/* Uploader selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
         <span style={{ fontSize: '13px', color: '#9ca3af' }}>Nahrává:</span>
         {MEMBERS.map(m => (
-          <button key={m} onClick={() => setUploader(m)}
-            style={{ padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', border: 'none', cursor: 'pointer',
-              backgroundColor: uploader === m ? '#e05555' : '#1e1e1e',
-              color: uploader === m ? '#fff' : '#9ca3af' }}>
-            {m}
-          </button>
+          <button key={m} onClick={() => setUploader(m)} style={{
+            padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
+            border: 'none', cursor: 'pointer',
+            backgroundColor: uploader === m ? '#e05555' : '#1e1e1e',
+            color: uploader === m ? '#fff' : '#9ca3af',
+          }}>{m}</button>
         ))}
       </div>
 
-      {/* Drop zone */}
       <div
         onDragOver={e => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
@@ -127,8 +123,7 @@ export default function SouboryPage({ params }: Props) {
           border: `2px dashed ${dragOver ? '#e05555' : '#2d1515'}`,
           borderRadius: '12px', padding: '40px', textAlign: 'center',
           backgroundColor: dragOver ? '#1a0a0a' : '#161616',
-          cursor: 'pointer', marginBottom: '24px',
-          transition: 'all 0.15s',
+          cursor: 'pointer', marginBottom: '24px', transition: 'all 0.15s',
         }}
       >
         <div style={{ fontSize: '32px', marginBottom: '8px' }}>📁</div>
@@ -140,7 +135,6 @@ export default function SouboryPage({ params }: Props) {
           onChange={e => uploadFiles(e.target.files)} />
       </div>
 
-      {/* Files list */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>Načítám...</div>
       ) : documents.length === 0 ? (
@@ -163,12 +157,8 @@ export default function SouboryPage({ params }: Props) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginLeft: '16px' }}>
-                <a
-                  href={getPublicUrl(doc.file_path)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: '12px', color: '#f4978e', textDecoration: 'none', padding: '4px 12px', border: '1px solid #2d1515', borderRadius: '6px' }}
-                >
+                <a href={getPublicUrl(doc.file_path)} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: '12px', color: '#f4978e', textDecoration: 'none', padding: '4px 12px', border: '1px solid #2d1515', borderRadius: '6px' }}>
                   Otevřít
                 </a>
                 <button onClick={() => handleDownload(doc)}
