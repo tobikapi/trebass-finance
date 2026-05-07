@@ -12,7 +12,7 @@ const emptyForm = { source: INCOME_SOURCES[0], amount: '', note: '' }
 export default function PrijmyPage({ params }: Props) {
   const { id } = use(params)
   const [income, setIncome] = useState<Income[]>([])
-  const [expenses, setExpenses] = useState<{ price: number }[]>([])
+  const [expenses, setExpenses] = useState<{ price: number; deposit: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -22,7 +22,7 @@ export default function PrijmyPage({ params }: Props) {
   async function load() {
     const [{ data: inc }, { data: exp }] = await Promise.all([
       supabase.from('income').select('*').eq('event_id', id).order('created_at'),
-      supabase.from('expenses').select('price').eq('event_id', id),
+      supabase.from('expenses').select('price, deposit').eq('event_id', id),
     ])
     setIncome(inc || []); setExpenses(exp || []); setLoading(false)
   }
@@ -49,6 +49,8 @@ export default function PrijmyPage({ params }: Props) {
 
   const totalIncome = income.reduce((s, i) => s + i.amount, 0)
   const totalExpenses = expenses.reduce((s, e) => s + e.price, 0)
+  const totalDeposit = expenses.reduce((s, e) => s + e.deposit, 0)
+  const totalExpensesWithoutDeposit = totalExpenses - totalDeposit
   const balance = totalIncome - totalExpenses
 
   const bySource = INCOME_SOURCES.reduce((acc, src) => {
@@ -67,6 +69,7 @@ export default function PrijmyPage({ params }: Props) {
           {[
             { label: 'Celkové příjmy', value: totalIncome, color: '#34d399' },
             { label: 'Celkové výdaje', value: totalExpenses, color: '#f87171' },
+            { label: 'Výdaje bez zálohy', value: totalExpensesWithoutDeposit, color: '#fb923c' },
             { label: 'Bilance', value: balance, color: balance >= 0 ? '#34d399' : '#f87171' },
           ].map((s) => (
             <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e' }}>

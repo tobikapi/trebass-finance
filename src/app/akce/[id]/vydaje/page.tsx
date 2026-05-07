@@ -66,8 +66,8 @@ export default function VydajePage({ params }: Props) {
 
   const totalPrice = expenses.reduce((s, e) => s + e.price, 0)
   const totalDeposit = expenses.reduce((s, e) => s + e.deposit, 0)
+  const totalWithoutDeposit = totalPrice - totalDeposit
   const totalUnpaid = expenses.filter((e) => !e.paid).reduce((s, e) => s + (e.price - e.deposit), 0)
-  const totalBalance = totalUnpaid
 
   const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
   const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block', marginBottom: '4px' }
@@ -79,8 +79,8 @@ export default function VydajePage({ params }: Props) {
           {[
             { label: 'Celkem', value: totalPrice, color: '#f1f5f9' },
             { label: 'Zálohy', value: totalDeposit, color: '#60a5fa' },
-            { label: 'Zbývá zaplatit', value: totalBalance, color: '#f87171' },
-            { label: 'Nezaplaceno', value: totalUnpaid, color: '#fbbf24' },
+            { label: 'Bez zálohy', value: totalWithoutDeposit, color: '#f87171' },
+            { label: 'Zbývá zaplatit', value: totalUnpaid, color: '#fbbf24' },
           ].map((s) => (
             <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e' }}>
               <div className="text-xs" style={{ color: '#6b7280' }}>{s.label}</div>
