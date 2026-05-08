@@ -8,8 +8,15 @@ import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus, formatDateRange } fro
 export default function AkceClient({ initialEvents }: { initialEvents: Event[] }) {
   const router = useRouter()
   const [filter, setFilter] = useState<EventStatus | 'vse'>('vse')
+  const [sort, setSort] = useState<'desc' | 'asc'>('desc')
 
-  const filtered = filter === 'vse' ? initialEvents : initialEvents.filter((e) => e.status === filter)
+  const filtered = (filter === 'vse' ? initialEvents : initialEvents.filter((e) => e.status === filter))
+    .slice()
+    .sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0
+      const db = b.date ? new Date(b.date).getTime() : 0
+      return sort === 'desc' ? db - da : da - db
+    })
   const filters: { value: EventStatus | 'vse'; label: string }[] = [
     { value: 'vse', label: 'Vše' },
     { value: 'pripravuje_se', label: 'Připravuje se' },
@@ -30,17 +37,31 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
         </Link>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-        {filters.map((f) => (
-          <button key={f.value} onClick={() => setFilter(f.value)} style={{
-            padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '500',
-            border: 'none', cursor: 'pointer',
-            backgroundColor: filter === f.value ? '#e05555' : '#1e1e1e',
-            color: filter === f.value ? '#fff' : '#9ca3af',
-          }}>
-            {f.label}
-          </button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {filters.map((f) => (
+            <button key={f.value} onClick={() => setFilter(f.value)} style={{
+              padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '500',
+              border: 'none', cursor: 'pointer',
+              backgroundColor: filter === f.value ? '#e05555' : '#1e1e1e',
+              color: filter === f.value ? '#fff' : '#9ca3af',
+            }}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {(['desc', 'asc'] as const).map((s) => (
+            <button key={s} onClick={() => setSort(s)} style={{
+              padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
+              border: 'none', cursor: 'pointer',
+              backgroundColor: sort === s ? '#1e1e2e' : 'transparent',
+              color: sort === s ? '#a78bfa' : '#4b5563',
+            }}>
+              {s === 'desc' ? '↓ Nejnovější' : '↑ Nejstarší'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
