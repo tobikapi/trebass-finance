@@ -21,35 +21,71 @@ export default function LoginPage() {
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
 
-      {/* Pozadí — foto */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+      {/* === Pozadí — stejný treatment jako splash screen === */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
+        {/* Foto */}
+        <Image
+          src="/photos/photo-6.jpg"
+          alt=""
+          fill
+          style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
+          priority
+        />
+        {/* Tmavý základ */}
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(8,4,4,0.58)' }} />
+        {/* Vignette */}
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 55%, transparent 20%, rgba(4,2,2,0.72) 80%)' }} />
+        {/* Top + bottom gradient */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(6,3,3,0.88) 0%, transparent 28%, transparent 62%, rgba(6,3,3,0.96) 100%)' }} />
+        {/* Červený tint */}
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(60,5,5,0.15)' }} />
+        {/* Grain textura */}
         <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: "url('/photos/photo-6.jpg')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
+          position: 'absolute', inset: 0, opacity: 0.18,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat', backgroundSize: '200px 200px',
         }} />
-        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(12,12,12,0.72)' }} />
-        {/* gradient zespoda */}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,12,12,0.8) 0%, transparent 60%)' }} />
       </div>
 
-      {/* Formulář */}
+      {/* === Formulář === */}
       <div style={{
         position: 'relative', zIndex: 1,
         width: '100%', maxWidth: '400px',
         margin: '0 24px',
-        backgroundColor: 'rgba(16,16,16,0.85)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(80,20,20,0.6)',
-        borderRadius: '16px',
-        padding: '40px 36px',
+        backgroundColor: 'rgba(12,8,8,0.78)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(100,25,25,0.5)',
+        borderRadius: '18px',
+        padding: '44px 36px',
+        animation: 'fadeUp 0.5s ease both',
+        animationDelay: '0.1s',
       }}>
+
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <Image src="/logo.png" alt="Třebass" width={140} height={53} priority unoptimized />
-          <div style={{ marginTop: '8px', fontSize: '11px', color: '#4b5563', fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.14em' }}>
-            Finance System
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          {/* Glow za logem */}
+          <div style={{
+            position: 'relative', display: 'inline-block',
+          }}>
+            <div style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '200px', height: '80px',
+              background: 'radial-gradient(ellipse, rgba(180,30,30,0.3) 0%, transparent 70%)',
+              filter: 'blur(16px)',
+              pointerEvents: 'none',
+            }} />
+            <Image
+              src="/logo.png"
+              alt="Třebass"
+              width={160}
+              height={60}
+              priority
+              style={{ objectFit: 'contain', height: '52px', width: 'auto', display: 'block', position: 'relative' }}
+            />
+          </div>
+          <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.28)', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.22em' }}>
+            FINANCE SYSTEM
           </div>
         </div>
 
@@ -96,12 +132,13 @@ export default function LoginPage() {
           <button
             type="submit" disabled={isPending}
             style={{
-              marginTop: '6px', padding: '13px',
+              marginTop: '6px', padding: '14px',
               backgroundColor: isPending ? '#7a2e2e' : '#e05555',
-              color: '#fff', border: 'none', borderRadius: '8px',
-              fontSize: '14px', fontFamily: 'Awakenning, sans-serif',
-              letterSpacing: '0.12em', cursor: isPending ? 'not-allowed' : 'pointer',
-              transition: 'background-color 0.15s',
+              color: '#fff', border: 'none', borderRadius: '10px',
+              fontSize: '14px', fontFamily: 'var(--font-awakenning), sans-serif',
+              letterSpacing: '0.14em', cursor: isPending ? 'not-allowed' : 'pointer',
+              transition: 'background-color 0.15s, transform 0.1s',
+              width: '100%',
             }}
           >
             {isPending ? 'Přihlašuji...' : 'Vstoupit'}
