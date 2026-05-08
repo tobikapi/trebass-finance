@@ -11,6 +11,9 @@ interface Contact { id: string; name: string; type: string; fee: number }
 
 const emptyForm = { artist_name: '', fee: '', deposit: '', paid: false, date: '', set_time: '', stage: '', notes: '' }
 
+const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' } as const
+const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
+
 export default function LineupPage({ params }: Props) {
   const { id } = use(params)
   const [artists, setArtists] = useState<LineupArtist[]>([])
@@ -18,7 +21,7 @@ export default function LineupPage({ params }: Props) {
   const [stages, setStages] = useState<string[]>([])
   const [newStage, setNewStage] = useState('')
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
+  const [activeStage, setActiveStage] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -60,12 +63,30 @@ export default function LineupPage({ params }: Props) {
     setForm(f => ({ ...f, artist_name: c.name, fee: c.fee > 0 ? String(c.fee) : f.fee }))
   }
 
+  function openFormForStage(stageName: string) {
+    setForm({ ...emptyForm, stage: stageName })
+    setEditId(null)
+    setActiveStage(stageName)
+  }
+
+  function startEdit(art: LineupArtist) {
+    setForm({ artist_name: art.artist_name, fee: art.fee.toString(), deposit: art.deposit.toString(), paid: art.paid, date: art.date || '', set_time: art.set_time || '', stage: art.stage || '', notes: art.notes || '' })
+    setEditId(art.id)
+    setActiveStage(art.stage || '__unassigned__')
+  }
+
+  function closeForm() {
+    setActiveStage(null)
+    setEditId(null)
+    setForm(emptyForm)
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
     const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
     const result = editId ? await updateArtist(editId, payload) : await createArtist(payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
-    await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
+    await load(); closeForm(); setSaving(false)
   }
 
   async function handleDelete(artId: string) {
@@ -77,20 +98,133 @@ export default function LineupPage({ params }: Props) {
     await toggleArtistPaid(art.id, !art.paid); await load()
   }
 
-  function startEdit(art: LineupArtist) {
-    setForm({ artist_name: art.artist_name, fee: art.fee.toString(), deposit: art.deposit.toString(), paid: art.paid, date: art.date || '', set_time: art.set_time || '', stage: art.stage || '', notes: art.notes || '' })
-    setEditId(art.id); setShowForm(true)
-  }
-
   const totalFees = artists.reduce((s, a) => s + a.fee, 0)
   const totalDeposits = artists.reduce((s, a) => s + a.deposit, 0)
   const unpaid = artists.filter((a) => !a.paid).length
+  const unstagedArtists = artists.filter(a => !a.stage || !stages.includes(a.stage))
 
-  const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
-  const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
+  function renderForm(stageName: string) {
+    return (
+      <form onSubmit={handleSave} style={{ margin: '0 0 16px 0', padding: '20px', borderRadius: '10px', backgroundColor: '#0f0f0f', border: '1px solid #e05555' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <span style={{ fontSize: '13px', fontWeight: '600', color: '#f4978e' }}>
+            {editId ? 'Upravit artista' : `+ Přidat do ${stageName}`}
+          </span>
+          <button type="button" onClick={closeForm} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
+        </div>
+
+        {!editId && contacts.length > 0 && (
+          <div style={{ marginBottom: '14px', padding: '10px 12px', backgroundColor: '#0c0c0c', borderRadius: '8px', border: '1px solid #2d1515' }}>
+            <label style={{ ...labelStyle, color: '#f4978e' }}>⚡ Vybrat z adresáře</label>
+            <select defaultValue="" onChange={e => pickContact(e.target.value)} style={{ ...inputStyle, color: '#f1f5f9' }}>
+              <option value="">— vybrat kontakt —</option>
+              {contacts.map(c => (
+                <option key={c.id} value={c.id}>{c.name} ({c.type}){c.fee > 0 ? ` — ${c.fee.toLocaleString('cs-CZ')} Kč` : ''}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div>
+            <label style={labelStyle}>Jméno / pseudonym *</label>
+            <input required value={form.artist_name} onChange={e => setForm({ ...form, artist_name: e.target.value })} placeholder="např. Ripplednb" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Datum</label>
+            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Set time</label>
+            <input value={form.set_time} onChange={e => setForm({ ...form, set_time: e.target.value })} placeholder="22:00" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Honorář (Kč)</label>
+            <input type="number" value={form.fee} onChange={e => setForm({ ...form, fee: e.target.value })} placeholder="0" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Záloha (Kč)</label>
+            <input type="number" value={form.deposit} onChange={e => setForm({ ...form, deposit: e.target.value })} placeholder="0" style={inputStyle} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#9ca3af' }}>
+              <input type="checkbox" checked={form.paid} onChange={e => setForm({ ...form, paid: e.target.checked })} />
+              Zaplaceno
+            </label>
+          </div>
+        </div>
+        <div style={{ marginBottom: '14px' }}>
+          <label style={labelStyle}>Poznámky</label>
+          <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Rider, technické požadavky, kontakt..." style={inputStyle} />
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button type="submit" disabled={saving}
+            style={{ padding: '8px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
+            {saving ? 'Ukládám...' : 'Uložit'}
+          </button>
+          <button type="button" onClick={closeForm}
+            style={{ padding: '8px 20px', backgroundColor: '#1e1e1e', color: '#9ca3af', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+            Zrušit
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  function renderTable(list: LineupArtist[]) {
+    if (list.length === 0) return (
+      <div style={{ padding: '16px 0', fontSize: '13px', color: '#374151' }}>Zatím nikdo.</div>
+    )
+    return (
+      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #1e1e1e', marginBottom: '4px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#111', borderBottom: '1px solid #1e1e1e' }}>
+              {['Artist', 'Datum', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Zaplaceno', 'Poznámky', ''].map(h => (
+                <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#4b5563' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {list.map(art => (
+              <tr key={art.id} style={{ borderBottom: '1px solid #111' }}>
+                <td style={{ padding: '11px 14px', fontWeight: '600', color: '#f1f5f9' }}>{art.artist_name}</td>
+                <td style={{ padding: '11px 14px', color: '#9ca3af', fontSize: '12px' }}>
+                  {art.date ? new Date(art.date).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' }) : '—'}
+                </td>
+                <td style={{ padding: '11px 14px', color: '#9ca3af' }}>{art.set_time || '—'}</td>
+                <td style={{ padding: '11px 14px', fontWeight: '600', color: '#f1f5f9' }}>{art.fee.toLocaleString('cs-CZ')} Kč</td>
+                <td style={{ padding: '11px 14px', color: '#60a5fa' }}>{art.deposit > 0 ? art.deposit.toLocaleString('cs-CZ') + ' Kč' : '—'}</td>
+                <td style={{ padding: '11px 14px', fontWeight: '600', color: art.fee - art.deposit > 0 ? '#f87171' : '#34d399' }}>
+                  {(art.fee - art.deposit).toLocaleString('cs-CZ')} Kč
+                </td>
+                <td style={{ padding: '11px 14px' }}>
+                  <button onClick={() => handleTogglePaid(art)}
+                    style={{ padding: '2px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', border: 'none', cursor: 'pointer',
+                      backgroundColor: art.paid ? '#052e16' : '#2d0a0a', color: art.paid ? '#34d399' : '#f87171' }}>
+                    {art.paid ? 'ANO' : 'NE'}
+                  </button>
+                </td>
+                <td style={{ padding: '11px 14px', fontSize: '12px', color: '#6b7280', maxWidth: '180px' }}>
+                  <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{art.notes || '—'}</span>
+                </td>
+                <td style={{ padding: '11px 14px' }}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button onClick={() => startEdit(art)} style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>
+                    <button onClick={() => handleDelete(art.id)} style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
 
   return (
     <EventLayout eventId={id}>
+      {/* Stats */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           {[
@@ -105,20 +239,14 @@ export default function LineupPage({ params }: Props) {
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-            style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#1e1e2e', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer' }}>
-            {refreshing ? '...' : '↻'}
-          </button>
-          <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }}
-            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', backgroundColor: '#e05555', color: '#fff', border: 'none', cursor: 'pointer' }}>
-            + Přidat artista
-          </button>
-        </div>
+        <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
+          style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#1e1e2e', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer' }}>
+          {refreshing ? '...' : '↻'}
+        </button>
       </div>
 
       {/* Správa stages */}
-      <div style={{ marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', backgroundColor: '#111118', border: '1px solid #2a2a3e', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: '28px', padding: '14px 18px', borderRadius: '10px', backgroundColor: '#111118', border: '1px solid #2a2a3e', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '12px', color: '#6b7280', flexShrink: 0 }}>Stages:</span>
         {stages.map(s => (
           <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '5px', backgroundColor: '#1a1a2e', border: '1px solid #2a2a3e', fontSize: '12px', color: '#a78bfa' }}>
@@ -140,137 +268,52 @@ export default function LineupPage({ params }: Props) {
         </div>
       </div>
 
-      {showForm && (
-        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #e05555' }}>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '600', color: '#f4978e' }}>
-            {editId ? 'Upravit artista' : 'Nový artista'}
-          </h3>
-
-          {/* Vybrat z adresáře */}
-          {!editId && contacts.length > 0 && (
-            <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#0c0c0c', borderRadius: '8px', border: '1px solid #2d1515' }}>
-              <label style={{ ...labelStyle, color: '#f4978e' }}>⚡ Vybrat z adresáře kontaktů</label>
-              <select
-                defaultValue=""
-                onChange={e => pickContact(e.target.value)}
-                style={{ ...inputStyle, color: '#f1f5f9' }}
-              >
-                <option value="">— vybrat kontakt —</option>
-                {contacts.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.type}){c.fee > 0 ? ` — ${c.fee.toLocaleString('cs-CZ')} Kč` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div>
-              <label style={labelStyle}>Jméno / pseudonym *</label>
-              <input required value={form.artist_name} onChange={e => setForm({ ...form, artist_name: e.target.value })} placeholder="např. Ripplednb" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Datum</label>
-              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Stage</label>
-              <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} style={inputStyle}>
-                <option value="">—</option>
-                {stages.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Set time</label>
-              <input value={form.set_time} onChange={e => setForm({ ...form, set_time: e.target.value })} placeholder="22:00" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Honorář (Kč)</label>
-              <input type="number" value={form.fee} onChange={e => setForm({ ...form, fee: e.target.value })} placeholder="0" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Záloha (Kč)</label>
-              <input type="number" value={form.deposit} onChange={e => setForm({ ...form, deposit: e.target.value })} placeholder="0" style={inputStyle} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#9ca3af' }}>
-                <input type="checkbox" checked={form.paid} onChange={e => setForm({ ...form, paid: e.target.checked })} />
-                Zaplaceno
-              </label>
-            </div>
-          </div>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={labelStyle}>Poznámky</label>
-            <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Rider, technické požadavky, kontakt..." style={inputStyle} />
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button type="submit" disabled={saving}
-              style={{ padding: '8px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
-              {saving ? 'Ukládám...' : 'Uložit'}
-            </button>
-            <button type="button" onClick={() => { setShowForm(false); setEditId(null) }}
-              style={{ padding: '8px 20px', backgroundColor: '#1e1e1e', color: '#9ca3af', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
-              Zrušit
-            </button>
-          </div>
-        </form>
-      )}
-
       {loading ? (
         <div style={{ textAlign: 'center', padding: '64px', color: '#6b7280' }}>Načítám...</div>
-      ) : artists.length === 0 ? (
+      ) : stages.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #2d1515', color: '#6b7280' }}>
-          Zatím žádní artisté. Klikni + Přidat artista.
+          Nejdřív přidej stages nahoře, pak sem přidávej artistry.
         </div>
       ) : (
-        <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #2d1515' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#161616', borderBottom: '1px solid #2d1515' }}>
-                {['Artist', 'Datum', 'Stage', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Zaplaceno', 'Poznámky', ''].map(h => (
-                  <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#4b5563' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {artists.map(art => (
-                <tr key={art.id} style={{ borderBottom: '1px solid #1e1e1e' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: '600', color: '#f1f5f9' }}>{art.artist_name}</td>
-                  <td style={{ padding: '12px 16px', color: '#9ca3af', fontSize: '12px' }}>
-                    {art.date ? new Date(art.date).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' }) : '—'}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {art.stage
-                      ? <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#1a1a2e', color: '#a78bfa', fontWeight: '500' }}>{art.stage}</span>
-                      : <span style={{ color: '#374151' }}>—</span>}
-                  </td>
-                  <td style={{ padding: '12px 16px', color: '#9ca3af' }}>{art.set_time || '—'}</td>
-                  <td style={{ padding: '12px 16px', fontWeight: '600', color: '#f1f5f9' }}>{art.fee.toLocaleString('cs-CZ')} Kč</td>
-                  <td style={{ padding: '12px 16px', color: '#60a5fa' }}>{art.deposit > 0 ? art.deposit.toLocaleString('cs-CZ') + ' Kč' : '—'}</td>
-                  <td style={{ padding: '12px 16px', fontWeight: '600', color: art.fee - art.deposit > 0 ? '#f87171' : '#34d399' }}>
-                    {(art.fee - art.deposit).toLocaleString('cs-CZ')} Kč
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <button onClick={() => handleTogglePaid(art)}
-                      style={{ padding: '2px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', border: 'none', cursor: 'pointer',
-                        backgroundColor: art.paid ? '#052e16' : '#2d0a0a', color: art.paid ? '#34d399' : '#f87171' }}>
-                      {art.paid ? 'ANO' : 'NE'}
-                    </button>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '12px', color: '#6b7280', maxWidth: '200px' }}>
-                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{art.notes || '—'}</span>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <button onClick={() => startEdit(art)} style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>
-                      <button onClick={() => handleDelete(art.id)} style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div>
+          {stages.map(stageName => {
+            const stageArtists = artists.filter(a => a.stage === stageName)
+            const isFormOpen = activeStage === stageName
+
+            return (
+              <div key={stageName} style={{ marginBottom: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#a78bfa' }}>{stageName}</h3>
+                    <span style={{ fontSize: '12px', color: '#374151' }}>
+                      {stageArtists.length} {stageArtists.length === 1 ? 'artist' : 'artistů'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => isFormOpen && !editId ? closeForm() : openFormForStage(stageName)}
+                    style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer',
+                      backgroundColor: isFormOpen && !editId ? '#1e1e1e' : '#e05555',
+                      color: isFormOpen && !editId ? '#6b7280' : '#fff' }}>
+                    {isFormOpen && !editId ? '× Zrušit' : '+ Přidat artista'}
+                  </button>
+                </div>
+
+                {isFormOpen && renderForm(stageName)}
+                {renderTable(stageArtists)}
+              </div>
+            )
+          })}
+
+          {unstagedArtists.length > 0 && (
+            <div style={{ marginBottom: '32px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#4b5563' }}>Bez stage</h3>
+                <span style={{ fontSize: '12px', color: '#374151' }}>{unstagedArtists.length} artistů</span>
+              </div>
+              {activeStage === '__unassigned__' && renderForm('Bez stage')}
+              {renderTable(unstagedArtists)}
+            </div>
+          )}
         </div>
       )}
     </EventLayout>
