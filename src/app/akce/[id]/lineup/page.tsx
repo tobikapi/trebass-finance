@@ -117,6 +117,7 @@ export default function LineupPage({ params }: Props) {
     e.preventDefault(); setSaving(true)
     const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
     const result = editId ? await updateArtist(editId, payload) : await createArtist(payload)
+
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load(); closeForm(); setSaving(false)
   }

@@ -128,21 +128,48 @@ export async function createArtist(payload: {
   const supabase = getSupabase()
   const { data, error } = await supabase.from('lineup').insert([payload]).select().single()
   if (error) return { error: error.message }
+
+  // Sync to expenses — LINEUP category, linked via lineup_artist_id
+  const noteParts = [payload.stage, payload.set_time].filter(Boolean)
+  await supabase.from('expenses').insert([{
+    event_id: payload.event_id,
+    category: 'LINEUP',
+    item: payload.artist_name,
+    note: noteParts.length ? noteParts.join(' · ') : null,
+    payment_timing: null,
+    price: payload.fee,
+    deposit: payload.deposit,
+    paid: payload.paid,
+    lineup_artist_id: data.id,
+  }])
+
   return { data }
 }
 
 export async function updateArtist(id: string, payload: {
-  artist_name: string; fee: number; deposit: number;
+  event_id: string; artist_name: string; fee: number; deposit: number;
   paid: boolean; date: string | null; set_time: string | null; stage: string | null; notes: string | null
 }) {
   const supabase = getSupabase()
   const { error } = await supabase.from('lineup').update(payload).eq('id', id)
   if (error) return { error: error.message }
+
+  // Sync linked expense
+  const noteParts = [payload.stage, payload.set_time].filter(Boolean)
+  await supabase.from('expenses').update({
+    item: payload.artist_name,
+    note: noteParts.length ? noteParts.join(' · ') : null,
+    price: payload.fee,
+    deposit: payload.deposit,
+    paid: payload.paid,
+  }).eq('lineup_artist_id', id)
+
   return { data: true }
 }
 
 export async function deleteArtist(id: string) {
   const supabase = getSupabase()
+  // Expense is deleted automatically via ON DELETE CASCADE
   const { error } = await supabase.from('lineup').delete().eq('id', id)
   if (error) return { error: error.message }
   return { data: true }
@@ -152,6 +179,10 @@ export async function toggleArtistPaid(id: string, paid: boolean) {
   const supabase = getSupabase()
   const { error } = await supabase.from('lineup').update({ paid }).eq('id', id)
   if (error) return { error: error.message }
+
+  // Sync paid status to linked expense
+  await supabase.from('expenses').update({ paid }).eq('lineup_artist_id', id)
+
   return { data: true }
 }
 
