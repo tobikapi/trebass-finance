@@ -216,46 +216,43 @@ export default function LineupPage({ params }: Props) {
     const sorted = [...list].sort((a, b) =>
       partyMinutes(a.set_time) - partyMinutes(b.set_time) || a.artist_name.localeCompare(b.artist_name, 'cs')
     )
+    const cols = '1fr 80px 100px 90px 90px 56px minmax(80px,1fr) 70px'
     return (
       <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #1e1e1e', marginBottom: '4px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#111', borderBottom: '1px solid #1e1e1e' }}>
-              {['Artist', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Zaplaceno', 'Poznámky', ''].map(h => (
-                <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#4b5563' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map(art => (
-              <tr key={art.id} style={{ borderBottom: '1px solid #111' }}>
-                <td style={{ padding: '11px 14px', fontWeight: '600', color: '#f1f5f9' }}>{art.artist_name}</td>
-                <td style={{ padding: '11px 14px', color: '#9ca3af' }}>{art.set_time || '—'}</td>
-                <td style={{ padding: '11px 14px', fontWeight: '600', color: '#f1f5f9' }}>{art.fee.toLocaleString('cs-CZ')} Kč</td>
-                <td style={{ padding: '11px 14px', color: '#60a5fa' }}>{art.deposit > 0 ? art.deposit.toLocaleString('cs-CZ') + ' Kč' : '—'}</td>
-                <td style={{ padding: '11px 14px', fontWeight: '600', color: art.fee - art.deposit > 0 ? '#f87171' : '#34d399' }}>
-                  {(art.fee - art.deposit).toLocaleString('cs-CZ')} Kč
-                </td>
-                <td style={{ padding: '11px 14px' }}>
-                  <button onClick={() => handleTogglePaid(art)}
-                    style={{ padding: '2px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', border: 'none', cursor: 'pointer',
-                      backgroundColor: art.paid ? '#052e16' : '#2d0a0a', color: art.paid ? '#34d399' : '#f87171' }}>
-                    {art.paid ? 'ANO' : 'NE'}
-                  </button>
-                </td>
-                <td style={{ padding: '11px 14px', fontSize: '12px', color: '#6b7280', maxWidth: '180px' }}>
-                  <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{art.notes || '—'}</span>
-                </td>
-                <td style={{ padding: '11px 14px' }}>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button onClick={() => startEdit(art)} style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>
-                    <button onClick={() => handleDelete(art.id)} style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ display: 'grid', gridTemplateColumns: cols, padding: '7px 14px', borderBottom: '1px solid #1a1a1a', backgroundColor: '#111' }}>
+          {(['Artist', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Paid', 'Poznámky', ''] as const).map((h, i) => (
+            <div key={h + i} style={{ fontSize: '11px', fontWeight: '600', color: '#4b5563', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
+          ))}
+        </div>
+        {sorted.map(art => (
+          <div key={art.id} style={{ display: 'grid', gridTemplateColumns: cols, padding: '10px 14px', borderBottom: '1px solid #111118', alignItems: 'center' }}>
+            <div style={{ fontWeight: '600', color: '#f1f5f9', fontSize: '13px' }}>{art.artist_name}</div>
+            <div style={{ color: '#9ca3af', fontSize: '13px' }}>{art.set_time || '—'}</div>
+            <div style={{ textAlign: 'right', color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>{art.fee.toLocaleString('cs-CZ')} Kč</div>
+            <div style={{ textAlign: 'right', color: art.deposit > 0 ? '#60a5fa' : '#374151', fontSize: '13px' }}>
+              {art.deposit > 0 ? `${art.deposit.toLocaleString('cs-CZ')} Kč` : '—'}
+            </div>
+            <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: art.paid || art.fee - art.deposit <= 0 ? '#34d399' : '#f87171' }}>
+              {art.paid ? '0 Kč' : `${(art.fee - art.deposit).toLocaleString('cs-CZ')} Kč`}
+            </div>
+            <div>
+              <button onClick={() => handleTogglePaid(art)} style={{
+                backgroundColor: art.paid ? '#052e16' : '#1e1e2e',
+                color: art.paid ? '#34d399' : '#f87171',
+                fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer',
+              }}>
+                {art.paid ? 'ANO' : 'NE'}
+              </button>
+            </div>
+            <div style={{ fontSize: '12px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {art.notes || '—'}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => startEdit(art)} style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>
+              <button onClick={() => handleDelete(art.id)} style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>
+            </div>
+          </div>
+        ))}
       </div>
     )
   }
@@ -263,6 +260,8 @@ export default function LineupPage({ params }: Props) {
   function renderDaySection(stageName: string, dayStr: string) {
     const dayArtists = artists.filter(a => a.stage === stageName && a.date === dayStr)
     const isDayFormOpen = activeStage === stageName && activeDate === dayStr
+    const dayTotal = dayArtists.reduce((s, a) => s + a.fee, 0)
+    const dayUnpaid = dayArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee - a.deposit), 0)
 
     return (
       <div key={dayStr} style={{ marginBottom: '20px' }}>
@@ -282,6 +281,12 @@ export default function LineupPage({ params }: Props) {
         </div>
         {isDayFormOpen && renderForm(stageName)}
         {renderTable(dayArtists)}
+        {dayArtists.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '20px', padding: '5px 14px', fontSize: '12px' }}>
+            <span style={{ color: '#4b5563' }}>Celkem den: <strong style={{ color: '#f1f5f9' }}>{dayTotal.toLocaleString('cs-CZ')} Kč</strong></span>
+            {dayUnpaid > 0 && <span style={{ color: '#4b5563' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{dayUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
+          </div>
+        )}
       </div>
     )
   }
@@ -343,6 +348,8 @@ export default function LineupPage({ params }: Props) {
           {stages.map(stageName => {
             const stageArtists = artists.filter(a => a.stage === stageName)
             const isStageFormOpen = !multiDay && activeStage === stageName
+            const stageTotal = stageArtists.reduce((s, a) => s + a.fee, 0)
+            const stageUnpaid = stageArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee - a.deposit), 0)
 
             return (
               <div key={stageName} style={{ marginBottom: '36px' }}>
@@ -391,6 +398,14 @@ export default function LineupPage({ params }: Props) {
                         </div>
                       )
                     })()}
+                  </div>
+                )}
+
+                {/* Stage total */}
+                {stageArtists.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '24px', padding: '8px 14px', borderRadius: '8px', backgroundColor: '#111118', border: '1px solid #1e1e2e', marginTop: '6px' }}>
+                    <span style={{ fontSize: '12px', color: '#6b7280' }}>Celkem stage: <strong style={{ color: '#a78bfa' }}>{stageTotal.toLocaleString('cs-CZ')} Kč</strong></span>
+                    {stageUnpaid > 0 && <span style={{ fontSize: '12px', color: '#6b7280' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{stageUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
                   </div>
                 )}
               </div>
