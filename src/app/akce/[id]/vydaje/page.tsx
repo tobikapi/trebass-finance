@@ -70,6 +70,9 @@ export default function VydajePage({ params }: Props) {
   const totalWithoutDeposit = totalPrice - totalDeposit
   const totalUnpaid = expenses.filter((e) => !e.paid).reduce((s, e) => s + (e.price - e.deposit), 0)
 
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  function toggleCat(cat: string) { setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] })) }
+
   const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
   const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block', marginBottom: '4px' }
 
@@ -161,69 +164,75 @@ export default function VydajePage({ params }: Props) {
         <div className="space-y-4">
           {Object.entries(grouped).map(([category, items]) => {
             const catTotal = items.reduce((s, e) => s + e.price, 0)
+            const isCollapsed = !!collapsed[category]
             return (
               <div key={category} className="rounded-xl overflow-hidden" style={{ border: '1px solid #2a2a3e' }}>
-                {/* Hlavička kategorie */}
-                <div className="px-5 py-2.5 flex items-center justify-between" style={{ backgroundColor: '#1a1a2e' }}>
-                  <span className="text-xs font-semibold tracking-wider" style={{ color: '#a78bfa' }}>{category}</span>
-                  <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
-                </div>
-                {/* Záhlaví sloupců */}
-                <div className="grid px-5 py-1.5" style={{
-                  gridTemplateColumns: '1fr 100px 90px 90px 90px 60px 70px',
-                  borderBottom: '1px solid #1e1e2e',
-                }}>
-                  {['Položka / Poznámka', 'Platba', 'Cena', 'Záloha', 'Zbývá', 'Paid', ''].map((h, i) => (
-                    <div key={h + i} className="text-xs font-medium" style={{ color: '#4b5563', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
-                  ))}
-                </div>
-                {/* Řádky */}
-                {items.map((exp) => (
-                  <div key={exp.id} className="grid px-5 py-3 items-center" style={{
-                    gridTemplateColumns: '1fr 100px 90px 90px 90px 60px 70px',
-                    borderBottom: '1px solid #111118',
-                  }}>
-                    {/* Název + poznámka */}
-                    <div>
-                      <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>
-                      {exp.note && <div style={{ color: '#6b7280', fontSize: '11px', marginTop: '2px' }}>{exp.note}</div>}
-                    </div>
-                    {/* Platba */}
-                    <div>
-                      {exp.payment_timing
-                        ? <span style={{ backgroundColor: '#1e1e2e', color: '#9ca3af', fontSize: '11px', padding: '2px 7px', borderRadius: '4px', whiteSpace: 'nowrap' }}>{exp.payment_timing}</span>
-                        : <span style={{ color: '#374151', fontSize: '12px' }}>—</span>}
-                    </div>
-                    {/* Cena */}
-                    <div style={{ textAlign: 'right', color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>
-                      {exp.price.toLocaleString('cs-CZ')} Kč
-                    </div>
-                    {/* Záloha */}
-                    <div style={{ textAlign: 'right', color: exp.deposit > 0 ? '#60a5fa' : '#374151', fontSize: '13px' }}>
-                      {exp.deposit > 0 ? `${exp.deposit.toLocaleString('cs-CZ')} Kč` : '—'}
-                    </div>
-                    {/* Zbývá */}
-                    <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: exp.paid || exp.price - exp.deposit <= 0 ? '#34d399' : '#f87171' }}>
-                      {exp.paid ? '0 Kč' : `${(exp.price - exp.deposit).toLocaleString('cs-CZ')} Kč`}
-                    </div>
-                    {/* Paid toggle */}
-                    <div>
-                      <button onClick={() => handleTogglePaid(exp)} style={{
-                        backgroundColor: exp.paid ? '#14532d' : '#1e1e2e',
-                        color: exp.paid ? '#34d399' : '#f87171',
-                        fontSize: '11px', fontWeight: '600',
-                        padding: '2px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer',
-                      }}>
-                        {exp.paid ? 'ANO' : 'NE'}
-                      </button>
-                    </div>
-                    {/* Akce */}
-                    <div className="flex gap-3 justify-end">
-                      <button onClick={() => startEdit(exp)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                      <button onClick={() => handleDelete(exp.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
-                    </div>
+                {/* Hlavička kategorie — kliknutím sbalit/rozbalit */}
+                <div
+                  onClick={() => toggleCat(category)}
+                  className="px-5 py-2.5 flex items-center justify-between"
+                  style={{ backgroundColor: '#1a1a2e', cursor: 'pointer', userSelect: 'none' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#4b5563', transition: 'transform 0.15s', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
+                    <span className="text-xs font-semibold tracking-wider" style={{ color: '#a78bfa' }}>{category}</span>
+                    {isCollapsed && <span style={{ fontSize: '11px', color: '#374151' }}>{items.length} položek</span>}
                   </div>
-                ))}
+                  <span className="text-xs font-semibold" style={{ color: isCollapsed ? '#a78bfa' : '#6b7280' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
+                </div>
+                {!isCollapsed && (
+                  <>
+                    {/* Záhlaví sloupců */}
+                    <div className="grid px-5 py-1.5" style={{
+                      gridTemplateColumns: '1fr 100px 90px 90px 90px 60px 70px',
+                      borderBottom: '1px solid #1e1e2e',
+                    }}>
+                      {['Položka / Poznámka', 'Platba', 'Cena', 'Záloha', 'Zbývá', 'Paid', ''].map((h, i) => (
+                        <div key={h + i} className="text-xs font-medium" style={{ color: '#4b5563', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
+                      ))}
+                    </div>
+                    {/* Řádky */}
+                    {items.map((exp) => (
+                      <div key={exp.id} className="grid px-5 py-3 items-center" style={{
+                        gridTemplateColumns: '1fr 100px 90px 90px 90px 60px 70px',
+                        borderBottom: '1px solid #111118',
+                      }}>
+                        <div>
+                          <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>
+                          {exp.note && <div style={{ color: '#6b7280', fontSize: '11px', marginTop: '2px' }}>{exp.note}</div>}
+                        </div>
+                        <div>
+                          {exp.payment_timing
+                            ? <span style={{ backgroundColor: '#1e1e2e', color: '#9ca3af', fontSize: '11px', padding: '2px 7px', borderRadius: '4px', whiteSpace: 'nowrap' }}>{exp.payment_timing}</span>
+                            : <span style={{ color: '#374151', fontSize: '12px' }}>—</span>}
+                        </div>
+                        <div style={{ textAlign: 'right', color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>
+                          {exp.price.toLocaleString('cs-CZ')} Kč
+                        </div>
+                        <div style={{ textAlign: 'right', color: exp.deposit > 0 ? '#60a5fa' : '#374151', fontSize: '13px' }}>
+                          {exp.deposit > 0 ? `${exp.deposit.toLocaleString('cs-CZ')} Kč` : '—'}
+                        </div>
+                        <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: exp.paid || exp.price - exp.deposit <= 0 ? '#34d399' : '#f87171' }}>
+                          {exp.paid ? '0 Kč' : `${(exp.price - exp.deposit).toLocaleString('cs-CZ')} Kč`}
+                        </div>
+                        <div>
+                          <button onClick={() => handleTogglePaid(exp)} style={{
+                            backgroundColor: exp.paid ? '#14532d' : '#1e1e2e',
+                            color: exp.paid ? '#34d399' : '#f87171',
+                            fontSize: '11px', fontWeight: '600',
+                            padding: '2px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer',
+                          }}>
+                            {exp.paid ? 'ANO' : 'NE'}
+                          </button>
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                          <button onClick={() => startEdit(exp)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
+                          <button onClick={() => handleDelete(exp.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )
           })}

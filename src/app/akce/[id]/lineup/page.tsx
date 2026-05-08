@@ -46,6 +46,7 @@ export default function LineupPage({ params }: Props) {
   const [eventDates, setEventDates] = useState<{ date: string | null; date_end: string | null }>({ date: null, date_end: null })
   const [newStage, setNewStage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [collapsedStages, setCollapsedStages] = useState<Record<string, boolean>>({})
   const [activeStage, setActiveStage] = useState<string | null>(null)
   const [activeDate, setActiveDate] = useState<string>('')
   const [editId, setEditId] = useState<string | null>(null)
@@ -351,18 +352,26 @@ export default function LineupPage({ params }: Props) {
             const isStageFormOpen = !multiDay && activeStage === stageName
             const stageTotal = stageArtists.reduce((s, a) => s + a.fee, 0)
             const stageUnpaid = stageArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee - a.deposit), 0)
+            const isCollapsed = !!collapsedStages[stageName]
 
             return (
               <div key={stageName} style={{ marginBottom: '36px' }}>
                 {/* Stage header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isCollapsed ? 0 : '14px', padding: '10px 14px', borderRadius: '10px', backgroundColor: '#111118', border: '1px solid #1e1e2e' }}>
+                  <div
+                    onClick={() => setCollapsedStages(prev => ({ ...prev, [stageName]: !prev[stageName] }))}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}
+                  >
+                    <span style={{ fontSize: '11px', color: '#4b5563', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>▼</span>
                     <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#a78bfa' }}>{stageName}</h3>
                     <span style={{ fontSize: '12px', color: '#374151' }}>
                       {stageArtists.length} {stageArtists.length === 1 ? 'artist' : 'artistů'}
                     </span>
+                    {isCollapsed && stageTotal > 0 && (
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#a78bfa', marginLeft: '4px' }}>{stageTotal.toLocaleString('cs-CZ')} Kč</span>
+                    )}
                   </div>
-                  {!multiDay && (
+                  {!multiDay && !isCollapsed && (
                     <button
                       onClick={() => isStageFormOpen && !editId ? closeForm() : openForm(stageName)}
                       style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer',
@@ -373,40 +382,42 @@ export default function LineupPage({ params }: Props) {
                   )}
                 </div>
 
-                {!multiDay ? (
-                  <>
-                    {isStageFormOpen && renderForm(stageName)}
-                    {renderTable(stageArtists)}
-                  </>
-                ) : (
-                  <div style={{ paddingLeft: '16px', borderLeft: '2px solid #1e1e1e' }}>
-                    {eventDays.map(dayStr => renderDaySection(stageName, dayStr))}
+                {!isCollapsed && (
+                  <div style={{ marginTop: '14px' }}>
+                    {!multiDay ? (
+                      <>
+                        {isStageFormOpen && renderForm(stageName)}
+                        {renderTable(stageArtists)}
+                      </>
+                    ) : (
+                      <div style={{ paddingLeft: '16px', borderLeft: '2px solid #1e1e1e' }}>
+                        {eventDays.map(dayStr => renderDaySection(stageName, dayStr))}
 
-                    {/* Artists with no date or date outside event range */}
-                    {(() => {
-                      const undated = stageArtists.filter(a => !a.date || !eventDays.includes(a.date))
-                      if (undated.length === 0) return null
-                      const isUndatedOpen = activeStage === stageName && (!activeDate || !eventDays.includes(activeDate))
-                      return (
-                        <div style={{ marginBottom: '20px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                            <div style={{ width: '24px', height: '1px', backgroundColor: '#2d2d2d' }} />
-                            <span style={{ fontSize: '13px', color: '#4b5563', fontWeight: '500' }}>Bez dne</span>
-                            <span style={{ fontSize: '11px', color: '#374151' }}>({undated.length})</span>
-                          </div>
-                          {isUndatedOpen && renderForm(stageName)}
-                          {renderTable(undated)}
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
+                        {(() => {
+                          const undated = stageArtists.filter(a => !a.date || !eventDays.includes(a.date))
+                          if (undated.length === 0) return null
+                          const isUndatedOpen = activeStage === stageName && (!activeDate || !eventDays.includes(activeDate))
+                          return (
+                            <div style={{ marginBottom: '20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                                <div style={{ width: '24px', height: '1px', backgroundColor: '#2d2d2d' }} />
+                                <span style={{ fontSize: '13px', color: '#4b5563', fontWeight: '500' }}>Bez dne</span>
+                                <span style={{ fontSize: '11px', color: '#374151' }}>({undated.length})</span>
+                              </div>
+                              {isUndatedOpen && renderForm(stageName)}
+                              {renderTable(undated)}
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    )}
 
-                {/* Stage total */}
-                {stageArtists.length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '24px', padding: '8px 14px', borderRadius: '8px', backgroundColor: '#111118', border: '1px solid #1e1e2e', marginTop: '6px' }}>
-                    <span style={{ fontSize: '12px', color: '#6b7280' }}>Celkem stage: <strong style={{ color: '#a78bfa' }}>{stageTotal.toLocaleString('cs-CZ')} Kč</strong></span>
-                    {stageUnpaid > 0 && <span style={{ fontSize: '12px', color: '#6b7280' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{stageUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
+                    {stageArtists.length > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '24px', padding: '8px 14px', borderRadius: '8px', backgroundColor: '#111118', border: '1px solid #1e1e2e', marginTop: '6px' }}>
+                        <span style={{ fontSize: '12px', color: '#6b7280' }}>Celkem stage: <strong style={{ color: '#a78bfa' }}>{stageTotal.toLocaleString('cs-CZ')} Kč</strong></span>
+                        {stageUnpaid > 0 && <span style={{ fontSize: '12px', color: '#6b7280' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{stageUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
