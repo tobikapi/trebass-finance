@@ -67,6 +67,7 @@ export interface LineupArtist {
   fee: number
   deposit: number
   paid: boolean
+  date: string | null
   set_time: string | null
   stage: string | null
   notes: string | null
