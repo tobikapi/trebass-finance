@@ -47,7 +47,7 @@ export default function LoginPage() {
       }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <Image src="/logo.png" alt="Třebass" width={140} height={52} priority />
+          <Image src="/logo.png" alt="Třebass" width={140} height={53} priority unoptimized />
           <div style={{ marginTop: '8px', fontSize: '11px', color: '#4b5563', fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.14em' }}>
             Finance System
           </div>
