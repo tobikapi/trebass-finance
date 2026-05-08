@@ -52,6 +52,13 @@ export async function updateEvent(id: string, form: {
   return { data: true }
 }
 
+export async function updateEventStages(id: string, stages: string[]) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('events').update({ stages }).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
 // EXPENSES
 export async function createExpense(payload: {
   event_id: string; category: string; item: string; note: string | null;

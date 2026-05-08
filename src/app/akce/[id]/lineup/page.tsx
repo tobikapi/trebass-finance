@@ -4,12 +4,10 @@ import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import { LineupArtist } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
-import { createArtist, updateArtist, deleteArtist, toggleArtistPaid } from '@/app/actions'
+import { createArtist, updateArtist, deleteArtist, toggleArtistPaid, updateEventStages } from '@/app/actions'
 
 interface Props { params: Promise<{ id: string }> }
 interface Contact { id: string; name: string; type: string; fee: number }
-
-const STAGES = ['Main Stage', 'Stage 2', 'Chill Stage', 'Spodní stage']
 
 const emptyForm = { artist_name: '', fee: '', deposit: '', paid: false, set_time: '', stage: '', notes: '' }
 
@@ -17,6 +15,8 @@ export default function LineupPage({ params }: Props) {
   const { id } = use(params)
   const [artists, setArtists] = useState<LineupArtist[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [stages, setStages] = useState<string[]>([])
+  const [newStage, setNewStage] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -24,13 +24,30 @@ export default function LineupPage({ params }: Props) {
   const [saving, setSaving] = useState(false)
 
   async function load() {
-    const [{ data: lineup }, { data: ctc }] = await Promise.all([
+    const [{ data: lineup }, { data: ctc }, { data: ev }] = await Promise.all([
       supabase.from('lineup').select('*').eq('event_id', id).order('set_time').order('artist_name'),
       supabase.from('contacts').select('id, name, type, fee').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
+      supabase.from('events').select('stages').eq('id', id).single(),
     ])
     setArtists(lineup || [])
     setContacts(ctc || [])
+    setStages(ev?.stages || [])
     setLoading(false)
+  }
+
+  async function addStage() {
+    const name = newStage.trim()
+    if (!name || stages.includes(name)) return
+    const updated = [...stages, name]
+    await updateEventStages(id, updated)
+    setStages(updated)
+    setNewStage('')
+  }
+
+  async function removeStage(name: string) {
+    const updated = stages.filter(s => s !== name)
+    await updateEventStages(id, updated)
+    setStages(updated)
   }
 
   useEffect(() => { load() }, [id])
@@ -93,6 +110,29 @@ export default function LineupPage({ params }: Props) {
         </button>
       </div>
 
+      {/* Správa stages */}
+      <div style={{ marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', backgroundColor: '#111118', border: '1px solid #2a2a3e', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', color: '#6b7280', flexShrink: 0 }}>Stages:</span>
+        {stages.map(s => (
+          <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '5px', backgroundColor: '#1a1a2e', border: '1px solid #2a2a3e', fontSize: '12px', color: '#a78bfa' }}>
+            {s}
+            <button onClick={() => removeStage(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '14px', lineHeight: 1, padding: 0 }}>×</button>
+          </span>
+        ))}
+        <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
+          <input
+            value={newStage}
+            onChange={e => setNewStage(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addStage())}
+            placeholder="Přidat stage..."
+            style={{ backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', outline: 'none', width: '140px' }}
+          />
+          <button onClick={addStage} style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#1a1a2e', color: '#a78bfa', border: '1px solid #2a2a3e', cursor: 'pointer' }}>
+            + Přidat
+          </button>
+        </div>
+      </div>
+
       {showForm && (
         <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #e05555' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '600', color: '#f4978e' }}>
@@ -127,7 +167,7 @@ export default function LineupPage({ params }: Props) {
               <label style={labelStyle}>Stage</label>
               <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} style={inputStyle}>
                 <option value="">—</option>
-                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                {stages.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>

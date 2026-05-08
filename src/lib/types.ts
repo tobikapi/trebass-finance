@@ -12,6 +12,7 @@ export interface Event {
   type: string | null
   status: EventStatus
   description: string | null
+  stages: string[]
   created_at: string
 }
 
