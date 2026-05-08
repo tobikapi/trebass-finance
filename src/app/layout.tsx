@@ -1,8 +1,15 @@
 import type { Metadata } from "next"
+import localFont from 'next/font/local'
 import "./globals.css"
 import AppShell from "@/components/AppShell"
 import SplashScreen from "@/components/SplashScreen"
 import { UserProvider } from "@/lib/user-context"
+
+const awakenning = localFont({
+  src: '../../public/fonts/AWAKENNING.ttf',
+  variable: '--font-awakenning',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: "Třebass Finance",
@@ -11,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="cs">
+    <html lang="cs" className={awakenning.variable}>
       <body style={{ backgroundColor: '#0c0c0c', color: '#f1f5f9', margin: 0, minHeight: '100vh' }}>
         <UserProvider>
           <SplashScreen />

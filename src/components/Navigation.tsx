@@ -51,7 +51,7 @@ export default function Navigation() {
             return (
               <Link key={item.href} href={item.href} style={{
                 padding: '6px 16px', borderRadius: '6px', fontSize: '15px',
-                fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.08em',
+                fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em',
                 color: isActive ? '#f4978e' : '#9ca3af',
                 backgroundColor: isActive ? '#2d1515' : 'transparent',
                 textDecoration: 'none', transition: 'all 0.15s',
@@ -64,7 +64,7 @@ export default function Navigation() {
           {can('canManageUsers') && (
             <Link href="/admin" style={{
               padding: '6px 16px', borderRadius: '6px', fontSize: '15px',
-              fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.08em',
+              fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em',
               color: pathname === '/admin' ? '#f4978e' : '#9ca3af',
               backgroundColor: pathname === '/admin' ? '#2d1515' : 'transparent',
               textDecoration: 'none', transition: 'all 0.15s',
@@ -88,7 +88,7 @@ export default function Navigation() {
                 fontSize: '11px', fontWeight: '700',
               }}>{initials}</div>
               <div>
-                <span style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.08em', display: 'block' }}>
+                <span style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em', display: 'block' }}>
                   {userName}
                 </span>
                 {role && (
