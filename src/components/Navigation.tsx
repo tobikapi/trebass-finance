@@ -61,18 +61,6 @@ export default function Navigation() {
               </Link>
             )
           })}
-          {can('canManageUsers') && (
-            <Link href="/admin" style={{
-              padding: '6px 16px', borderRadius: '6px', fontSize: '15px',
-              fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em',
-              color: pathname === '/admin' ? '#f4978e' : '#9ca3af',
-              backgroundColor: pathname === '/admin' ? '#2d1515' : 'transparent',
-              textDecoration: 'none', transition: 'all 0.15s',
-              borderBottom: pathname === '/admin' ? '2px solid #e05555' : '2px solid transparent',
-            }}>
-              Admin
-            </Link>
-          )}
         </nav>
 
         <div style={{ flex: 1 }} />
