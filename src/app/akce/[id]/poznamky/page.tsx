@@ -21,6 +21,7 @@ export default function PoznamkyPage({ params }: Props) {
   const [author, setAuthor] = useState(MEMBERS[0])
   const [content, setContent] = useState('')
   const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -64,6 +65,12 @@ export default function PoznamkyPage({ params }: Props) {
 
   return (
     <EventLayout eventId={id}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+        <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
+          style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#161616', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2d1515', cursor: 'pointer' }}>
+          {refreshing ? '...' : '↻ Obnovit'}
+        </button>
+      </div>
       <form onSubmit={handleSubmit} style={{ marginBottom: '24px', backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
           <span style={{ fontSize: '13px', color: '#9ca3af', flexShrink: 0 }}>Píše:</span>

@@ -19,6 +19,7 @@ export default function VydajePage({ params }: Props) {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   async function load() {
     const { data } = await supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at')
@@ -88,9 +89,15 @@ export default function VydajePage({ params }: Props) {
             </div>
           ))}
         </div>
-        <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
-          + Přidat výdaj
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
+            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: '#111118', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e' }}>
+            {refreshing ? '...' : '↻'}
+          </button>
+          <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+            + Přidat výdaj
+          </button>
+        </div>
       </div>
 
       {showForm && (
