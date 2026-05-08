@@ -35,7 +35,7 @@ export default function Navigation() {
   const visibleItems = ALL_NAV_ITEMS.filter(item => can(item.permission))
 
   const [nextEvent, setNextEvent] = useState<{ name: string; date: string } | null>(null)
-  const [countdown, setCountdown] = useState('')
+  const [cdParts, setCdParts] = useState<{ d: number; h: number; m: number; s: number } | null>(null)
 
   useEffect(() => {
     supabase.from('events').select('name, date')
@@ -48,15 +48,14 @@ export default function Navigation() {
     if (!nextEvent?.date) return
     function tick() {
       const [y, mo, day] = nextEvent!.date.split('-').map(Number)
-      const target = new Date(y, mo - 1, day).getTime()
-      const diff = target - Date.now()
-      if (diff <= 0) { setCountdown('Dnes!'); return }
-      const d = Math.floor(diff / 86400000)
-      const h = Math.floor((diff % 86400000) / 3600000)
-      const m = Math.floor((diff % 3600000) / 60000)
-      const s = Math.floor((diff % 60000) / 1000)
-      if (d > 0) setCountdown(`${d}d ${h}h ${m}m ${s}s`)
-      else setCountdown(`${h}h ${m}m ${s}s`)
+      const diff = new Date(y, mo - 1, day).getTime() - Date.now()
+      if (diff <= 0) { setCdParts({ d: 0, h: 0, m: 0, s: 0 }); return }
+      setCdParts({
+        d: Math.floor(diff / 86400000),
+        h: Math.floor((diff % 86400000) / 3600000),
+        m: Math.floor((diff % 3600000) / 60000),
+        s: Math.floor((diff % 60000) / 1000),
+      })
     }
     tick()
     const id = setInterval(tick, 1000)
@@ -96,13 +95,28 @@ export default function Navigation() {
         <div style={{ flex: 1 }} />
 
         {/* Odpočet do příští akce */}
-        {nextEvent && countdown && (
-          <div className="nav-user-desktop" style={{ textAlign: 'right', borderRight: '1px solid #2d1515', paddingRight: '20px', marginRight: '4px' }}>
-            <div style={{ fontSize: '10px', color: '#4b5563', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-awakenning), sans-serif' }}>
-              {nextEvent.name.length > 22 ? nextEvent.name.slice(0, 22) + '…' : nextEvent.name}
+        {nextEvent && cdParts && (
+          <div className="nav-user-desktop" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '3px', borderRight: '1px solid #2d1515', paddingRight: '20px', marginRight: '4px' }}>
+            <div style={{ fontSize: '9px', color: '#4b5563', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+              {nextEvent.name.length > 24 ? nextEvent.name.slice(0, 24) + '…' : nextEvent.name}
             </div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: '#e05555', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
-              {countdown}
+            <div style={{ display: 'flex', gap: '5px', alignItems: 'flex-end' }}>
+              {(cdParts.d > 0
+                ? [{ v: cdParts.d, u: 'DNŮ' }, { v: cdParts.h, u: 'HOD' }, { v: cdParts.m, u: 'MIN' }, { v: cdParts.s, u: 'SEK' }]
+                : [{ v: cdParts.h, u: 'HOD' }, { v: cdParts.m, u: 'MIN' }, { v: cdParts.s, u: 'SEK' }]
+              ).map(({ v, u }, i, arr) => (
+                <div key={u} style={{ display: 'flex', alignItems: 'flex-end', gap: '5px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#e05555', fontFamily: "'Courier New', monospace", lineHeight: 1, minWidth: '26px', letterSpacing: '-1px' }}>
+                      {String(v).padStart(2, '0')}
+                    </div>
+                    <div style={{ fontSize: '7px', color: '#4b5563', letterSpacing: '0.1em', marginTop: '1px' }}>{u}</div>
+                  </div>
+                  {i < arr.length - 1 && (
+                    <div style={{ fontSize: '16px', fontWeight: '800', color: '#3d1515', lineHeight: 1, marginBottom: '10px' }}>:</div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
