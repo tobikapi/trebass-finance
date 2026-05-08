@@ -4,13 +4,22 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus, formatDateRange } from '@/lib/types'
+import { deleteEvent } from '@/app/actions'
 
 export default function AkceClient({ initialEvents }: { initialEvents: Event[] }) {
   const router = useRouter()
   const [filter, setFilter] = useState<EventStatus | 'vse'>('vse')
   const [sort, setSort] = useState<'desc' | 'asc'>('desc')
+  const [events, setEvents] = useState(initialEvents)
 
-  const filtered = (filter === 'vse' ? initialEvents : initialEvents.filter((e) => e.status === filter))
+  async function handleDelete(event: Event) {
+    if (!confirm(`Smazat akci "${event.name}"? Smažou se i všechny výdaje, příjmy a lineup.`)) return
+    const result = await deleteEvent(event.id)
+    if (result.error) { alert('Chyba: ' + result.error); return }
+    setEvents(prev => prev.filter(e => e.id !== event.id))
+  }
+
+  const filtered = (filter === 'vse' ? events : events.filter((e) => e.status === filter))
     .slice()
     .sort((a, b) => {
       const da = a.date ? new Date(a.date).getTime() : 0
@@ -88,9 +97,12 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
                   </span>
                 </div>
               </Link>
-              <div style={{ borderTop: '1px solid #1e1e1e', padding: '8px 24px', display: 'flex', gap: '8px' }}>
+              <div style={{ borderTop: '1px solid #1e1e1e', padding: '8px 24px', display: 'flex', gap: '16px' }}>
                 <button onClick={() => router.push(`/akce/${event.id}/upravit`)} style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
                   ✏️ Upravit
+                </button>
+                <button onClick={() => handleDelete(event)} style={{ fontSize: '12px', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
+                  🗑 Smazat
                 </button>
               </div>
             </div>

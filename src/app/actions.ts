@@ -174,6 +174,13 @@ export async function updateContribution(id: string, payload: {
   return { data: true }
 }
 
+export async function deleteEvent(id: string) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('events').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
 export async function deleteContribution(id: string) {
   const supabase = getSupabase()
   const { error } = await supabase.from('team_contributions').delete().eq('id', id)
