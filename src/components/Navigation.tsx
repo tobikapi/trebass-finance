@@ -47,13 +47,15 @@ export default function Navigation() {
   useEffect(() => {
     if (!nextEvent?.date) return
     function tick() {
-      const diff = new Date(nextEvent!.date + 'T00:00:00').getTime() - Date.now()
+      const [y, mo, day] = nextEvent!.date.split('-').map(Number)
+      const target = new Date(y, mo - 1, day).getTime()
+      const diff = target - Date.now()
       if (diff <= 0) { setCountdown('Dnes!'); return }
       const d = Math.floor(diff / 86400000)
       const h = Math.floor((diff % 86400000) / 3600000)
       const m = Math.floor((diff % 3600000) / 60000)
       const s = Math.floor((diff % 60000) / 1000)
-      if (d > 30) setCountdown(`${d}d ${h}h`)
+      if (d > 30) setCountdown(`${d}d`)
       else if (d > 0) setCountdown(`${d}d ${h}h ${m}m`)
       else setCountdown(`${h}h ${m}m ${s}s`)
     }
