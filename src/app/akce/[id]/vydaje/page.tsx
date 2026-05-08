@@ -70,7 +70,9 @@ export default function VydajePage({ params }: Props) {
   const totalWithoutDeposit = totalPrice - totalDeposit
   const totalUnpaid = expenses.filter((e) => !e.paid).reduce((s, e) => s + (e.price - e.deposit), 0)
 
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(CATEGORIES.map(c => [c, true]))
+  )
   function toggleCat(cat: string) { setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] })) }
 
   const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }

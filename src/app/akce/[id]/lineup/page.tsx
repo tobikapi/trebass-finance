@@ -64,6 +64,11 @@ export default function LineupPage({ params }: Props) {
     setContacts(ctc || [])
     setStages(ev?.stages || [])
     setEventDates({ date: ev?.date || null, date_end: ev?.date_end || null })
+    setCollapsedStages(prev => {
+      const next = { ...prev }
+      for (const s of ev?.stages || []) { if (!(s in next)) next[s] = true }
+      return next
+    })
     setLoading(false)
   }
 
@@ -73,6 +78,7 @@ export default function LineupPage({ params }: Props) {
     const updated = [...stages, name]
     await updateEventStages(id, updated)
     setStages(updated)
+    setCollapsedStages(prev => ({ ...prev, [name]: true }))
     setNewStage('')
   }
 
