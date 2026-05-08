@@ -110,7 +110,7 @@ export default function Navigation() {
         )}
 
         {/* Mobile — logout + hamburger */}
-        <div className="nav-hamburger" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="nav-hamburger">
           <button disabled={isPending} onClick={() => startTransition(() => signOut())}
             style={{ fontSize: '12px', color: '#e05555', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 10px' }}>
             Odhlásit
