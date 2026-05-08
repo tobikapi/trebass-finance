@@ -21,19 +21,20 @@ export async function proxy(req: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // AUTH DOČASNĚ VYPNUTO
+  // const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user && !req.nextUrl.pathname.startsWith('/login')) {
-    const url = req.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+  // if (!user && !req.nextUrl.pathname.startsWith('/login')) {
+  //   const url = req.nextUrl.clone()
+  //   url.pathname = '/login'
+  //   return NextResponse.redirect(url)
+  // }
 
-  if (user && req.nextUrl.pathname === '/login') {
-    const url = req.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
-  }
+  // if (user && req.nextUrl.pathname === '/login') {
+  //   const url = req.nextUrl.clone()
+  //   url.pathname = '/'
+  //   return NextResponse.redirect(url)
+  // }
 
   return supabaseResponse
 }
