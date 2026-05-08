@@ -80,7 +80,7 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {filtered.map((event) => (
-            <div key={event.id} style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', overflow: 'hidden' }}>
+            <div key={event.id} className="card-hover" style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', overflow: 'hidden' }}>
               <Link href={`/akce/${event.id}/vydaje`} style={{ display: 'block', padding: '20px 24px', textDecoration: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                   <div>

@@ -234,7 +234,7 @@ export default function UkolyPage() {
                   {colTasks.map((task) => {
                     const overdue = isOverdue(task)
                     return (
-                      <div key={task.id} style={{ backgroundColor: '#161616', border: `1px solid ${overdue ? '#4a1515' : '#2d1515'}`, borderRadius: '10px', padding: '14px' }}>
+                      <div key={task.id} className="card-hover" style={{ backgroundColor: '#161616', border: `1px solid ${overdue ? '#4a1515' : '#2d1515'}`, borderRadius: '10px', padding: '14px' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <span style={{ fontSize: '14px', fontWeight: '500', color: '#f1f5f9', flex: 1, marginRight: '8px' }}>{task.title}</span>
                           <span style={{ fontSize: '11px', color: getPriorityColor(task.priority), backgroundColor: '#0c0c0c', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>

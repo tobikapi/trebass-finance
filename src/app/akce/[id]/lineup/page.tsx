@@ -388,7 +388,7 @@ export default function LineupPage({ params }: Props) {
                 </div>
 
                 {!isCollapsed && (
-                  <div style={{ marginTop: '14px' }}>
+                  <div className="collapse-content" style={{ marginTop: '14px' }}>
                     {!multiDay ? (
                       <>
                         {isStageFormOpen && renderForm(stageName)}

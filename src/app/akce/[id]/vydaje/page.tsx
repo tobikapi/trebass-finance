@@ -183,7 +183,7 @@ export default function VydajePage({ params }: Props) {
                   <span className="text-xs font-semibold" style={{ color: isCollapsed ? '#a78bfa' : '#6b7280' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
                 </div>
                 {!isCollapsed && (
-                  <>
+                  <div className="collapse-content">
                     {/* Záhlaví sloupců */}
                     <div className="expense-header">
                       {['Položka / Poznámka', 'Platba', 'Cena', 'Záloha', 'Zbývá', 'Paid', ''].map((h, i) => (
@@ -227,7 +227,7 @@ export default function VydajePage({ params }: Props) {
                         </div>
                       </div>
                     ))}
-                  </>
+                  </div>
                 )}
               </div>
             )
