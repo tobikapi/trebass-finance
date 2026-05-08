@@ -55,8 +55,7 @@ export default function Navigation() {
       const h = Math.floor((diff % 86400000) / 3600000)
       const m = Math.floor((diff % 3600000) / 60000)
       const s = Math.floor((diff % 60000) / 1000)
-      if (d > 30) setCountdown(`${d}d`)
-      else if (d > 0) setCountdown(`${d}d ${h}h ${m}m`)
+      if (d > 0) setCountdown(`${d}d ${h}h ${m}m ${s}s`)
       else setCountdown(`${h}h ${m}m ${s}s`)
     }
     tick()
