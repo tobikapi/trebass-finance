@@ -16,14 +16,19 @@ export interface Event {
   created_at: string
 }
 
+function parseLocal(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export function formatDateRange(date: string | null, dateEnd: string | null, timeStart?: string | null, timeEnd?: string | null): string {
   if (!date) return 'Datum neurčeno'
-  const d = new Date(date)
+  const d = parseLocal(date)
   let dateStr: string
   if (!dateEnd) {
     dateStr = d.toLocaleDateString('cs-CZ')
   } else {
-    const e = new Date(dateEnd)
+    const e = parseLocal(dateEnd)
     if (d.getMonth() === e.getMonth() && d.getFullYear() === e.getFullYear()) {
       dateStr = `${d.getDate()}.–${e.toLocaleDateString('cs-CZ')}`
     } else {
