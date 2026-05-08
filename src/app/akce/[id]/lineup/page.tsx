@@ -30,6 +30,14 @@ function fmtDay(dateStr: string) {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric' })
 }
 
+// Times 00:00–11:59 are treated as "after midnight" → sorted after 23:59
+function partyMinutes(time: string | null | undefined): number {
+  if (!time) return 9999
+  const [h, m] = time.split(':').map(Number)
+  const mins = h * 60 + (m || 0)
+  return h < 12 ? mins + 1440 : mins
+}
+
 export default function LineupPage({ params }: Props) {
   const { id } = use(params)
   const [artists, setArtists] = useState<LineupArtist[]>([])
@@ -205,6 +213,9 @@ export default function LineupPage({ params }: Props) {
     if (list.length === 0) return (
       <div style={{ padding: '12px 0', fontSize: '13px', color: '#2d2d2d' }}>Zatím nikdo.</div>
     )
+    const sorted = [...list].sort((a, b) =>
+      partyMinutes(a.set_time) - partyMinutes(b.set_time) || a.artist_name.localeCompare(b.artist_name, 'cs')
+    )
     return (
       <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #1e1e1e', marginBottom: '4px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
@@ -216,7 +227,7 @@ export default function LineupPage({ params }: Props) {
             </tr>
           </thead>
           <tbody>
-            {list.map(art => (
+            {sorted.map(art => (
               <tr key={art.id} style={{ borderBottom: '1px solid #111' }}>
                 <td style={{ padding: '11px 14px', fontWeight: '600', color: '#f1f5f9' }}>{art.artist_name}</td>
                 <td style={{ padding: '11px 14px', color: '#9ca3af' }}>{art.set_time || '—'}</td>

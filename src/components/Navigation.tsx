@@ -36,20 +36,26 @@ export default function Navigation() {
 
   const [nextEvent, setNextEvent] = useState<{ name: string; date: string } | null>(null)
   const [cdParts, setCdParts] = useState<{ d: number; h: number; m: number; s: number } | null>(null)
+  const [refetchKey, setRefetchKey] = useState(0)
 
   useEffect(() => {
     supabase.from('events').select('name, date')
       .eq('status', 'pripravuje_se').not('date', 'is', null)
       .order('date', { ascending: true }).limit(1).single()
-      .then(({ data }) => { if (data) setNextEvent(data) })
-  }, [])
+      .then(({ data }) => setNextEvent(data ?? null))
+  }, [refetchKey])
 
   useEffect(() => {
     if (!nextEvent?.date) return
     function tick() {
       const [y, mo, day] = nextEvent!.date.split('-').map(Number)
       const diff = new Date(y, mo - 1, day).getTime() - Date.now()
-      if (diff <= 0) { setCdParts({ d: 0, h: 0, m: 0, s: 0 }); return }
+      if (diff <= 0) {
+        setNextEvent(null)
+        setCdParts(null)
+        setRefetchKey(k => k + 1)
+        return
+      }
       setCdParts({
         d: Math.floor(diff / 86400000),
         h: Math.floor((diff % 86400000) / 3600000),
