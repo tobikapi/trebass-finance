@@ -24,6 +24,7 @@ export default function EventLayout({ eventId, children }: Props) {
   }, [eventId])
 
   const allTabs = [
+    { href: `/akce/${eventId}/prehled`, label: '📊 Přehled', permission: 'viewVydaje' as const },
     { href: `/akce/${eventId}/vydaje`, label: '💸 Výdaje', permission: 'viewVydaje' as const },
     { href: `/akce/${eventId}/prijmy`, label: '💰 Příjmy', permission: 'viewPrijmy' as const },
     { href: `/akce/${eventId}/lineup`, label: '🎧 Lineup', permission: 'viewLineup' as const },
