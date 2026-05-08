@@ -14,14 +14,32 @@ const emptyForm = { artist_name: '', fee: '', deposit: '', paid: false, date: ''
 const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' } as const
 const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
 
+function getDays(start: string | null, end: string | null): string[] {
+  if (!start) return []
+  const days: string[] = []
+  const d = new Date(start + 'T12:00:00')
+  const last = end ? new Date(end + 'T12:00:00') : new Date(start + 'T12:00:00')
+  while (d <= last) {
+    days.push(d.toISOString().split('T')[0])
+    d.setDate(d.getDate() + 1)
+  }
+  return days
+}
+
+function fmtDay(dateStr: string) {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric' })
+}
+
 export default function LineupPage({ params }: Props) {
   const { id } = use(params)
   const [artists, setArtists] = useState<LineupArtist[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [stages, setStages] = useState<string[]>([])
+  const [eventDates, setEventDates] = useState<{ date: string | null; date_end: string | null }>({ date: null, date_end: null })
   const [newStage, setNewStage] = useState('')
   const [loading, setLoading] = useState(true)
   const [activeStage, setActiveStage] = useState<string | null>(null)
+  const [activeDate, setActiveDate] = useState<string>('')
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -31,11 +49,12 @@ export default function LineupPage({ params }: Props) {
     const [{ data: lineup }, { data: ctc }, { data: ev }] = await Promise.all([
       supabase.from('lineup').select('*').eq('event_id', id).order('set_time').order('artist_name'),
       supabase.from('contacts').select('id, name, type, fee').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
-      supabase.from('events').select('stages').eq('id', id).single(),
+      supabase.from('events').select('stages, date, date_end').eq('id', id).single(),
     ])
     setArtists(lineup || [])
     setContacts(ctc || [])
     setStages(ev?.stages || [])
+    setEventDates({ date: ev?.date || null, date_end: ev?.date_end || null })
     setLoading(false)
   }
 
@@ -63,20 +82,25 @@ export default function LineupPage({ params }: Props) {
     setForm(f => ({ ...f, artist_name: c.name, fee: c.fee > 0 ? String(c.fee) : f.fee }))
   }
 
-  function openFormForStage(stageName: string) {
-    setForm({ ...emptyForm, stage: stageName })
+  function openForm(stageName: string, dateStr: string = '') {
+    setForm({ ...emptyForm, stage: stageName, date: dateStr })
     setEditId(null)
     setActiveStage(stageName)
+    setActiveDate(dateStr)
   }
 
   function startEdit(art: LineupArtist) {
+    // Fix: if artist's stage is no longer in stages[], fall back to __unassigned__
+    const stageKey = art.stage && stages.includes(art.stage) ? art.stage : '__unassigned__'
     setForm({ artist_name: art.artist_name, fee: art.fee.toString(), deposit: art.deposit.toString(), paid: art.paid, date: art.date || '', set_time: art.set_time || '', stage: art.stage || '', notes: art.notes || '' })
     setEditId(art.id)
-    setActiveStage(art.stage || '__unassigned__')
+    setActiveStage(stageKey)
+    setActiveDate(art.date || '')
   }
 
   function closeForm() {
     setActiveStage(null)
+    setActiveDate('')
     setEditId(null)
     setForm(emptyForm)
   }
@@ -98,18 +122,24 @@ export default function LineupPage({ params }: Props) {
     await toggleArtistPaid(art.id, !art.paid); await load()
   }
 
+  const eventDays = getDays(eventDates.date, eventDates.date_end)
+  const multiDay = eventDays.length > 1
+
   const totalFees = artists.reduce((s, a) => s + a.fee, 0)
   const totalDeposits = artists.reduce((s, a) => s + a.deposit, 0)
   const unpaid = artists.filter((a) => !a.paid).length
   const unstagedArtists = artists.filter(a => !a.stage || !stages.includes(a.stage))
 
   function renderForm(stageName: string) {
+    const dayLabel = multiDay && form.date ? fmtDay(form.date) : null
+    const title = editId
+      ? 'Upravit artista'
+      : dayLabel ? `+ Přidat do ${stageName} · ${dayLabel}` : `+ Přidat do ${stageName}`
+
     return (
-      <form onSubmit={handleSave} style={{ margin: '0 0 16px 0', padding: '20px', borderRadius: '10px', backgroundColor: '#0f0f0f', border: '1px solid #e05555' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: '#f4978e' }}>
-            {editId ? 'Upravit artista' : `+ Přidat do ${stageName}`}
-          </span>
+      <form onSubmit={handleSave} style={{ margin: '0 0 14px 0', padding: '18px 20px', borderRadius: '10px', backgroundColor: '#0f0f0f', border: '1px solid #e05555' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <span style={{ fontSize: '13px', fontWeight: '600', color: '#f4978e' }}>{title}</span>
           <button type="button" onClick={closeForm} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
         </div>
 
@@ -173,14 +203,14 @@ export default function LineupPage({ params }: Props) {
 
   function renderTable(list: LineupArtist[]) {
     if (list.length === 0) return (
-      <div style={{ padding: '16px 0', fontSize: '13px', color: '#374151' }}>Zatím nikdo.</div>
+      <div style={{ padding: '12px 0', fontSize: '13px', color: '#2d2d2d' }}>Zatím nikdo.</div>
     )
     return (
       <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #1e1e1e', marginBottom: '4px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
           <thead>
             <tr style={{ backgroundColor: '#111', borderBottom: '1px solid #1e1e1e' }}>
-              {['Artist', 'Datum', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Zaplaceno', 'Poznámky', ''].map(h => (
+              {['Artist', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Zaplaceno', 'Poznámky', ''].map(h => (
                 <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#4b5563' }}>{h}</th>
               ))}
             </tr>
@@ -189,9 +219,6 @@ export default function LineupPage({ params }: Props) {
             {list.map(art => (
               <tr key={art.id} style={{ borderBottom: '1px solid #111' }}>
                 <td style={{ padding: '11px 14px', fontWeight: '600', color: '#f1f5f9' }}>{art.artist_name}</td>
-                <td style={{ padding: '11px 14px', color: '#9ca3af', fontSize: '12px' }}>
-                  {art.date ? new Date(art.date).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' }) : '—'}
-                </td>
                 <td style={{ padding: '11px 14px', color: '#9ca3af' }}>{art.set_time || '—'}</td>
                 <td style={{ padding: '11px 14px', fontWeight: '600', color: '#f1f5f9' }}>{art.fee.toLocaleString('cs-CZ')} Kč</td>
                 <td style={{ padding: '11px 14px', color: '#60a5fa' }}>{art.deposit > 0 ? art.deposit.toLocaleString('cs-CZ') + ' Kč' : '—'}</td>
@@ -218,6 +245,32 @@ export default function LineupPage({ params }: Props) {
             ))}
           </tbody>
         </table>
+      </div>
+    )
+  }
+
+  function renderDaySection(stageName: string, dayStr: string) {
+    const dayArtists = artists.filter(a => a.stage === stageName && a.date === dayStr)
+    const isDayFormOpen = activeStage === stageName && activeDate === dayStr
+
+    return (
+      <div key={dayStr} style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '24px', height: '1px', backgroundColor: '#2d2d2d' }} />
+            <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>{fmtDay(dayStr)}</span>
+            {dayArtists.length > 0 && <span style={{ fontSize: '11px', color: '#374151' }}>({dayArtists.length})</span>}
+          </div>
+          <button
+            onClick={() => isDayFormOpen && !editId ? closeForm() : openForm(stageName, dayStr)}
+            style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', border: 'none', cursor: 'pointer',
+              backgroundColor: isDayFormOpen && !editId ? '#1a1a1a' : '#1a0a0a',
+              color: isDayFormOpen && !editId ? '#4b5563' : '#f4978e' }}>
+            {isDayFormOpen && !editId ? '× Zrušit' : '+ Přidat'}
+          </button>
+        </div>
+        {isDayFormOpen && renderForm(stageName)}
+        {renderTable(dayArtists)}
       </div>
     )
   }
@@ -278,32 +331,62 @@ export default function LineupPage({ params }: Props) {
         <div>
           {stages.map(stageName => {
             const stageArtists = artists.filter(a => a.stage === stageName)
-            const isFormOpen = activeStage === stageName
+            const isStageFormOpen = !multiDay && activeStage === stageName
 
             return (
-              <div key={stageName} style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div key={stageName} style={{ marginBottom: '36px' }}>
+                {/* Stage header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#a78bfa' }}>{stageName}</h3>
                     <span style={{ fontSize: '12px', color: '#374151' }}>
                       {stageArtists.length} {stageArtists.length === 1 ? 'artist' : 'artistů'}
                     </span>
                   </div>
-                  <button
-                    onClick={() => isFormOpen && !editId ? closeForm() : openFormForStage(stageName)}
-                    style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer',
-                      backgroundColor: isFormOpen && !editId ? '#1e1e1e' : '#e05555',
-                      color: isFormOpen && !editId ? '#6b7280' : '#fff' }}>
-                    {isFormOpen && !editId ? '× Zrušit' : '+ Přidat artista'}
-                  </button>
+                  {!multiDay && (
+                    <button
+                      onClick={() => isStageFormOpen && !editId ? closeForm() : openForm(stageName)}
+                      style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer',
+                        backgroundColor: isStageFormOpen && !editId ? '#1e1e1e' : '#e05555',
+                        color: isStageFormOpen && !editId ? '#6b7280' : '#fff' }}>
+                      {isStageFormOpen && !editId ? '× Zrušit' : '+ Přidat artista'}
+                    </button>
+                  )}
                 </div>
 
-                {isFormOpen && renderForm(stageName)}
-                {renderTable(stageArtists)}
+                {!multiDay ? (
+                  <>
+                    {isStageFormOpen && renderForm(stageName)}
+                    {renderTable(stageArtists)}
+                  </>
+                ) : (
+                  <div style={{ paddingLeft: '16px', borderLeft: '2px solid #1e1e1e' }}>
+                    {eventDays.map(dayStr => renderDaySection(stageName, dayStr))}
+
+                    {/* Artists with no date or date outside event range */}
+                    {(() => {
+                      const undated = stageArtists.filter(a => !a.date || !eventDays.includes(a.date))
+                      if (undated.length === 0) return null
+                      const isUndatedOpen = activeStage === stageName && (!activeDate || !eventDays.includes(activeDate))
+                      return (
+                        <div style={{ marginBottom: '20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                            <div style={{ width: '24px', height: '1px', backgroundColor: '#2d2d2d' }} />
+                            <span style={{ fontSize: '13px', color: '#4b5563', fontWeight: '500' }}>Bez dne</span>
+                            <span style={{ fontSize: '11px', color: '#374151' }}>({undated.length})</span>
+                          </div>
+                          {isUndatedOpen && renderForm(stageName)}
+                          {renderTable(undated)}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
               </div>
             )
           })}
 
+          {/* Bez stage */}
           {unstagedArtists.length > 0 && (
             <div style={{ marginBottom: '32px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
