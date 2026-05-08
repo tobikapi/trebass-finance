@@ -3,10 +3,11 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { signOut } from '@/app/login/actions'
 import { useUser } from '@/lib/user-context'
 import { ROLE_LABELS, ROLE_COLORS } from '@/lib/permissions'
+import { supabase } from '@/lib/supabase'
 
 const ALL_NAV_ITEMS = [
   { href: '/', label: 'Dashboard', permission: 'viewDashboard' as const },
@@ -32,6 +33,34 @@ export default function Navigation() {
   const initials = userName.slice(0, 2).toUpperCase()
 
   const visibleItems = ALL_NAV_ITEMS.filter(item => can(item.permission))
+
+  const [nextEvent, setNextEvent] = useState<{ name: string; date: string } | null>(null)
+  const [countdown, setCountdown] = useState('')
+
+  useEffect(() => {
+    supabase.from('events').select('name, date')
+      .eq('status', 'pripravuje_se').not('date', 'is', null)
+      .order('date', { ascending: true }).limit(1).single()
+      .then(({ data }) => { if (data) setNextEvent(data) })
+  }, [])
+
+  useEffect(() => {
+    if (!nextEvent?.date) return
+    function tick() {
+      const diff = new Date(nextEvent!.date + 'T00:00:00').getTime() - Date.now()
+      if (diff <= 0) { setCountdown('Dnes!'); return }
+      const d = Math.floor(diff / 86400000)
+      const h = Math.floor((diff % 86400000) / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      if (d > 30) setCountdown(`${d}d ${h}h`)
+      else if (d > 0) setCountdown(`${d}d ${h}h ${m}m`)
+      else setCountdown(`${h}h ${m}m ${s}s`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [nextEvent])
 
   return (
     <header style={{ backgroundColor: '#111111', borderBottom: '1px solid #2d1515', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -64,6 +93,18 @@ export default function Navigation() {
         </nav>
 
         <div style={{ flex: 1 }} />
+
+        {/* Odpočet do příští akce */}
+        {nextEvent && countdown && (
+          <div className="nav-user-desktop" style={{ textAlign: 'right', borderRight: '1px solid #2d1515', paddingRight: '20px', marginRight: '4px' }}>
+            <div style={{ fontSize: '10px', color: '#4b5563', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-awakenning), sans-serif' }}>
+              {nextEvent.name.length > 22 ? nextEvent.name.slice(0, 22) + '…' : nextEvent.name}
+            </div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#e05555', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
+              {countdown}
+            </div>
+          </div>
+        )}
 
         {/* Desktop user + logout */}
         {userName && (
