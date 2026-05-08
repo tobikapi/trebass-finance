@@ -108,7 +108,7 @@ export default function VydajePage({ params }: Props) {
       {showForm && (
         <form onSubmit={handleSave} className="mb-6 p-5 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #7c3aed' }}>
           <h3 className="text-sm font-semibold mb-4" style={{ color: '#a78bfa' }}>{editId ? 'Upravit výdaj' : 'Nový výdaj'}</h3>
-          <div className="grid grid-cols-6 gap-3">
+          <div className="form-grid-expenses">
             <div className="col-span-1">
               <label style={labelStyle}>Kategorie</label>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, width: '100%' }}>
@@ -185,20 +185,14 @@ export default function VydajePage({ params }: Props) {
                 {!isCollapsed && (
                   <>
                     {/* Záhlaví sloupců */}
-                    <div className="grid px-5 py-1.5" style={{
-                      gridTemplateColumns: '1fr 100px 90px 90px 90px 60px 70px',
-                      borderBottom: '1px solid #1e1e2e',
-                    }}>
+                    <div className="expense-header">
                       {['Položka / Poznámka', 'Platba', 'Cena', 'Záloha', 'Zbývá', 'Paid', ''].map((h, i) => (
                         <div key={h + i} className="text-xs font-medium" style={{ color: '#4b5563', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
                       ))}
                     </div>
                     {/* Řádky */}
                     {items.map((exp) => (
-                      <div key={exp.id} className="grid px-5 py-3 items-center" style={{
-                        gridTemplateColumns: '1fr 100px 90px 90px 90px 60px 70px',
-                        borderBottom: '1px solid #111118',
-                      }}>
+                      <div key={exp.id} className="expense-row">
                         <div>
                           <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>
                           {exp.note && <div style={{ color: '#6b7280', fontSize: '11px', marginTop: '2px' }}>{exp.note}</div>}

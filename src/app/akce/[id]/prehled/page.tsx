@@ -102,18 +102,18 @@ export default function PrehledPage({ params }: Props) {
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', color: '#34d399', width: '70px', flexShrink: 0 }}>Příjmy</span>
+                  <span style={{ fontSize: '12px', color: '#34d399', minWidth: '60px', flexShrink: 0 }}>Příjmy</span>
                   <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${incPct}%`, backgroundColor: '#34d399', borderRadius: '5px', transition: 'width 0.4s' }} />
                   </div>
-                  <span style={{ fontSize: '12px', color: '#34d399', width: '110px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalIncome)}</span>
+                  <span style={{ fontSize: '12px', color: '#34d399', minWidth: '90px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalIncome)}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', color: '#f87171', width: '70px', flexShrink: 0 }}>Výdaje</span>
+                  <span style={{ fontSize: '12px', color: '#f87171', minWidth: '60px', flexShrink: 0 }}>Výdaje</span>
                   <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${expPct}%`, backgroundColor: '#f87171', borderRadius: '5px', transition: 'width 0.4s' }} />
                   </div>
-                  <span style={{ fontSize: '12px', color: '#f87171', width: '110px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalExpenses)}</span>
+                  <span style={{ fontSize: '12px', color: '#f87171', minWidth: '90px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalExpenses)}</span>
                 </div>
               </div>
             )
@@ -121,7 +121,7 @@ export default function PrehledPage({ params }: Props) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: expenses.length > 0 && income.length > 0 ? '1fr 1fr' : '1fr', gap: '24px' }}>
+      <div className="prehled-bottom-grid" style={{ gridTemplateColumns: expenses.length > 0 && income.length > 0 ? '1fr 1fr' : '1fr' }}>
         {/* Výdaje po kategoriích */}
         {expenses.length > 0 && (
           <div>

@@ -171,7 +171,7 @@ export default function LineupPage({ params }: Props) {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+        <div className="form-grid-lineup">
           <div>
             <label style={labelStyle}>Jméno / pseudonym *</label>
             <input required value={form.artist_name} onChange={e => setForm({ ...form, artist_name: e.target.value })} placeholder="např. Ripplednb" style={inputStyle} />
@@ -224,16 +224,15 @@ export default function LineupPage({ params }: Props) {
     const sorted = [...list].sort((a, b) =>
       partyMinutes(a.set_time) - partyMinutes(b.set_time) || a.artist_name.localeCompare(b.artist_name, 'cs')
     )
-    const cols = '1fr 80px 100px 90px 90px 56px minmax(80px,1fr) 70px'
     return (
       <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #1e1e1e', marginBottom: '4px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: cols, padding: '7px 14px', borderBottom: '1px solid #1a1a1a', backgroundColor: '#111' }}>
+        <div className="lineup-header">
           {(['Artist', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Paid', 'Poznámky', ''] as const).map((h, i) => (
             <div key={h + i} style={{ fontSize: '11px', fontWeight: '600', color: '#4b5563', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
         {sorted.map(art => (
-          <div key={art.id} style={{ display: 'grid', gridTemplateColumns: cols, padding: '10px 14px', borderBottom: '1px solid #111118', alignItems: 'center' }}>
+          <div key={art.id} className="lineup-row">
             <div style={{ fontWeight: '600', color: '#f1f5f9', fontSize: '13px' }}>{art.artist_name}</div>
             <div style={{ color: '#9ca3af', fontSize: '13px' }}>{art.set_time || '—'}</div>
             <div style={{ textAlign: 'right', color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>{art.fee.toLocaleString('cs-CZ')} Kč</div>
