@@ -17,12 +17,13 @@ const PRIORITIES = [
 ]
 
 interface Task {
-  id: string; title: string; description: string | null; assigned_to: string | null
+  id: string; title: string; description: string | null
+  assigned_to: string | null; assigned_to_members: string[]
   status: string; priority: string; due_date: string | null; event_id: string | null; created_at: string
 }
 interface Event { id: string; name: string }
 
-const emptyForm = { title: '', description: '', assigned_to: '', status: 'todo', priority: 'medium', due_date: '', event_id: '' }
+const emptyForm = { title: '', description: '', assigned_to_members: [] as string[], status: 'todo', priority: 'medium', due_date: '', event_id: '' }
 
 export default function UkolyPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -50,7 +51,7 @@ export default function UkolyPage() {
     const payload = {
       title: form.title,
       description: form.description || null,
-      assigned_to: form.assigned_to || null,
+      assigned_to_members: form.assigned_to_members,
       status: form.status,
       priority: form.priority,
       due_date: form.due_date || null,
@@ -72,14 +73,24 @@ export default function UkolyPage() {
 
   function startEdit(task: Task) {
     setForm({
-      title: task.title, description: task.description || '', assigned_to: task.assigned_to || '',
+      title: task.title, description: task.description || '',
+      assigned_to_members: task.assigned_to_members || [],
       status: task.status, priority: task.priority, due_date: task.due_date || '', event_id: task.event_id || '',
     })
     setEditId(task.id); setShowForm(true)
   }
 
+  function toggleMember(name: string) {
+    setForm(f => ({
+      ...f,
+      assigned_to_members: f.assigned_to_members.includes(name)
+        ? f.assigned_to_members.filter(x => x !== name)
+        : [...f.assigned_to_members, name],
+    }))
+  }
+
   const filtered = tasks.filter((t) => {
-    if (filterUser !== 'vse' && t.assigned_to !== filterUser) return false
+    if (filterUser !== 'vse' && !(t.assigned_to_members || []).includes(filterUser)) return false
     if (filterStatus !== 'vse' && t.status !== filterStatus) return false
     return true
   })
@@ -140,11 +151,22 @@ export default function UkolyPage() {
               <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Co je potřeba udělat..." style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Přiřadit</label>
-              <select value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })} style={inputStyle}>
-                <option value="">— nikdo —</option>
-                {MEMBERS.map((m) => <option key={m}>{m}</option>)}
-              </select>
+              <label style={labelStyle}>Přiřadit (více lidí)</label>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                {MEMBERS.map(m => {
+                  const selected = form.assigned_to_members.includes(m)
+                  return (
+                    <button key={m} type="button" onClick={() => toggleMember(m)} style={{
+                      padding: '6px 13px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
+                      border: '1px solid', transition: 'all 0.15s',
+                      backgroundColor: selected ? '#2d1515' : '#0c0c0c',
+                      borderColor: selected ? '#e05555' : '#2d1515',
+                      color: selected ? '#f4978e' : '#6b7280',
+                      fontWeight: selected ? '600' : '400',
+                    }}>{m}</button>
+                  )
+                })}
+              </div>
             </div>
             <div>
               <label style={labelStyle}>Priorita</label>
@@ -224,12 +246,12 @@ export default function UkolyPage() {
                           <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 8px 0' }}>{task.description}</p>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                          {task.assigned_to && (
-                            <span style={{ fontSize: '11px', backgroundColor: '#2d1515', color: '#f4978e', padding: '2px 8px', borderRadius: '10px' }}>
-                              👤 {task.assigned_to}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                          {(task.assigned_to_members || []).map(m => (
+                            <span key={m} style={{ fontSize: '11px', backgroundColor: '#2d1515', color: '#f4978e', padding: '2px 8px', borderRadius: '10px' }}>
+                              {m}
                             </span>
-                          )}
+                          ))}
                           {task.due_date && (
                             <span style={{ fontSize: '11px', color: overdue ? '#e05555' : '#6b7280' }}>
                               {overdue ? '⚠️' : '📅'} {new Date(task.due_date).toLocaleDateString('cs-CZ')}

@@ -271,21 +271,21 @@ export async function deleteContact(id: string) {
 
 // TASKS
 export async function createTask(payload: {
-  title: string; description: string | null; assigned_to: string | null;
+  title: string; description: string | null; assigned_to_members: string[];
   status: string; priority: string; due_date: string | null; event_id: string | null
 }) {
   const supabase = getSupabase()
-  const { data, error } = await supabase.from('tasks').insert([payload]).select().single()
+  const { data, error } = await supabase.from('tasks').insert([{ ...payload, assigned_to: null }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }
 
 export async function updateTask(id: string, payload: {
-  title: string; description: string | null; assigned_to: string | null;
+  title: string; description: string | null; assigned_to_members: string[];
   status: string; priority: string; due_date: string | null; event_id: string | null
 }) {
   const supabase = getSupabase()
-  const { error } = await supabase.from('tasks').update(payload).eq('id', id)
+  const { error } = await supabase.from('tasks').update({ ...payload, assigned_to: null }).eq('id', id)
   if (error) return { error: error.message }
   return { data: true }
 }
