@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import Image from 'next/image'
 import { signIn } from './actions'
 
 export default function LoginPage() {
@@ -24,13 +23,8 @@ export default function LoginPage() {
       {/* === Pozadí — stejný treatment jako splash screen === */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
         {/* Foto */}
-        <Image
-          src="/photos/photo-6.jpg"
-          alt=""
-          fill
-          style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
-          priority
-        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/photos/photo-6.jpg" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }} />
         {/* Tmavý základ */}
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(8,4,4,0.58)' }} />
         {/* Vignette */}
@@ -75,14 +69,8 @@ export default function LoginPage() {
               filter: 'blur(16px)',
               pointerEvents: 'none',
             }} />
-            <Image
-              src="/logo.png"
-              alt="Třebass"
-              width={160}
-              height={60}
-              priority
-              style={{ objectFit: 'contain', height: '52px', width: 'auto', display: 'block', position: 'relative' }}
-            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Třebass" style={{ height: '52px', width: 'auto', display: 'block', position: 'relative' }} />
           </div>
           <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.28)', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.22em' }}>
             FINANCE SYSTEM
