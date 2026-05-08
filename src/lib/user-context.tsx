@@ -48,12 +48,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // AUTH DOČASNĚ VYPNUTO — bez uživatele defaultujeme na admin
+  const effectiveRole = profile?.role ?? (user ? null : 'admin' as const)
+
   return (
     <UserContext.Provider value={{
       user,
       profile,
-      role: profile?.role ?? null,
-      can: (p) => canFn(profile?.role, p),
+      role: effectiveRole,
+      can: (p) => canFn(effectiveRole, p),
       loading,
     }}>
       {children}
