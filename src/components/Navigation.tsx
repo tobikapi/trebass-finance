@@ -159,59 +159,58 @@ export default function Navigation() {
           </div>
         )}
 
-        {/* Mobile — logout + hamburger */}
+        {/* Mobile — jen hamburger */}
         <div className="nav-hamburger">
-          <button disabled={isPending} onClick={() => startTransition(() => signOut())}
-            style={{ fontSize: '12px', color: '#e05555', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 10px' }}>
-            Odhlásit
-          </button>
           <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu"
-            style={{ fontSize: '20px', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', fontSize: '22px', color: menuOpen ? '#f4978e' : '#9ca3af', background: 'none', border: '1px solid #2d1515', borderRadius: '8px', cursor: 'pointer' }}>
             {menuOpen ? '✕' : '☰'}
           </button>
         </div>
       </div>
 
-      {/* Mobile dropdown */}
+      {/* Mobile fullscreen dropdown */}
       {menuOpen && (
-        <div className="nav-mobile-dropdown" onClick={() => setMenuOpen(false)}>
-          {visibleItems.map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <Link key={item.href} href={item.href}
-                className={`nav-mobile-link${isActive ? ' active' : ''}`}>
-                {item.label}
+        <div className="nav-mobile-dropdown">
+          {/* Nav links */}
+          <div style={{ padding: '8px 16px', flex: 1 }}>
+            {visibleItems.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
+                  className={`nav-mobile-link${isActive ? ' active' : ''}`}>
+                  {item.label}
+                </Link>
+              )
+            })}
+            {can('canManageUsers') && (
+              <Link href="/admin" onClick={() => setMenuOpen(false)}
+                className={`nav-mobile-link${pathname === '/admin' ? ' active' : ''}`}>
+                Admin
               </Link>
-            )
-          })}
-          {can('canManageUsers') && (
-            <Link href="/admin" className={`nav-mobile-link${pathname === '/admin' ? ' active' : ''}`}>
-              Admin
-            </Link>
-          )}
+            )}
+          </div>
 
+          {/* User info + logout — přilepeno ke dnu */}
           {userName && (
-            <>
-              <div className="nav-mobile-divider" />
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{
-                    width: '28px', height: '28px', borderRadius: '50%',
-                    backgroundColor: avatarColor, color: '#0c0c0c',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '10px', fontWeight: '700',
-                  }}>{initials}</div>
-                  <div>
-                    <span style={{ fontSize: '14px', color: '#9ca3af', display: 'block' }}>{userName}</span>
-                    {role && <span style={{ fontSize: '11px', color: ROLE_COLORS[role], fontWeight: '600' }}>{ROLE_LABELS[role]}</span>}
-                  </div>
+            <div style={{ padding: '16px', borderTop: '1px solid #1e1e1e' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
+                  backgroundColor: avatarColor, color: '#0c0c0c',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '14px', fontWeight: '700',
+                }}>{initials}</div>
+                <div>
+                  <div style={{ fontSize: '15px', color: '#f1f5f9', fontWeight: '500', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>{userName}</div>
+                  {role && <div style={{ fontSize: '11px', color: ROLE_COLORS[role], fontWeight: '600', marginTop: '2px' }}>{ROLE_LABELS[role]}</div>}
                 </div>
-                <button disabled={isPending} onClick={() => startTransition(() => signOut())}
-                  style={{ fontSize: '13px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-                  Odhlásit
-                </button>
               </div>
-            </>
+              <button disabled={isPending} onClick={() => startTransition(() => signOut())}
+                style={{ width: '100%', padding: '13px', backgroundColor: '#1a0808', color: '#e05555', border: '1px solid #3d1515', borderRadius: '10px', cursor: 'pointer', fontSize: '15px', fontWeight: '600', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
+                {isPending ? 'Odhlašuji...' : 'Odhlásit se'}
+              </button>
+              <div style={{ height: 'env(safe-area-inset-bottom, 8px)' }} />
+            </div>
           )}
         </div>
       )}
