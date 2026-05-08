@@ -116,7 +116,7 @@ export async function deleteIncome(id: string) {
 // LINEUP
 export async function createArtist(payload: {
   event_id: string; artist_name: string; fee: number; deposit: number;
-  paid: boolean; set_time: string | null; notes: string | null
+  paid: boolean; set_time: string | null; stage: string | null; notes: string | null
 }) {
   const supabase = getSupabase()
   const { data, error } = await supabase.from('lineup').insert([payload]).select().single()
@@ -126,7 +126,7 @@ export async function createArtist(payload: {
 
 export async function updateArtist(id: string, payload: {
   artist_name: string; fee: number; deposit: number;
-  paid: boolean; set_time: string | null; notes: string | null
+  paid: boolean; set_time: string | null; stage: string | null; notes: string | null
 }) {
   const supabase = getSupabase()
   const { error } = await supabase.from('lineup').update(payload).eq('id', id)

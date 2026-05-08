@@ -9,7 +9,9 @@ import { createArtist, updateArtist, deleteArtist, toggleArtistPaid } from '@/ap
 interface Props { params: Promise<{ id: string }> }
 interface Contact { id: string; name: string; type: string; fee: number }
 
-const emptyForm = { artist_name: '', fee: '', deposit: '', paid: false, set_time: '', notes: '' }
+const STAGES = ['Main Stage', 'Stage 2', 'Chill Stage', 'Spodní stage']
+
+const emptyForm = { artist_name: '', fee: '', deposit: '', paid: false, set_time: '', stage: '', notes: '' }
 
 export default function LineupPage({ params }: Props) {
   const { id } = use(params)
@@ -42,7 +44,7 @@ export default function LineupPage({ params }: Props) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
-    const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid, set_time: form.set_time || null, notes: form.notes || null }
+    const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
     const result = editId ? await updateArtist(editId, payload) : await createArtist(payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
@@ -58,7 +60,7 @@ export default function LineupPage({ params }: Props) {
   }
 
   function startEdit(art: LineupArtist) {
-    setForm({ artist_name: art.artist_name, fee: art.fee.toString(), deposit: art.deposit.toString(), paid: art.paid, set_time: art.set_time || '', notes: art.notes || '' })
+    setForm({ artist_name: art.artist_name, fee: art.fee.toString(), deposit: art.deposit.toString(), paid: art.paid, set_time: art.set_time || '', stage: art.stage || '', notes: art.notes || '' })
     setEditId(art.id); setShowForm(true)
   }
 
@@ -116,10 +118,17 @@ export default function LineupPage({ params }: Props) {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div>
               <label style={labelStyle}>Jméno / pseudonym *</label>
               <input required value={form.artist_name} onChange={e => setForm({ ...form, artist_name: e.target.value })} placeholder="např. Ripplednb" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Stage</label>
+              <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} style={inputStyle}>
+                <option value="">—</option>
+                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
             <div>
               <label style={labelStyle}>Set time</label>
@@ -168,7 +177,7 @@ export default function LineupPage({ params }: Props) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ backgroundColor: '#161616', borderBottom: '1px solid #2d1515' }}>
-                {['Artist', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Zaplaceno', 'Poznámky', ''].map(h => (
+                {['Artist', 'Stage', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Zaplaceno', 'Poznámky', ''].map(h => (
                   <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#4b5563' }}>{h}</th>
                 ))}
               </tr>
@@ -177,6 +186,11 @@ export default function LineupPage({ params }: Props) {
               {artists.map(art => (
                 <tr key={art.id} style={{ borderBottom: '1px solid #1e1e1e' }}>
                   <td style={{ padding: '12px 16px', fontWeight: '600', color: '#f1f5f9' }}>{art.artist_name}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {art.stage
+                      ? <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#1a1a2e', color: '#a78bfa', fontWeight: '500' }}>{art.stage}</span>
+                      : <span style={{ color: '#374151' }}>—</span>}
+                  </td>
                   <td style={{ padding: '12px 16px', color: '#9ca3af' }}>{art.set_time || '—'}</td>
                   <td style={{ padding: '12px 16px', fontWeight: '600', color: '#f1f5f9' }}>{art.fee.toLocaleString('cs-CZ')} Kč</td>
                   <td style={{ padding: '12px 16px', color: '#60a5fa' }}>{art.deposit > 0 ? art.deposit.toLocaleString('cs-CZ') + ' Kč' : '—'}</td>
