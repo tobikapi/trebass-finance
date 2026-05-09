@@ -101,8 +101,8 @@ export default function UkolyPage() {
     done: filtered.filter((t) => t.status === 'done'),
   }
 
-  const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
-  const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
+  const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
+  const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
 
   const getPriorityColor = (p: string) => PRIORITIES.find((x) => x.value === p)?.color || '#6b7280'
   const getStatusInfo = (s: string) => STATUSES.find((x) => x.value === s) || STATUSES[0]
@@ -113,8 +113,8 @@ export default function UkolyPage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#f1f5f9', margin: 0 }}>Úkoly</h1>
-          <p style={{ marginTop: '4px', fontSize: '14px', color: '#6b7280', marginBottom: 0 }}>Task management pro celý tým</p>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Úkoly</h1>
+          <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Task management pro celý tým</p>
         </div>
         <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
           + Nový úkol
@@ -124,17 +124,17 @@ export default function UkolyPage() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: '24px', marginBottom: '24px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#6b7280', marginRight: '4px' }}>Člen:</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>Člen:</span>
           {['vse', ...MEMBERS].map((m) => (
-            <button key={m} onClick={() => setFilterUser(m)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterUser === m ? '#e05555' : '#1e1e1e', color: filterUser === m ? '#fff' : '#9ca3af' }}>
+            <button key={m} onClick={() => setFilterUser(m)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterUser === m ? '#e05555' : 'var(--bg-card-dark)', color: filterUser === m ? '#fff' : 'var(--text-secondary)' }}>
               {m === 'vse' ? 'Vše' : m}
             </button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#6b7280', marginRight: '4px' }}>Status:</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>Status:</span>
           {[{ value: 'vse', label: 'Vše' }, ...STATUSES].map((s) => (
-            <button key={s.value} onClick={() => setFilterStatus(s.value)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterStatus === s.value ? '#e05555' : '#1e1e1e', color: filterStatus === s.value ? '#fff' : '#9ca3af' }}>
+            <button key={s.value} onClick={() => setFilterStatus(s.value)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterStatus === s.value ? '#e05555' : 'var(--bg-card-dark)', color: filterStatus === s.value ? '#fff' : 'var(--text-secondary)' }}>
               {s.label}
             </button>
           ))}
@@ -143,7 +143,7 @@ export default function UkolyPage() {
 
       {/* Form */}
       {showForm && (
-        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: '#161616', border: '1px solid #e05555', borderRadius: '12px' }}>
+        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #e05555', borderRadius: '12px' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '600', color: '#f4978e' }}>{editId ? 'Upravit úkol' : 'Nový úkol'}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div>
@@ -161,7 +161,7 @@ export default function UkolyPage() {
                       border: '1px solid', transition: 'all 0.15s',
                       backgroundColor: selected ? '#2d1515' : '#0c0c0c',
                       borderColor: selected ? '#e05555' : '#2d1515',
-                      color: selected ? '#f4978e' : '#6b7280',
+                      color: selected ? '#f4978e' : 'var(--text-muted)',
                       fontWeight: selected ? '600' : '400',
                     }}>{m}</button>
                   )
@@ -202,7 +202,7 @@ export default function UkolyPage() {
             <button type="submit" disabled={saving} style={{ padding: '8px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
               {saving ? 'Ukládám...' : 'Uložit'}
             </button>
-            <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} style={{ padding: '8px 20px', backgroundColor: '#1e1e1e', color: '#9ca3af', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+            <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} style={{ padding: '8px 20px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
               Zrušit
             </button>
           </div>
@@ -210,7 +210,7 @@ export default function UkolyPage() {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '64px', color: '#6b7280' }}>Načítám...</div>
+        <div style={{ textAlign: 'center', padding: '64px', color: 'var(--text-muted)' }}>Načítám...</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
           {STATUSES.map((col) => {
@@ -222,28 +222,28 @@ export default function UkolyPage() {
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: col.color, display: 'inline-block' }} />
                     <span style={{ fontSize: '13px', fontWeight: '600', color: col.color }}>{col.label}</span>
                   </div>
-                  <span style={{ fontSize: '12px', color: '#4b5563', backgroundColor: '#1e1e1e', padding: '2px 8px', borderRadius: '10px' }}>{colTasks.length}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-dim)', backgroundColor: 'var(--bg-card-dark)', padding: '2px 8px', borderRadius: '10px' }}>{colTasks.length}</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {colTasks.length === 0 && (
-                    <div style={{ padding: '24px', textAlign: 'center', color: '#4b5563', fontSize: '12px', border: '1px dashed #2d2d2d', borderRadius: '8px' }}>
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px', border: '1px dashed var(--border-subtle)', borderRadius: '8px' }}>
                       Žádné úkoly
                     </div>
                   )}
                   {colTasks.map((task) => {
                     const overdue = isOverdue(task)
                     return (
-                      <div key={task.id} className="card-hover" style={{ backgroundColor: '#161616', border: `1px solid ${overdue ? '#4a1515' : '#2d1515'}`, borderRadius: '10px', padding: '14px' }}>
+                      <div key={task.id} className="card-hover" style={{ backgroundColor: 'var(--bg-card-alt)', border: `1px solid ${overdue ? '#4a1515' : '#2d1515'}`, borderRadius: '10px', padding: '14px' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '500', color: '#f1f5f9', flex: 1, marginRight: '8px' }}>{task.title}</span>
+                          <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', flex: 1, marginRight: '8px' }}>{task.title}</span>
                           <span style={{ fontSize: '11px', color: getPriorityColor(task.priority), backgroundColor: '#0c0c0c', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
                             {PRIORITIES.find((p) => p.value === task.priority)?.label}
                           </span>
                         </div>
 
                         {task.description && (
-                          <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 8px 0' }}>{task.description}</p>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>{task.description}</p>
                         )}
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
@@ -253,12 +253,12 @@ export default function UkolyPage() {
                             </span>
                           ))}
                           {task.due_date && (
-                            <span style={{ fontSize: '11px', color: overdue ? '#e05555' : '#6b7280' }}>
+                            <span style={{ fontSize: '11px', color: overdue ? '#e05555' : 'var(--text-muted)' }}>
                               {overdue ? '⚠️' : '📅'} {new Date(task.due_date).toLocaleDateString('cs-CZ')}
                             </span>
                           )}
                           {task.event_id && (
-                            <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                               🎪 {events.find((e) => e.id === task.event_id)?.name?.split(' ').slice(0, 2).join(' ')}
                             </span>
                           )}

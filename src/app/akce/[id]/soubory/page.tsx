@@ -124,13 +124,13 @@ export default function SouboryPage({ params }: Props) {
   return (
     <EventLayout eventId={id}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-        <span style={{ fontSize: '13px', color: '#9ca3af' }}>Nahrává:</span>
+        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Nahrává:</span>
         {MEMBERS.map(m => (
           <button key={m} onClick={() => setUploader(m)} style={{
             padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
             border: 'none', cursor: 'pointer',
-            backgroundColor: uploader === m ? '#e05555' : '#1e1e1e',
-            color: uploader === m ? '#fff' : '#9ca3af',
+            backgroundColor: uploader === m ? '#e05555' : 'var(--bg-card-dark)',
+            color: uploader === m ? '#fff' : 'var(--text-secondary)',
           }}>{m}</button>
         ))}
       </div>
@@ -143,36 +143,36 @@ export default function SouboryPage({ params }: Props) {
         style={{
           border: `2px dashed ${dragOver ? '#e05555' : '#2d1515'}`,
           borderRadius: '12px', padding: '40px', textAlign: 'center',
-          backgroundColor: dragOver ? '#1a0a0a' : '#161616',
+          backgroundColor: dragOver ? '#1a0a0a' : 'var(--bg-card-alt)',
           cursor: 'pointer', marginBottom: '24px', transition: 'all 0.15s',
         }}
       >
         <div style={{ fontSize: '32px', marginBottom: '8px' }}>📁</div>
-        <div style={{ fontSize: '14px', color: '#f1f5f9', fontWeight: '500', marginBottom: '4px' }}>
+        <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '500', marginBottom: '4px' }}>
           {uploading ? 'Nahrávám...' : 'Klikni nebo přetáhni soubory sem'}
         </div>
-        <div style={{ fontSize: '12px', color: '#4b5563' }}>PDF, obrázky, dokumenty, cokoliv</div>
+        <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>PDF, obrázky, dokumenty, cokoliv</div>
         <input ref={fileRef} type="file" multiple style={{ display: 'none' }}
           onChange={e => uploadFiles(e.target.files)} />
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>Načítám...</div>
+        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>Načítám...</div>
       ) : documents.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#161616', border: '1px dashed #2d2d2d', borderRadius: '12px', color: '#4b5563' }}>
+        <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--bg-card-alt)', border: '1px dashed var(--border-subtle)', borderRadius: '12px', color: 'var(--text-dim)' }}>
           Zatím žádné soubory.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {documents.map(doc => (
-            <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '10px' }}>
+            <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
                 <span style={{ fontSize: '24px', flexShrink: 0 }}>{fileIcon(doc.file_type)}</span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '14px', fontWeight: '500', color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {doc.name}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '2px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
                     {formatSize(doc.file_size)}{doc.file_size ? ' · ' : ''}{doc.uploaded_by && <span>{doc.uploaded_by} · </span>}{formatTime(doc.created_at)}
                   </div>
                 </div>

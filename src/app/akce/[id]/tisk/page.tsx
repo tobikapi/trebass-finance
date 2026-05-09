@@ -80,8 +80,8 @@ export default function TiskPage() {
     XLSX.writeFile(wb, fileName)
   }
 
-  if (loading) return <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>Načítám...</div>
-  if (!event) return <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>Akce nenalezena.</div>
+  if (loading) return <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-muted)' }}>Načítám...</div>
+  if (!event) return <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-muted)' }}>Akce nenalezena.</div>
 
   const totalExpenses = expenses.reduce((s, e) => s + e.price, 0)
   const totalPaid = expenses.reduce((s, e) => s + (e.paid ? e.price : 0), 0)
@@ -115,11 +115,11 @@ export default function TiskPage() {
         </button>
         <button
           onClick={() => router.back()}
-          style={{ padding: '10px 20px', backgroundColor: '#1e1e1e', color: '#9ca3af', borderRadius: '8px', fontSize: '14px', border: 'none', cursor: 'pointer' }}
+          style={{ padding: '10px 20px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '14px', border: 'none', cursor: 'pointer' }}
         >
           ← Zpět
         </button>
-        <span style={{ fontSize: '12px', color: '#4b5563' }}>Pro PDF: v dialogu tisku zvol "Uložit jako PDF"</span>
+        <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Pro PDF: v dialogu tisku zvol "Uložit jako PDF"</span>
       </div>
 
       {/* Printable content */}

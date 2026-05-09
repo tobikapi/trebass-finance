@@ -44,7 +44,7 @@ export default function AdminPage() {
   return (
     <div>
       <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#f1f5f9', margin: 0 }}>
+        <h1 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
           Správa uživatelů
         </h1>
         {message && <span style={{ fontSize: '13px', color: '#34d399' }}>{message}</span>}
@@ -54,7 +54,7 @@ export default function AdminPage() {
         {profiles.map(profile => (
           <div key={profile.id} style={{
             backgroundColor: 'rgba(255,255,255,0.04)',
-            border: '1px solid #2d2d2d',
+            border: '1px solid var(--border-subtle)',
             borderRadius: '10px',
             padding: '16px 20px',
             display: 'flex',
@@ -64,10 +64,10 @@ export default function AdminPage() {
             flexWrap: 'wrap',
           }}>
             <div>
-              <div style={{ fontSize: '15px', fontWeight: '600', color: '#f1f5f9' }}>
+              <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)' }}>
                 {profile.name || '—'}
               </div>
-              <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '2px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
                 {profile.email || profile.id}
               </div>
             </div>
@@ -85,7 +85,7 @@ export default function AdminPage() {
                 disabled={saving === profile.id}
                 onChange={(e) => handleRoleChange(profile.id, e.target.value)}
                 style={{
-                  backgroundColor: '#1e1e1e', color: '#f1f5f9',
+                  backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-primary)',
                   border: '1px solid #3d3d3d', borderRadius: '6px',
                   padding: '6px 10px', fontSize: '13px', cursor: 'pointer',
                   opacity: saving === profile.id ? 0.5 : 1,
@@ -100,7 +100,7 @@ export default function AdminPage() {
         ))}
 
         {profiles.length === 0 && (
-          <div style={{ fontSize: '14px', color: '#6b7280', textAlign: 'center', padding: '32px' }}>
+          <div style={{ fontSize: '14px', color: 'var(--text-muted)', textAlign: 'center', padding: '32px' }}>
             Zatím žádní uživatelé. Vytvoř je v Supabase → Authentication → Users.
           </div>
         )}
@@ -108,12 +108,12 @@ export default function AdminPage() {
 
       <div style={{
         padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)',
-        border: '1px solid #2d2d2d', borderRadius: '10px', marginBottom: '24px',
+        border: '1px solid var(--border-subtle)', borderRadius: '10px', marginBottom: '24px',
       }}>
-        <div style={{ fontSize: '14px', fontWeight: '600', color: '#f1f5f9', marginBottom: '8px' }}>
+        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px' }}>
           Přidat nového uživatele
         </div>
-        <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: '1.7' }}>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.7' }}>
           Jdi na Supabase → Authentication → Users → Add user → Create new user.<br />
           Po vytvoření se uživatel automaticky objeví tady a můžeš mu nastavit roli.
         </div>
@@ -127,7 +127,7 @@ export default function AdminPage() {
         ]).map(({ r, desc }) => (
           <div key={r} style={{
             padding: '14px', backgroundColor: 'rgba(255,255,255,0.02)',
-            border: '1px solid #2d2d2d', borderRadius: '8px',
+            border: '1px solid var(--border-subtle)', borderRadius: '8px',
           }}>
             <span style={{
               display: 'inline-block', padding: '2px 10px', borderRadius: '20px',
@@ -136,7 +136,7 @@ export default function AdminPage() {
             }}>
               {ROLE_LABELS[r]}
             </span>
-            <div style={{ fontSize: '12px', color: '#6b7280' }}>{desc}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{desc}</div>
           </div>
         ))}
       </div>

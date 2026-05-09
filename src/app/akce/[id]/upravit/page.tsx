@@ -18,14 +18,14 @@ export default function UpravitAkciPage() {
     })
   }, [id])
 
-  if (loading) return <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>Načítám...</div>
-  if (!event) return <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>Akce nenalezena.</div>
+  if (loading) return <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-muted)' }}>Načítám...</div>
+  if (!event) return <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-muted)' }}>Akce nenalezena.</div>
 
   return (
     <div style={{ maxWidth: '680px' }}>
       <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#f1f5f9', margin: 0 }}>Upravit akci</h1>
-        <p style={{ marginTop: '4px', fontSize: '14px', color: '#6b7280', marginBottom: 0 }}>{event.name}</p>
+        <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Upravit akci</h1>
+        <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>{event.name}</p>
       </div>
       <EventForm existing={event} />
     </div>

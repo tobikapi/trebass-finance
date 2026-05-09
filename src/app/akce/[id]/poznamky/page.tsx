@@ -67,20 +67,20 @@ export default function PoznamkyPage({ params }: Props) {
     <EventLayout eventId={id}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
         <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-          style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#161616', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2d1515', cursor: 'pointer' }}>
+          style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: 'var(--bg-card-alt)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid #2d1515', cursor: 'pointer' }}>
           {refreshing ? '...' : '↻ Obnovit'}
         </button>
       </div>
-      <form onSubmit={handleSubmit} style={{ marginBottom: '24px', backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
+      <form onSubmit={handleSubmit} style={{ marginBottom: '24px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
-          <span style={{ fontSize: '13px', color: '#9ca3af', flexShrink: 0 }}>Píše:</span>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flexShrink: 0 }}>Píše:</span>
           <div style={{ display: 'flex', gap: '6px' }}>
             {MEMBERS.map(m => (
               <button key={m} type="button" onClick={() => setAuthor(m)} style={{
                 padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
                 border: 'none', cursor: 'pointer',
-                backgroundColor: author === m ? (MEMBER_COLORS[m] || '#e05555') : '#1e1e1e',
-                color: author === m ? '#0c0c0c' : '#9ca3af',
+                backgroundColor: author === m ? (MEMBER_COLORS[m] || '#e05555') : 'var(--bg-card-dark)',
+                color: author === m ? '#0c0c0c' : 'var(--text-secondary)',
               }}>{m}</button>
             ))}
           </div>
@@ -88,7 +88,7 @@ export default function PoznamkyPage({ params }: Props) {
         <textarea
           value={content} onChange={e => setContent(e.target.value)}
           placeholder="Napiš poznámku pro tým..." rows={3}
-          style={{ backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px', resize: 'vertical', marginBottom: '12px' }}
+          style={{ backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px', resize: 'vertical', marginBottom: '12px' }}
         />
         <button type="submit" disabled={saving || !content.trim()} style={{
           padding: '8px 20px', backgroundColor: '#e05555', color: '#fff',
@@ -100,15 +100,15 @@ export default function PoznamkyPage({ params }: Props) {
       </form>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>Načítám...</div>
+        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>Načítám...</div>
       ) : notes.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#161616', border: '1px dashed #2d2d2d', borderRadius: '12px', color: '#4b5563' }}>
+        <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--bg-card-alt)', border: '1px dashed var(--border-subtle)', borderRadius: '12px', color: 'var(--text-dim)' }}>
           Zatím žádné poznámky. Buď první!
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {notes.map(note => (
-            <div key={note.id} style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '10px', padding: '16px' }}>
+            <div key={note.id} style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '10px', padding: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{
@@ -119,9 +119,9 @@ export default function PoznamkyPage({ params }: Props) {
                     {note.author.slice(0, 2).toUpperCase()}
                   </span>
                   <span style={{ fontSize: '13px', fontWeight: '600', color: MEMBER_COLORS[note.author] || '#f4978e' }}>{note.author}</span>
-                  <span style={{ fontSize: '11px', color: '#4b5563' }}>{formatTime(note.created_at)}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{formatTime(note.created_at)}</span>
                 </div>
-                <button onClick={() => handleDelete(note.id)} style={{ fontSize: '11px', color: '#4b5563', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <button onClick={() => handleDelete(note.id)} style={{ fontSize: '11px', color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                   Smazat
                 </button>
               </div>

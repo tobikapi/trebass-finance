@@ -43,14 +43,14 @@ export default function ArchivPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold" style={{ color: '#f1f5f9' }}>Archiv</h1>
-        <p className="mt-1 text-sm" style={{ color: '#6b7280' }}>Dokončené a archivované akce</p>
+        <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>Archiv</h1>
+        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>Dokončené a archivované akce</p>
       </div>
 
       {loading ? (
-        <div className="text-center py-16" style={{ color: '#6b7280' }}>Načítám...</div>
+        <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>Načítám...</div>
       ) : events.length === 0 ? (
-        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e', color: '#6b7280' }}>
+        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           Zatím žádné archivované akce.
         </div>
       ) : (
@@ -63,27 +63,27 @@ export default function ArchivPage() {
                 key={event.id}
                 href={`/akce/${event.id}/vydaje`}
                 className="block p-5 rounded-xl transition-opacity hover:opacity-80"
-                style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e' }}
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="text-lg font-semibold" style={{ color: '#f1f5f9' }}>{event.name}</div>
-                    <div className="flex gap-4 mt-1 text-sm" style={{ color: '#6b7280' }}>
+                    <div className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{event.name}</div>
+                    <div className="flex gap-4 mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
                       <span>📅 {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}</span>
                       {event.location && <span>📍 {event.location}</span>}
                     </div>
                   </div>
                   <div className="flex gap-4 text-right">
                     <div>
-                      <div className="text-xs" style={{ color: '#6b7280' }}>Výdaje</div>
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Výdaje</div>
                       <div className="font-semibold text-sm" style={{ color: '#f87171' }}>{s.expenses.toLocaleString('cs-CZ')} Kč</div>
                     </div>
                     <div>
-                      <div className="text-xs" style={{ color: '#6b7280' }}>Příjmy</div>
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Příjmy</div>
                       <div className="font-semibold text-sm" style={{ color: '#34d399' }}>{s.income.toLocaleString('cs-CZ')} Kč</div>
                     </div>
                     <div>
-                      <div className="text-xs" style={{ color: '#6b7280' }}>Bilance</div>
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Bilance</div>
                       <div className="font-semibold text-sm" style={{ color: balance >= 0 ? '#34d399' : '#f87171' }}>
                         {balance >= 0 ? '+' : ''}{balance.toLocaleString('cs-CZ')} Kč
                       </div>

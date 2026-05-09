@@ -60,8 +60,8 @@ export default function PrijmyPage({ params }: Props) {
     return acc
   }, {} as Record<string, Income[]>)
 
-  const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
-  const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block', marginBottom: '4px' }
+  const inputStyle = { backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
+  const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block', marginBottom: '4px' }
 
   return (
     <EventLayout eventId={id}>
@@ -73,15 +73,15 @@ export default function PrijmyPage({ params }: Props) {
             { label: 'Výdaje bez zálohy', value: totalExpensesWithoutDeposit, color: '#fb923c' },
             { label: 'Bilance', value: balance, color: balance >= 0 ? '#34d399' : '#f87171' },
           ].map((s) => (
-            <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e' }}>
-              <div className="text-xs" style={{ color: '#6b7280' }}>{s.label}</div>
+            <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
               <div className="font-semibold text-sm" style={{ color: s.color }}>{s.value.toLocaleString('cs-CZ')} Kč</div>
             </div>
           ))}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: '#111118', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e' }}>
+            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-card)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}>
             {refreshing ? '...' : '↻'}
           </button>
           <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
@@ -91,7 +91,7 @@ export default function PrijmyPage({ params }: Props) {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSave} className="mb-6 p-5 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #7c3aed' }}>
+        <form onSubmit={handleSave} className="mb-6 p-5 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid #7c3aed' }}>
           <h3 className="text-sm font-semibold mb-4" style={{ color: '#a78bfa' }}>{editId ? 'Upravit příjem' : 'Nový příjem'}</h3>
           <div className="grid grid-cols-4 gap-3">
             <div>
@@ -112,7 +112,7 @@ export default function PrijmyPage({ params }: Props) {
               <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
                 {saving ? 'Ukládám...' : 'Uložit'}
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: '#1e1e2e', color: '#9ca3af' }}>
+              <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)' }}>
                 Zrušit
               </button>
             </div>
@@ -121,9 +121,9 @@ export default function PrijmyPage({ params }: Props) {
       )}
 
       {loading ? (
-        <div className="text-center py-16" style={{ color: '#6b7280' }}>Načítám...</div>
+        <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>Načítám...</div>
       ) : income.length === 0 ? (
-        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e', color: '#6b7280' }}>
+        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           Zatím žádné příjmy. Klikni + Přidat příjem.
         </div>
       ) : (
@@ -131,23 +131,23 @@ export default function PrijmyPage({ params }: Props) {
           {Object.entries(bySource).map(([source, items]) => {
             const srcTotal = items.reduce((s, i) => s + i.amount, 0)
             return (
-              <div key={source} className="rounded-xl overflow-hidden" style={{ border: '1px solid #2a2a3e' }}>
+              <div key={source} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
                 <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: '#1a1a2e' }}>
                   <span className="text-xs font-semibold tracking-wider" style={{ color: '#34d399' }}>{source}</span>
-                  <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{srcTotal.toLocaleString('cs-CZ')} Kč</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{srcTotal.toLocaleString('cs-CZ')} Kč</span>
                 </div>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #1e1e2e' }}>
+                    <tr style={{ borderBottom: '1px solid var(--border-card)' }}>
                       {['Poznámka', 'Částka', ''].map((h) => (
-                        <th key={h} className="px-4 py-2 text-left text-xs font-medium" style={{ color: '#4b5563' }}>{h}</th>
+                        <th key={h} className="px-4 py-2 text-left text-xs font-medium" style={{ color: 'var(--text-dim)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((inc) => (
                       <tr key={inc.id} style={{ borderBottom: '1px solid #1a1a2e' }}>
-                        <td className="px-4 py-2.5" style={{ color: '#9ca3af' }}>{inc.note || '—'}</td>
+                        <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{inc.note || '—'}</td>
                         <td className="px-4 py-2.5 font-semibold" style={{ color: '#34d399' }}>{inc.amount.toLocaleString('cs-CZ')} Kč</td>
                         <td className="px-4 py-2.5">
                           <div className="flex gap-2">

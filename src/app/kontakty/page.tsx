@@ -71,15 +71,15 @@ export default function KontaktyPage() {
     return true
   })
 
-  const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
-  const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
+  const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
+  const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#f1f5f9', margin: 0 }}>Kontakty</h1>
-          <p style={{ marginTop: '4px', fontSize: '14px', color: '#6b7280', marginBottom: 0 }}>Adresář umělců, dodavatelů a partnerů</p>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Kontakty</h1>
+          <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Adresář umělců, dodavatelů a partnerů</p>
         </div>
         <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }}
           style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
@@ -95,8 +95,8 @@ export default function KontaktyPage() {
           {['vse', ...TYPES].map(t => (
             <button key={t} onClick={() => setFilterType(t)}
               style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer',
-                backgroundColor: filterType === t ? '#e05555' : '#1e1e1e',
-                color: filterType === t ? '#fff' : '#9ca3af' }}>
+                backgroundColor: filterType === t ? '#e05555' : 'var(--bg-card-dark)',
+                color: filterType === t ? '#fff' : 'var(--text-secondary)' }}>
               {t === 'vse' ? 'Vše' : t}
             </button>
           ))}
@@ -105,7 +105,7 @@ export default function KontaktyPage() {
 
       {/* Form */}
       {showForm && (
-        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: '#161616', border: '1px solid #e05555', borderRadius: '12px' }}>
+        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #e05555', borderRadius: '12px' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '600', color: '#f4978e' }}>
             {editId ? 'Upravit kontakt' : 'Nový kontakt'}
           </h3>
@@ -143,7 +143,7 @@ export default function KontaktyPage() {
               {saving ? 'Ukládám...' : 'Uložit'}
             </button>
             <button type="button" onClick={() => { setShowForm(false); setEditId(null) }}
-              style={{ padding: '8px 20px', backgroundColor: '#1e1e1e', color: '#9ca3af', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+              style={{ padding: '8px 20px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
               Zrušit
             </button>
           </div>
@@ -152,9 +152,9 @@ export default function KontaktyPage() {
 
       {/* Grid */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '64px', color: '#6b7280' }}>Načítám...</div>
+        <div style={{ textAlign: 'center', padding: '64px', color: 'var(--text-muted)' }}>Načítám...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#161616', border: '1px dashed #2d2d2d', borderRadius: '12px', color: '#4b5563' }}>
+        <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--bg-card-alt)', border: '1px dashed var(--border-subtle)', borderRadius: '12px', color: 'var(--text-dim)' }}>
           {search || filterType !== 'vse' ? 'Žádné výsledky.' : 'Zatím žádné kontakty. Přidej první →'}
         </div>
       ) : (
@@ -162,10 +162,10 @@ export default function KontaktyPage() {
           {filtered.map(c => {
             const tc = TYPE_COLORS[c.type] || TYPE_COLORS.jiné
             return (
-              <div key={c.id} style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '10px', padding: '16px' }}>
+              <div key={c.id} style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '10px', padding: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div>
-                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#f1f5f9' }}>{c.name}</div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)' }}>{c.name}</div>
                     <span style={{ fontSize: '11px', color: tc.color, backgroundColor: tc.bg, padding: '2px 8px', borderRadius: '10px', marginTop: '4px', display: 'inline-block' }}>
                       {c.type}
                     </span>
@@ -184,17 +184,17 @@ export default function KontaktyPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                   {c.phone && (
-                    <a href={`tel:${c.phone}`} style={{ fontSize: '13px', color: '#9ca3af', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <a href={`tel:${c.phone}`} style={{ fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>📞</span> {c.phone}
                     </a>
                   )}
                   {c.email && (
-                    <a href={`mailto:${c.email}`} style={{ fontSize: '13px', color: '#9ca3af', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <a href={`mailto:${c.email}`} style={{ fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>✉️</span> {c.email}
                     </a>
                   )}
                   {c.note && (
-                    <p style={{ fontSize: '12px', color: '#6b7280', margin: '4px 0 0 0' }}>{c.note}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>{c.note}</p>
                   )}
                 </div>
               </div>

@@ -28,8 +28,8 @@ const STATUS_OPTS: { value: EventStatus | 'vse'; label: string }[] = [
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ backgroundColor: '#1e1e1e', border: '1px solid #2d1515', borderRadius: '8px', padding: '10px 14px', fontSize: '12px' }}>
-      <div style={{ color: '#f1f5f9', fontWeight: '600', marginBottom: '6px' }}>{label}</div>
+    <div style={{ backgroundColor: 'var(--bg-card-dark)', border: '1px solid #2d1515', borderRadius: '8px', padding: '10px 14px', fontSize: '12px' }}>
+      <div style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '6px' }}>{label}</div>
       {payload.map((p: any) => (
         <div key={p.name} style={{ color: p.color, marginBottom: '2px' }}>
           {p.name}: {Number(p.value).toLocaleString('cs-CZ')} Kč
@@ -42,8 +42,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const CustomPieTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ backgroundColor: '#1e1e1e', border: '1px solid #2d1515', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
-      <div style={{ color: '#f1f5f9' }}>{payload[0].name}</div>
+    <div style={{ backgroundColor: 'var(--bg-card-dark)', border: '1px solid #2d1515', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
+      <div style={{ color: 'var(--text-primary)' }}>{payload[0].name}</div>
       <div style={{ color: '#f4978e', fontWeight: '600' }}>{Number(payload[0].value).toLocaleString('cs-CZ')} Kč</div>
     </div>
   )
@@ -54,8 +54,8 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
     <button onClick={onClick} style={{
       padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
       border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-      backgroundColor: active ? '#e05555' : '#1a1a1a',
-      color: active ? '#fff' : '#6b7280',
+      backgroundColor: active ? '#e05555' : 'var(--border-subtle)',
+      color: active ? '#fff' : 'var(--text-muted)',
     }}>
       {label}
     </button>
@@ -151,29 +151,29 @@ export default function Dashboard() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#f1f5f9', margin: 0 }}>Dashboard</h1>
-        <p style={{ marginTop: '4px', fontSize: '14px', color: '#6b7280', margin: '4px 0 0 0' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Dashboard</h1>
+        <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
           {activeFiltersLabel ? `Filtr: ${activeFiltersLabel}` : 'Přehled všech akcí a financí'}
         </p>
       </div>
 
       {/* Filtry */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', padding: '16px 20px', backgroundColor: '#111111', border: '1px solid #1e1e1e', borderRadius: '12px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', padding: '16px 20px', backgroundColor: 'var(--bg-nav)', border: '1px solid var(--border-subtle)', borderRadius: '12px', alignItems: 'center' }}>
 
         {/* Rok */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '11px', color: '#4b5563', letterSpacing: '0.08em' }}>ROK</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>ROK</span>
           <FilterChip label="Vše" active={yearFilter === 'vse'} onClick={() => setYearFilter('vse')} />
           {availableYears.map(y => (
             <FilterChip key={y} label={y} active={yearFilter === y} onClick={() => setYearFilter(y)} />
           ))}
         </div>
 
-        <div style={{ width: '1px', height: '24px', backgroundColor: '#1e1e1e', flexShrink: 0 }} />
+        <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-subtle)', flexShrink: 0 }} />
 
         {/* Status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '11px', color: '#4b5563', letterSpacing: '0.08em' }}>STATUS</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>STATUS</span>
           {STATUS_OPTS.map(opt => (
             <FilterChip key={opt.value} label={opt.label} active={statusFilter === opt.value} onClick={() => setStatusFilter(opt.value)} />
           ))}
@@ -182,7 +182,7 @@ export default function Dashboard() {
         {/* Reset */}
         {(yearFilter !== 'vse' || statusFilter !== 'vse') && (
           <button onClick={() => { setYearFilter('vse'); setStatusFilter('vse') }}
-            style={{ marginLeft: 'auto', fontSize: '12px', color: '#4b5563', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
+            style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
             ✕ Reset
           </button>
         )}
@@ -191,8 +191,8 @@ export default function Dashboard() {
       {/* Stat cards */}
       <div className="stat-grid">
         {statCards.map((card) => (
-          <div key={card.label} style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
-            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '6px' }}>{card.label}</div>
+          <div key={card.label} style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>{card.label}</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: card.color }}>{loading ? '...' : card.value}</div>
           </div>
         ))}
@@ -200,8 +200,8 @@ export default function Dashboard() {
 
       {/* Balance */}
       {!loading && (totalIncome > 0 || totalExpenses > 0) && (
-        <div style={{ backgroundColor: '#161616', border: `1px solid ${balance >= 0 ? '#052e16' : '#4a1515'}`, borderRadius: '12px', padding: '16px 24px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '13px', color: '#6b7280' }}>Celková bilance{activeFiltersLabel ? ` — ${activeFiltersLabel}` : ''}</span>
+        <div style={{ backgroundColor: 'var(--bg-card-alt)', border: `1px solid ${balance >= 0 ? '#052e16' : '#4a1515'}`, borderRadius: '12px', padding: '16px 24px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Celková bilance{activeFiltersLabel ? ` — ${activeFiltersLabel}` : ''}</span>
           <span style={{ fontSize: '22px', fontWeight: '700', color: balance >= 0 ? '#34d399' : '#e05555' }}>
             {balance >= 0 ? '+' : ''}{balance.toLocaleString('cs-CZ')} Kč
           </span>
@@ -211,8 +211,8 @@ export default function Dashboard() {
       {/* Charts */}
       {!loading && barData.length > 0 && (
         <div className="chart-grid">
-          <div style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
-            <h2 style={{ fontSize: '14px', fontWeight: '600', color: '#f1f5f9', margin: '0 0 16px 0' }}>Příjmy vs. Výdaje po akcích</h2>
+          <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 16px 0' }}>Příjmy vs. Výdaje po akcích</h2>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={barData} barCategoryGap="30%">
                 <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -226,8 +226,8 @@ export default function Dashboard() {
           </div>
 
           {pieData.length > 0 && (
-            <div style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
-              <h2 style={{ fontSize: '14px', fontWeight: '600', color: '#f1f5f9', margin: '0 0 16px 0' }}>Výdaje podle kategorie</h2>
+            <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
+              <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 16px 0' }}>Výdaje podle kategorie</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <ResponsiveContainer width={160} height={160}>
                   <PieChart>
@@ -241,8 +241,8 @@ export default function Dashboard() {
                   {pieData.map((c, i) => (
                     <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0, display: 'inline-block' }} />
-                      <span style={{ fontSize: '11px', color: '#9ca3af', flex: 1 }}>{c.name}</span>
-                      <span style={{ fontSize: '11px', color: '#f1f5f9', fontWeight: '600' }}>{c.value.toLocaleString('cs-CZ')}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1 }}>{c.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-primary)', fontWeight: '600' }}>{c.value.toLocaleString('cs-CZ')}</span>
                     </div>
                   ))}
                 </div>
@@ -253,26 +253,26 @@ export default function Dashboard() {
       )}
 
       {/* Event list */}
-      <div style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '24px' }}>
+      <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#f1f5f9', margin: 0 }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0 }}>
             Akce{activeFiltersLabel ? ` — ${activeFiltersLabel}` : ' — poslední'}
           </h2>
           <Link href="/akce" style={{ fontSize: '13px', color: '#e05555', textDecoration: 'none' }}>Zobrazit vše →</Link>
         </div>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>Načítám...</div>
+          <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Načítám...</div>
         ) : filteredEvents.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>
+          <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
             Žádné akce pro zvolený filtr.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {filteredEvents.slice(0, 6).map((event) => (
-              <Link key={event.id} href={`/akce/${event.id}/vydaje`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '8px', backgroundColor: '#0c0c0c', border: '1px solid #1e1e1e', textDecoration: 'none' }}>
+              <Link key={event.id} href={`/akce/${event.id}/vydaje`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '8px', backgroundColor: '#0c0c0c', border: '1px solid var(--border-subtle)', textDecoration: 'none' }}>
                 <div>
-                  <div style={{ fontWeight: '500', color: '#f1f5f9', fontSize: '14px' }}>{event.name}</div>
-                  <div style={{ fontSize: '12px', marginTop: '2px', color: '#6b7280' }}>
+                  <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '14px' }}>{event.name}</div>
+                  <div style={{ fontSize: '12px', marginTop: '2px', color: 'var(--text-muted)' }}>
                     {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}
                     {event.location && ` · ${event.location}`}
                   </div>
@@ -288,7 +288,7 @@ export default function Dashboard() {
 
       {/* Foto strip */}
       <div style={{ marginTop: '32px' }}>
-        <div style={{ fontSize: '12px', color: '#374151', marginBottom: '12px', letterSpacing: '0.1em', fontFamily: 'Awakenning, sans-serif' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '12px', letterSpacing: '0.1em', fontFamily: 'Awakenning, sans-serif' }}>
           TŘEBASS 2025
         </div>
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>

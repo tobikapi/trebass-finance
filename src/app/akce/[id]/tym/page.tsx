@@ -48,8 +48,8 @@ export default function TymPage({ params }: Props) {
   const avg = contributions.length > 0 ? total / contributions.length : 0
   const maxContrib = contributions.length > 0 ? Math.max(...contributions.map((c) => c.amount)) : 0
 
-  const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
-  const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block', marginBottom: '4px' }
+  const inputStyle = { backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
+  const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block', marginBottom: '4px' }
 
   return (
     <EventLayout eventId={id}>
@@ -60,15 +60,15 @@ export default function TymPage({ params }: Props) {
             { label: 'Celkem vloženo', value: total.toLocaleString('cs-CZ'), color: '#34d399', suffix: ' Kč' },
             { label: 'Průměr na člena', value: Math.round(avg).toLocaleString('cs-CZ'), color: '#60a5fa', suffix: ' Kč' },
           ].map((s) => (
-            <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e' }}>
-              <div className="text-xs" style={{ color: '#6b7280' }}>{s.label}</div>
+            <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
               <div className="font-semibold text-sm" style={{ color: s.color }}>{s.value}{s.suffix}</div>
             </div>
           ))}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: '#111118', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e' }}>
+            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-card)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}>
             {refreshing ? '...' : '↻'}
           </button>
           <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
@@ -78,7 +78,7 @@ export default function TymPage({ params }: Props) {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSave} className="mb-6 p-5 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #7c3aed' }}>
+        <form onSubmit={handleSave} className="mb-6 p-5 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid #7c3aed' }}>
           <h3 className="text-sm font-semibold mb-4" style={{ color: '#a78bfa' }}>{editId ? 'Upravit příspěvek' : 'Nový příspěvek'}</h3>
           <div className="grid grid-cols-4 gap-3">
             <div>
@@ -97,7 +97,7 @@ export default function TymPage({ params }: Props) {
               <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
                 {saving ? 'Ukládám...' : 'Uložit'}
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: '#1e1e2e', color: '#9ca3af' }}>
+              <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)' }}>
                 Zrušit
               </button>
             </div>
@@ -106,9 +106,9 @@ export default function TymPage({ params }: Props) {
       )}
 
       {loading ? (
-        <div className="text-center py-16" style={{ color: '#6b7280' }}>Načítám...</div>
+        <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>Načítám...</div>
       ) : contributions.length === 0 ? (
-        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e', color: '#6b7280' }}>
+        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           Zatím žádné příspěvky. Klikni + Přidat příspěvek.
         </div>
       ) : (
@@ -116,11 +116,11 @@ export default function TymPage({ params }: Props) {
           {contributions.map((c) => {
             const pct = maxContrib > 0 ? (c.amount / maxContrib) * 100 : 0
             return (
-              <div key={c.id} className="p-4 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e' }}>
+              <div key={c.id} className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <span className="font-semibold" style={{ color: '#f1f5f9' }}>{c.name}</span>
-                    {c.note && <span className="ml-2 text-xs" style={{ color: '#6b7280' }}>{c.note}</span>}
+                    <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{c.name}</span>
+                    {c.note && <span className="ml-2 text-xs" style={{ color: 'var(--text-muted)' }}>{c.note}</span>}
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="font-bold text-lg" style={{ color: '#34d399' }}>{c.amount.toLocaleString('cs-CZ')} Kč</span>
@@ -130,10 +130,10 @@ export default function TymPage({ params }: Props) {
                     </div>
                   </div>
                 </div>
-                <div className="h-2 rounded-full" style={{ backgroundColor: '#1e1e2e' }}>
+                <div className="h-2 rounded-full" style={{ backgroundColor: 'var(--bg-badge)' }}>
                   <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: '#7c3aed' }} />
                 </div>
-                <div className="flex justify-between mt-1 text-xs" style={{ color: '#4b5563' }}>
+                <div className="flex justify-between mt-1 text-xs" style={{ color: 'var(--text-dim)' }}>
                   <span>{Math.round(pct)}% z maxima</span>
                   <span>{total > 0 ? Math.round((c.amount / total) * 100) : 0}% z celku</span>
                 </div>

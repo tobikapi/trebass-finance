@@ -11,8 +11,8 @@ interface Contact { id: string; name: string; type: string; fee: number }
 
 const emptyForm = { artist_name: '', fee: '', deposit: '', paid: false, date: '', set_time: '', stage: '', notes: '' }
 
-const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' } as const
-const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
+const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' } as const
+const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
 
 function getDays(start: string | null, end: string | null): string[] {
   if (!start) return []
@@ -161,13 +161,13 @@ export default function LineupPage({ params }: Props) {
       <form onSubmit={handleSave} style={{ margin: '0 0 14px 0', padding: '18px 20px', borderRadius: '10px', backgroundColor: '#0f0f0f', border: '1px solid #e05555' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <span style={{ fontSize: '13px', fontWeight: '600', color: '#f4978e' }}>{title}</span>
-          <button type="button" onClick={closeForm} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
+          <button type="button" onClick={closeForm} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
         </div>
 
         {!editId && contacts.length > 0 && (
           <div style={{ marginBottom: '14px', padding: '10px 12px', backgroundColor: '#0c0c0c', borderRadius: '8px', border: '1px solid #2d1515' }}>
             <label style={{ ...labelStyle, color: '#f4978e' }}>⚡ Vybrat z adresáře</label>
-            <select defaultValue="" onChange={e => pickContact(e.target.value)} style={{ ...inputStyle, color: '#f1f5f9' }}>
+            <select defaultValue="" onChange={e => pickContact(e.target.value)} style={{ ...inputStyle, color: 'var(--text-primary)' }}>
               <option value="">— vybrat kontakt —</option>
               {contacts.map(c => (
                 <option key={c.id} value={c.id}>{c.name} ({c.type}){c.fee > 0 ? ` — ${c.fee.toLocaleString('cs-CZ')} Kč` : ''}</option>
@@ -198,7 +198,7 @@ export default function LineupPage({ params }: Props) {
             <input type="number" value={form.deposit} onChange={e => setForm({ ...form, deposit: e.target.value })} placeholder="0" style={inputStyle} />
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#9ca3af' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={form.paid} onChange={e => setForm({ ...form, paid: e.target.checked })} />
               Zaplaceno
             </label>
@@ -214,7 +214,7 @@ export default function LineupPage({ params }: Props) {
             {saving ? 'Ukládám...' : 'Uložit'}
           </button>
           <button type="button" onClick={closeForm}
-            style={{ padding: '8px 20px', backgroundColor: '#1e1e1e', color: '#9ca3af', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+            style={{ padding: '8px 20px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
             Zrušit
           </button>
         </div>
@@ -230,18 +230,18 @@ export default function LineupPage({ params }: Props) {
       partyMinutes(a.set_time) - partyMinutes(b.set_time) || a.artist_name.localeCompare(b.artist_name, 'cs')
     )
     return (
-      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #1e1e1e', marginBottom: '4px' }}>
+      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-subtle)', marginBottom: '4px' }}>
         <div className="lineup-header">
           {(['Artist', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Paid', 'Poznámky', ''] as const).map((h, i) => (
-            <div key={h + i} style={{ fontSize: '11px', fontWeight: '600', color: '#4b5563', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
+            <div key={h + i} style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
         {sorted.map(art => (
           <div key={art.id} className="lineup-row">
-            <div style={{ fontWeight: '600', color: '#f1f5f9', fontSize: '13px' }}>{art.artist_name}</div>
-            <div style={{ color: '#9ca3af', fontSize: '13px' }}>{art.set_time || '—'}</div>
-            <div style={{ textAlign: 'right', color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>{art.fee.toLocaleString('cs-CZ')} Kč</div>
-            <div style={{ textAlign: 'right', color: art.deposit > 0 ? '#60a5fa' : '#374151', fontSize: '13px' }}>
+            <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px' }}>{art.artist_name}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{art.set_time || '—'}</div>
+            <div style={{ textAlign: 'right', color: 'var(--text-primary)', fontSize: '13px', fontWeight: '500' }}>{art.fee.toLocaleString('cs-CZ')} Kč</div>
+            <div style={{ textAlign: 'right', color: art.deposit > 0 ? '#60a5fa' : 'var(--text-faint)', fontSize: '13px' }}>
               {art.deposit > 0 ? `${art.deposit.toLocaleString('cs-CZ')} Kč` : '—'}
             </div>
             <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: art.paid || art.fee - art.deposit <= 0 ? '#34d399' : '#f87171' }}>
@@ -249,14 +249,14 @@ export default function LineupPage({ params }: Props) {
             </div>
             <div>
               <button onClick={() => handleTogglePaid(art)} style={{
-                backgroundColor: art.paid ? '#052e16' : '#1e1e2e',
+                backgroundColor: art.paid ? '#052e16' : 'var(--bg-badge)',
                 color: art.paid ? '#34d399' : '#f87171',
                 fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer',
               }}>
                 {art.paid ? 'ANO' : 'NE'}
               </button>
             </div>
-            <div style={{ fontSize: '12px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {art.notes || '—'}
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -279,15 +279,15 @@ export default function LineupPage({ params }: Props) {
       <div key={dayStr} style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '24px', height: '1px', backgroundColor: '#2d2d2d' }} />
-            <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>{fmtDay(dayStr)}</span>
-            {dayArtists.length > 0 && <span style={{ fontSize: '11px', color: '#374151' }}>({dayArtists.length})</span>}
+            <div style={{ width: '24px', height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{fmtDay(dayStr)}</span>
+            {dayArtists.length > 0 && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>({dayArtists.length})</span>}
           </div>
           <button
             onClick={() => isDayFormOpen && !editId ? closeForm() : openForm(stageName, dayStr)}
             style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', border: 'none', cursor: 'pointer',
-              backgroundColor: isDayFormOpen && !editId ? '#1a1a1a' : '#1a0a0a',
-              color: isDayFormOpen && !editId ? '#4b5563' : '#f4978e' }}>
+              backgroundColor: isDayFormOpen && !editId ? 'var(--border-subtle)' : '#1a0a0a',
+              color: isDayFormOpen && !editId ? 'var(--text-dim)' : '#f4978e' }}>
             {isDayFormOpen && !editId ? '× Zrušit' : '+ Přidat'}
           </button>
         </div>
@@ -295,8 +295,8 @@ export default function LineupPage({ params }: Props) {
         {renderTable(dayArtists)}
         {dayArtists.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '20px', padding: '5px 14px', fontSize: '12px' }}>
-            <span style={{ color: '#4b5563' }}>Celkem den: <strong style={{ color: '#f1f5f9' }}>{dayTotal.toLocaleString('cs-CZ')} Kč</strong></span>
-            {dayUnpaid > 0 && <span style={{ color: '#4b5563' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{dayUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
+            <span style={{ color: 'var(--text-dim)' }}>Celkem den: <strong style={{ color: 'var(--text-primary)' }}>{dayTotal.toLocaleString('cs-CZ')} Kč</strong></span>
+            {dayUnpaid > 0 && <span style={{ color: 'var(--text-dim)' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{dayUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
           </div>
         )}
       </div>
@@ -314,41 +314,41 @@ export default function LineupPage({ params }: Props) {
             { label: 'Zálohy', value: totalDeposits.toLocaleString('cs-CZ'), color: '#60a5fa', suffix: ' Kč' },
             { label: 'Nezaplacených', value: unpaid, color: '#fbbf24', suffix: '' },
           ].map((s) => (
-            <div key={s.label} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: '#161616', border: '1px solid #2d1515' }}>
-              <div style={{ fontSize: '11px', color: '#6b7280' }}>{s.label}</div>
+            <div key={s.label} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.label}</div>
               <div style={{ fontWeight: '600', fontSize: '14px', color: s.color }}>{s.value}{s.suffix}</div>
             </div>
           ))}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => setCollapsedStages(Object.fromEntries(stages.map(s => [s, false])))}
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#1e1e2e', color: '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             Rozbalit vše
           </button>
           <button onClick={() => setCollapsedStages(Object.fromEntries(stages.map(s => [s, true])))}
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#1e1e2e', color: '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             Zabalit vše
           </button>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Hledat artista..."
-            style={{ backgroundColor: '#161616', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '8px', padding: '7px 12px', fontSize: '13px', outline: 'none', width: '160px' }}
+            style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '8px', padding: '7px 12px', fontSize: '13px', outline: 'none', width: '160px' }}
           />
           <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-            style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#1e1e2e', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer' }}>
+            style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: 'var(--bg-badge)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
             {refreshing ? '...' : '↻'}
           </button>
         </div>
       </div>
 
       {/* Správa stages */}
-      <div style={{ marginBottom: '28px', padding: '14px 18px', borderRadius: '10px', backgroundColor: '#111118', border: '1px solid #2a2a3e', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '12px', color: '#6b7280', flexShrink: 0 }}>Stages:</span>
+      <div style={{ marginBottom: '28px', padding: '14px 18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>Stages:</span>
         {stages.map(s => (
           <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '5px', backgroundColor: '#1a1a2e', border: '1px solid #2a2a3e', fontSize: '12px', color: '#a78bfa' }}>
             {s}
-            <button onClick={() => removeStage(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '14px', lineHeight: 1, padding: 0 }}>×</button>
+            <button onClick={() => removeStage(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1, padding: 0 }}>×</button>
           </span>
         ))}
         <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
@@ -357,7 +357,7 @@ export default function LineupPage({ params }: Props) {
             onChange={e => setNewStage(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addStage())}
             placeholder="Přidat stage..."
-            style={{ backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', outline: 'none', width: '140px' }}
+            style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', outline: 'none', width: '140px' }}
           />
           <button onClick={addStage} style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#1a1a2e', color: '#a78bfa', border: '1px solid #2a2a3e', cursor: 'pointer' }}>
             + Přidat
@@ -366,9 +366,9 @@ export default function LineupPage({ params }: Props) {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '64px', color: '#6b7280' }}>Načítám...</div>
+        <div style={{ textAlign: 'center', padding: '64px', color: 'var(--text-muted)' }}>Načítám...</div>
       ) : stages.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #2d1515', color: '#6b7280' }}>
+        <div style={{ textAlign: 'center', padding: '48px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', color: 'var(--text-muted)' }}>
           Nejdřív přidej stages nahoře, pak sem přidávej artistry.
         </div>
       ) : (
@@ -383,14 +383,14 @@ export default function LineupPage({ params }: Props) {
             return (
               <div key={stageName} style={{ marginBottom: '36px' }}>
                 {/* Stage header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isCollapsed ? 0 : '14px', padding: '10px 14px', borderRadius: '10px', backgroundColor: '#111118', border: '1px solid #1e1e2e' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isCollapsed ? 0 : '14px', padding: '10px 14px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
                   <div
                     onClick={() => setCollapsedStages(prev => ({ ...prev, [stageName]: !prev[stageName] }))}
                     style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}
                   >
-                    <span style={{ fontSize: '11px', color: '#4b5563', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>▼</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>▼</span>
                     <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#a78bfa' }}>{stageName}</h3>
-                    <span style={{ fontSize: '12px', color: '#374151' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
                       {stageArtists.length} {stageArtists.length === 1 ? 'artist' : 'artistů'}
                     </span>
                     {isCollapsed && stageTotal > 0 && (
@@ -401,8 +401,8 @@ export default function LineupPage({ params }: Props) {
                     <button
                       onClick={() => isStageFormOpen && !editId ? closeForm() : openForm(stageName)}
                       style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer',
-                        backgroundColor: isStageFormOpen && !editId ? '#1e1e1e' : '#e05555',
-                        color: isStageFormOpen && !editId ? '#6b7280' : '#fff' }}>
+                        backgroundColor: isStageFormOpen && !editId ? 'var(--bg-card-dark)' : '#e05555',
+                        color: isStageFormOpen && !editId ? 'var(--text-muted)' : '#fff' }}>
                       {isStageFormOpen && !editId ? '× Zrušit' : '+ Přidat artista'}
                     </button>
                   )}
@@ -416,7 +416,7 @@ export default function LineupPage({ params }: Props) {
                         {renderTable(stageArtists)}
                       </>
                     ) : (
-                      <div style={{ paddingLeft: '16px', borderLeft: '2px solid #1e1e1e' }}>
+                      <div style={{ paddingLeft: '16px', borderLeft: '2px solid var(--border-subtle)' }}>
                         {eventDays.map(dayStr => renderDaySection(stageName, dayStr))}
 
                         {(() => {
@@ -426,9 +426,9 @@ export default function LineupPage({ params }: Props) {
                           return (
                             <div style={{ marginBottom: '20px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                                <div style={{ width: '24px', height: '1px', backgroundColor: '#2d2d2d' }} />
-                                <span style={{ fontSize: '13px', color: '#4b5563', fontWeight: '500' }}>Bez dne</span>
-                                <span style={{ fontSize: '11px', color: '#374151' }}>({undated.length})</span>
+                                <div style={{ width: '24px', height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+                                <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '500' }}>Bez dne</span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>({undated.length})</span>
                               </div>
                               {isUndatedOpen && renderForm(stageName)}
                               {renderTable(undated)}
@@ -439,9 +439,9 @@ export default function LineupPage({ params }: Props) {
                     )}
 
                     {stageArtists.length > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '24px', padding: '8px 14px', borderRadius: '8px', backgroundColor: '#111118', border: '1px solid #1e1e2e', marginTop: '6px' }}>
-                        <span style={{ fontSize: '12px', color: '#6b7280' }}>Celkem stage: <strong style={{ color: '#a78bfa' }}>{stageTotal.toLocaleString('cs-CZ')} Kč</strong></span>
-                        {stageUnpaid > 0 && <span style={{ fontSize: '12px', color: '#6b7280' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{stageUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '24px', padding: '8px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-card)', marginTop: '6px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Celkem stage: <strong style={{ color: '#a78bfa' }}>{stageTotal.toLocaleString('cs-CZ')} Kč</strong></span>
+                        {stageUnpaid > 0 && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{stageUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
                       </div>
                     )}
                   </div>
@@ -454,8 +454,8 @@ export default function LineupPage({ params }: Props) {
           {unstagedArtists.length > 0 && (
             <div style={{ marginBottom: '32px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#4b5563' }}>Bez stage</h3>
-                <span style={{ fontSize: '12px', color: '#374151' }}>{unstagedArtists.length} artistů</span>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-dim)' }}>Bez stage</h3>
+                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{unstagedArtists.length} artistů</span>
               </div>
               {activeStage === '__unassigned__' && renderForm('Bez stage')}
               {renderTable(unstagedArtists)}
