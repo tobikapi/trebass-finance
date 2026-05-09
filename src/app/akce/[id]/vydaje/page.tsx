@@ -106,6 +106,14 @@ export default function VydajePage({ params }: Props) {
           ))}
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button onClick={() => setCollapsed(Object.fromEntries(CATEGORIES.map(c => [c, false])))}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#111118', color: '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Rozbalit vše
+          </button>
+          <button onClick={() => setCollapsed(Object.fromEntries(CATEGORIES.map(c => [c, true])))}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#111118', color: '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Zabalit vše
+          </button>
           <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
             style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e', color: '#9ca3af', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', outline: 'none' }}>
             <option value="default">Řazení: výchozí</option>

@@ -321,6 +321,14 @@ export default function LineupPage({ params }: Props) {
           ))}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setCollapsedStages(Object.fromEntries(stages.map(s => [s, false])))}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#1e1e2e', color: '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Rozbalit vše
+          </button>
+          <button onClick={() => setCollapsedStages(Object.fromEntries(stages.map(s => [s, true])))}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#1e1e2e', color: '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Zabalit vše
+          </button>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Event, Expense, Income, LineupArtist, TeamContribution, CATEGORIES, formatDateRange } from '@/lib/types'
+import * as XLSX from 'xlsx'
 
 export default function TiskPage() {
   const { id } = useParams<{ id: string }>()
@@ -31,6 +32,54 @@ export default function TiskPage() {
     load()
   }, [id])
 
+  function exportExcel() {
+    if (!event) return
+    const wb = XLSX.utils.book_new()
+
+    // List 1: Shrnutí
+    const summary = [
+      ['Akce', event.name],
+      ['Datum', formatDateRange(event.date, event.date_end, event.time_start, event.time_end)],
+      ['Místo', event.location || ''],
+      [],
+      ['Celkové příjmy (Kč)', income.reduce((s, i) => s + i.amount, 0)],
+      ['Celkové výdaje (Kč)', expenses.reduce((s, e) => s + e.price, 0)],
+      ['Bilance (Kč)', income.reduce((s, i) => s + i.amount, 0) - expenses.reduce((s, e) => s + e.price, 0)],
+      ['Uhrazeno výdajů (Kč)', expenses.reduce((s, e) => s + (e.paid ? e.price : 0), 0)],
+    ]
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Shrnutí')
+
+    // List 2: Výdaje
+    const expRows: (string | number)[][] = [['Kategorie', 'Položka', 'Poznámka', 'Platba', 'Cena (Kč)', 'Záloha (Kč)', 'Zbývá (Kč)', 'Zaplaceno']]
+    for (const e of expenses) {
+      expRows.push([e.category, e.item, e.note || '', e.payment_timing || '', e.price, e.deposit, e.paid ? 0 : e.price - e.deposit, e.paid ? 'ANO' : 'NE'])
+    }
+    expRows.push([])
+    expRows.push(['', '', '', 'CELKEM', expenses.reduce((s, e) => s + e.price, 0), expenses.reduce((s, e) => s + e.deposit, 0), '', ''])
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(expRows), 'Výdaje')
+
+    // List 3: Příjmy
+    const incRows: (string | number)[][] = [['Zdroj', 'Částka (Kč)', 'Poznámka']]
+    for (const i of income) incRows.push([i.source, i.amount, i.note || ''])
+    incRows.push([])
+    incRows.push(['CELKEM', income.reduce((s, i) => s + i.amount, 0), ''])
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(incRows), 'Příjmy')
+
+    // List 4: Lineup
+    if (lineup.length > 0) {
+      const linRows: (string | number)[][] = [['Artist', 'Stage', 'Datum', 'Set time', 'Honorář (Kč)', 'Záloha (Kč)', 'Zbývá (Kč)', 'Zaplaceno', 'Poznámky']]
+      for (const a of lineup) {
+        linRows.push([a.artist_name, a.stage || '', a.date || '', a.set_time || '', a.fee, a.deposit, a.paid ? 0 : a.fee - a.deposit, a.paid ? 'ANO' : 'NE', a.notes || ''])
+      }
+      linRows.push([])
+      linRows.push(['CELKEM', '', '', '', lineup.reduce((s, a) => s + a.fee, 0), lineup.reduce((s, a) => s + a.deposit, 0), '', '', ''])
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linRows), 'Lineup')
+    }
+
+    const fileName = `${event.name.replace(/[^a-zA-Z0-9áčďéěíňóřšťůúýžÁČĎÉĚÍŇÓŘŠŤŮÚÝŽ ]/g, '_')}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }
+
   if (loading) return <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>Načítám...</div>
   if (!event) return <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>Akce nenalezena.</div>
 
@@ -57,6 +106,12 @@ export default function TiskPage() {
           style={{ padding: '10px 24px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}
         >
           🖨️ Vytisknout / Uložit PDF
+        </button>
+        <button
+          onClick={exportExcel}
+          style={{ padding: '10px 24px', backgroundColor: '#16a34a', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}
+        >
+          📊 Export Excel
         </button>
         <button
           onClick={() => router.back()}
