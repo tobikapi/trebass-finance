@@ -15,7 +15,7 @@ function fmt(n: number) {
 function Bar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
   return (
-    <div style={{ height: '6px', borderRadius: '3px', backgroundColor: '#1e1e1e', overflow: 'hidden', flex: 1 }}>
+    <div style={{ height: '6px', borderRadius: '3px', backgroundColor: 'var(--bg-card-dark)', overflow: 'hidden', flex: 1 }}>
       <div style={{ height: '100%', width: `${pct}%`, backgroundColor: color, borderRadius: '3px', transition: 'width 0.4s ease' }} />
     </div>
   )
@@ -141,7 +141,7 @@ export default function PrehledPage({ params }: Props) {
             {balance >= 0 ? '+' : ''}{fmt(balance)}
           </div>
         </div>
-        <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #2d1515' }}>
+        <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Zaplaceno výdajů</div>
           <div style={{ fontSize: '22px', fontWeight: '700', color: '#f1f5f9' }}>{fmt(totalPaid)}</div>
           <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '4px' }}>zálohy: {fmt(totalDeposited)}</div>
@@ -150,7 +150,7 @@ export default function PrehledPage({ params }: Props) {
 
       {/* Income vs expenses bar */}
       {(totalIncome > 0 || totalExpenses > 0) && (
-        <div style={{ marginBottom: '32px', padding: '20px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #2d1515' }}>
+        <div style={{ marginBottom: '32px', padding: '20px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: '13px', fontWeight: '600', color: '#9ca3af', marginBottom: '14px' }}>Příjmy vs. Výdaje</div>
           {(() => {
             const max = Math.max(totalIncome, totalExpenses, totalBudget)
@@ -161,14 +161,14 @@ export default function PrehledPage({ params }: Props) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '12px', color: '#34d399', minWidth: '70px', flexShrink: 0 }}>Příjmy</span>
-                  <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
+                  <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: 'var(--bg-card-dark)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${incPct}%`, backgroundColor: '#34d399', borderRadius: '5px', transition: 'width 0.4s' }} />
                   </div>
                   <span style={{ fontSize: '12px', color: '#34d399', minWidth: '90px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalIncome)}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '12px', color: '#f87171', minWidth: '70px', flexShrink: 0 }}>Výdaje</span>
-                  <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
+                  <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: 'var(--bg-card-dark)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${expPct}%`, backgroundColor: '#f87171', borderRadius: '5px', transition: 'width 0.4s' }} />
                   </div>
                   <span style={{ fontSize: '12px', color: '#f87171', minWidth: '90px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalExpenses)}</span>
@@ -176,7 +176,7 @@ export default function PrehledPage({ params }: Props) {
                 {totalBudget > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ fontSize: '12px', color: '#a78bfa', minWidth: '70px', flexShrink: 0 }}>Rozpočet</span>
-                    <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
+                    <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: 'var(--bg-card-dark)', overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${budPct}%`, backgroundColor: '#a78bfa', borderRadius: '5px', transition: 'width 0.4s' }} />
                     </div>
                     <span style={{ fontSize: '12px', color: '#a78bfa', minWidth: '90px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalBudget)}</span>
@@ -190,7 +190,7 @@ export default function PrehledPage({ params }: Props) {
 
       {/* Budget edit modal */}
       {budgetEdit && (
-        <div style={{ marginBottom: '24px', padding: '20px', borderRadius: '12px', backgroundColor: '#111118', border: '1px solid #7c3aed' }}>
+        <div style={{ marginBottom: '24px', padding: '20px', borderRadius: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid #7c3aed' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <span style={{ fontSize: '14px', fontWeight: '700', color: '#a78bfa' }}>Plánovaný rozpočet podle kategorií</span>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -216,7 +216,7 @@ export default function PrehledPage({ params }: Props) {
                       value={budgetInputs[cat] || ''}
                       onChange={e => setBudgetInputs(prev => ({ ...prev, [cat]: e.target.value }))}
                       placeholder="0"
-                      style={{ flex: 1, backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '4px', padding: '5px 8px', fontSize: '12px', outline: 'none', minWidth: 0 }}
+                      style={{ flex: 1, backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '4px', padding: '5px 8px', fontSize: '12px', outline: 'none', minWidth: 0 }}
                     />
                     <span style={{ fontSize: '11px', color: '#4b5563', flexShrink: 0 }}>Kč</span>
                   </div>
@@ -325,7 +325,7 @@ export default function PrehledPage({ params }: Props) {
 
       {expenses.length === 0 && income.length === 0 && (
         <div>
-          <div style={{ textAlign: 'center', padding: '64px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #2d1515', color: '#6b7280', marginBottom: '16px' }}>
+          <div style={{ textAlign: 'center', padding: '64px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', color: '#6b7280', marginBottom: '16px' }}>
             Žádná data. Přidej výdaje nebo příjmy k této akci.
           </div>
           {!budgetEdit && (

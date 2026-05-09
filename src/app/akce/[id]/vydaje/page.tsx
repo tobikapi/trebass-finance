@@ -93,8 +93,8 @@ export default function VydajePage({ params }: Props) {
     return items
   }
 
-  const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
-  const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block', marginBottom: '4px' }
+  const inputStyle = { backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
+  const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block', marginBottom: '4px' }
 
   return (
     <EventLayout eventId={id}>
@@ -106,23 +106,23 @@ export default function VydajePage({ params }: Props) {
             { label: 'Bez zálohy', value: totalWithoutDeposit, color: '#f87171' },
             { label: 'Zbývá zaplatit', value: totalUnpaid, color: '#fbbf24' },
           ].map((s) => (
-            <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e' }}>
-              <div className="text-xs" style={{ color: '#6b7280' }}>{s.label}</div>
+            <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
               <div className="font-semibold text-sm" style={{ color: s.color }}>{s.value.toLocaleString('cs-CZ')} Kč</div>
             </div>
           ))}
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button onClick={() => setCollapsed(Object.fromEntries(CATEGORIES.map(c => [c, false])))}
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#111118', color: '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             Rozbalit vše
           </button>
           <button onClick={() => setCollapsed(Object.fromEntries(CATEGORIES.map(c => [c, true])))}
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#111118', color: '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             Zabalit vše
           </button>
           <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
-            style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e', color: '#9ca3af', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', outline: 'none' }}>
+            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', outline: 'none' }}>
             <option value="default">Řazení: výchozí</option>
             <option value="price_desc">Cena ↓</option>
             <option value="price_asc">Cena ↑</option>
@@ -140,7 +140,7 @@ export default function VydajePage({ params }: Props) {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSave} className="mb-6 p-5 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #7c3aed' }}>
+        <form onSubmit={handleSave} className="mb-6 p-5 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid #7c3aed' }}>
           <h3 className="text-sm font-semibold mb-4" style={{ color: '#a78bfa' }}>{editId ? 'Upravit výdaj' : 'Nový výdaj'}</h3>
           <div className="form-grid-expenses">
             <div className="col-span-1">
@@ -182,7 +182,7 @@ export default function VydajePage({ params }: Props) {
               <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
                 {saving ? 'Ukládám...' : 'Uložit'}
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: '#1e1e2e', color: '#9ca3af' }}>
+              <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)' }}>
                 Zrušit
               </button>
             </div>
@@ -193,7 +193,7 @@ export default function VydajePage({ params }: Props) {
       {loading ? (
         <div className="text-center py-16" style={{ color: '#6b7280' }}>Načítám...</div>
       ) : expenses.length === 0 ? (
-        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e', color: '#6b7280' }}>
+        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           Zatím žádné výdaje. Klikni + Přidat výdaj.
         </div>
       ) : (
@@ -252,13 +252,13 @@ export default function VydajePage({ params }: Props) {
                         </div>
                         <div>
                           {exp.payment_timing
-                            ? <span style={{ backgroundColor: '#1e1e2e', color: '#9ca3af', fontSize: '11px', padding: '2px 7px', borderRadius: '4px', whiteSpace: 'nowrap' }}>{exp.payment_timing}</span>
-                            : <span style={{ color: '#374151', fontSize: '12px' }}>—</span>}
+                            ? <span style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)', fontSize: '11px', padding: '2px 7px', borderRadius: '4px', whiteSpace: 'nowrap' }}>{exp.payment_timing}</span>
+                            : <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>}
                         </div>
-                        <div style={{ textAlign: 'right', color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>
+                        <div style={{ textAlign: 'right', color: 'var(--text-primary)', fontSize: '13px', fontWeight: '500' }}>
                           {exp.price.toLocaleString('cs-CZ')} Kč
                         </div>
-                        <div style={{ textAlign: 'right', color: exp.deposit > 0 ? '#60a5fa' : '#374151', fontSize: '13px' }}>
+                        <div style={{ textAlign: 'right', color: exp.deposit > 0 ? '#60a5fa' : 'var(--text-faint)', fontSize: '13px' }}>
                           {exp.deposit > 0 ? `${exp.deposit.toLocaleString('cs-CZ')} Kč` : '—'}
                         </div>
                         <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: exp.paid || exp.price - exp.deposit <= 0 ? '#34d399' : '#f87171' }}>
@@ -266,7 +266,7 @@ export default function VydajePage({ params }: Props) {
                         </div>
                         <div>
                           <button onClick={() => handleTogglePaid(exp)} style={{
-                            backgroundColor: exp.paid ? '#14532d' : '#1e1e2e',
+                            backgroundColor: exp.paid ? '#14532d' : 'var(--bg-badge)',
                             color: exp.paid ? '#34d399' : '#f87171',
                             fontSize: '11px', fontWeight: '600',
                             padding: '2px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer',
