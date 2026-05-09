@@ -6,6 +6,8 @@ import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types
 import EventLayout from '@/components/EventLayout'
 import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
 
+type Budgets = Record<string, number>
+
 interface Props { params: Promise<{ id: string }> }
 
 const TIMINGS: PaymentTiming[] = ['PŘED AKCÍ', 'BĚHEM AKCE', 'PO AKCI']
@@ -14,6 +16,7 @@ const emptyForm = { category: CATEGORIES[0], item: '', note: '', payment_timing:
 export default function VydajePage({ params }: Props) {
   const { id } = use(params)
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [budgets, setBudgets] = useState<Budgets>({})
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -22,8 +25,12 @@ export default function VydajePage({ params }: Props) {
   const [refreshing, setRefreshing] = useState(false)
 
   async function load() {
-    const { data } = await supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at')
-    setExpenses(data || [])
+    const [{ data: expData }, { data: evData }] = await Promise.all([
+      supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at'),
+      supabase.from('events').select('budgets').eq('id', id).single(),
+    ])
+    setExpenses(expData || [])
+    setBudgets(evData?.budgets || {})
     setLoading(false)
   }
 
@@ -198,18 +205,36 @@ export default function VydajePage({ params }: Props) {
             return (
               <div key={category} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${cc.border}` }}>
                 {/* Hlavička kategorie — kliknutím sbalit/rozbalit */}
-                <div
-                  onClick={() => toggleCat(category)}
-                  className="px-5 py-2.5 flex items-center justify-between"
-                  style={{ backgroundColor: cc.bg, cursor: 'pointer', userSelect: 'none' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '11px', color: cc.color, opacity: 0.6, transition: 'transform 0.15s', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
-                    <span className="text-xs font-semibold tracking-wider" style={{ color: cc.color }}>{category}</span>
-                    {isCollapsed && <span style={{ fontSize: '11px', color: '#374151' }}>{items.length} položek</span>}
-                  </div>
-                  <span className="text-xs font-semibold" style={{ color: isCollapsed ? cc.color : '#6b7280' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
-                </div>
+                {(() => {
+                  const budget = budgets[category] || 0
+                  const over = budget > 0 && catTotal > budget
+                  const pct = budget > 0 ? Math.min((catTotal / budget) * 100, 100) : 0
+                  const barColor = over ? '#f87171' : pct > 80 ? '#fbbf24' : cc.color
+                  return (
+                    <div onClick={() => toggleCat(category)} style={{ backgroundColor: cc.bg, cursor: 'pointer', userSelect: 'none' }}>
+                      <div className="px-5 py-2.5 flex items-center justify-between">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', color: cc.color, opacity: 0.6, transition: 'transform 0.15s', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
+                          <span className="text-xs font-semibold tracking-wider" style={{ color: cc.color }}>{category}</span>
+                          {isCollapsed && <span style={{ fontSize: '11px', color: '#374151' }}>{items.length} položek</span>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {budget > 0 && (
+                            <span style={{ fontSize: '11px', color: over ? '#f87171' : '#4b5563' }}>
+                              {over ? `+${(catTotal - budget).toLocaleString('cs-CZ')}` : `zbývá ${(budget - catTotal).toLocaleString('cs-CZ')}`} Kč
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold" style={{ color: over ? '#f87171' : isCollapsed ? cc.color : '#6b7280' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
+                        </div>
+                      </div>
+                      {budget > 0 && (
+                        <div style={{ height: '3px', backgroundColor: '#1e1e2e', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, backgroundColor: barColor, transition: 'width 0.3s ease' }} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
                 {!isCollapsed && (
                   <div className="collapse-content">
                     {/* Záhlaví sloupců */}

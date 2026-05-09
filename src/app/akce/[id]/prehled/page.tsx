@@ -2,8 +2,9 @@
 
 import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Expense, Income } from '@/lib/types'
+import { Expense, Income, Event, CATEGORIES, CATEGORY_COLORS } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import { updateEventBudgets } from '@/app/actions'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -20,19 +21,45 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
   )
 }
 
+function BudgetBar({ spent, budget }: { spent: number; budget: number }) {
+  if (budget <= 0) return null
+  const pct = Math.min((spent / budget) * 100, 100)
+  const over = spent > budget
+  const color = over ? '#f87171' : pct > 80 ? '#fbbf24' : '#34d399'
+  return (
+    <div style={{ marginTop: '6px' }}>
+      <div style={{ height: '5px', borderRadius: '3px', backgroundColor: '#1e1e2e', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, backgroundColor: color, borderRadius: '3px', transition: 'width 0.4s ease' }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '10px', color: '#4b5563' }}>
+        <span style={{ color: over ? '#f87171' : '#6b7280' }}>
+          {over ? `překročeno o ${fmt(spent - budget)}` : `zbývá ${fmt(budget - spent)}`}
+        </span>
+        <span>rozpočet: {fmt(budget)}</span>
+      </div>
+    </div>
+  )
+}
+
 export default function PrehledPage({ params }: Props) {
   const { id } = use(params)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [income, setIncome] = useState<Income[]>([])
+  const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
+  const [budgetEdit, setBudgetEdit] = useState(false)
+  const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     Promise.all([
       supabase.from('expenses').select('*').eq('event_id', id),
       supabase.from('income').select('*').eq('event_id', id),
-    ]).then(([{ data: exp }, { data: inc }]) => {
+      supabase.from('events').select('*').eq('id', id).single(),
+    ]).then(([{ data: exp }, { data: inc }, { data: ev }]) => {
       setExpenses(exp || [])
       setIncome(inc || [])
+      setEvent(ev)
       setLoading(false)
     })
   }, [id])
@@ -43,7 +70,6 @@ export default function PrehledPage({ params }: Props) {
   const totalDeposited = expenses.reduce((s, e) => s + e.deposit, 0)
   const balance = totalIncome - totalExpenses
 
-  // Group expenses by category
   const byCategory: Record<string, { total: number; paid: number; count: number }> = {}
   for (const e of expenses) {
     if (!byCategory[e.category]) byCategory[e.category] = { total: 0, paid: 0, count: 0 }
@@ -53,12 +79,38 @@ export default function PrehledPage({ params }: Props) {
   }
   const categoryRows = Object.entries(byCategory).sort((a, b) => b[1].total - a[1].total)
 
-  // Group income by source
   const bySource: Record<string, number> = {}
   for (const i of income) {
     bySource[i.source] = (bySource[i.source] || 0) + i.amount
   }
   const sourceRows = Object.entries(bySource).sort((a, b) => b[1] - a[1])
+
+  const budgets: Record<string, number> = event?.budgets || {}
+  const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0)
+  const activeCategoriesWithBudget = CATEGORIES.filter(c => (budgets[c] || 0) > 0 || byCategory[c])
+
+  function openBudgetEdit() {
+    const inputs: Record<string, string> = {}
+    for (const cat of CATEGORIES) {
+      inputs[cat] = budgets[cat] ? budgets[cat].toString() : ''
+    }
+    setBudgetInputs(inputs)
+    setBudgetEdit(true)
+  }
+
+  async function saveBudgets() {
+    setSaving(true)
+    const parsed: Record<string, number> = {}
+    for (const [cat, val] of Object.entries(budgetInputs)) {
+      const n = parseFloat(val)
+      if (n > 0) parsed[cat] = n
+    }
+    const result = await updateEventBudgets(id, parsed)
+    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    setEvent(prev => prev ? { ...prev, budgets: parsed } : prev)
+    setBudgetEdit(false)
+    setSaving(false)
+  }
 
   if (loading) return (
     <EventLayout eventId={id}>
@@ -77,6 +129,11 @@ export default function PrehledPage({ params }: Props) {
         <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#1a0a0a', border: '1px solid #450a0a' }}>
           <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Celkové výdaje</div>
           <div style={{ fontSize: '22px', fontWeight: '700', color: '#f87171' }}>{fmt(totalExpenses)}</div>
+          {totalBudget > 0 && (
+            <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '4px' }}>
+              celk. rozpočet: {fmt(totalBudget)}
+            </div>
+          )}
         </div>
         <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: balance >= 0 ? '#0d1f0d' : '#1a0a0a', border: `1px solid ${balance >= 0 ? '#14532d' : '#450a0a'}` }}>
           <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Bilance</div>
@@ -91,33 +148,82 @@ export default function PrehledPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Visual income vs expenses bar */}
+      {/* Income vs expenses bar */}
       {(totalIncome > 0 || totalExpenses > 0) && (
         <div style={{ marginBottom: '32px', padding: '20px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #2d1515' }}>
           <div style={{ fontSize: '13px', fontWeight: '600', color: '#9ca3af', marginBottom: '14px' }}>Příjmy vs. Výdaje</div>
           {(() => {
-            const max = Math.max(totalIncome, totalExpenses)
+            const max = Math.max(totalIncome, totalExpenses, totalBudget)
             const incPct = max > 0 ? (totalIncome / max) * 100 : 0
             const expPct = max > 0 ? (totalExpenses / max) * 100 : 0
+            const budPct = max > 0 ? (totalBudget / max) * 100 : 0
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', color: '#34d399', minWidth: '60px', flexShrink: 0 }}>Příjmy</span>
+                  <span style={{ fontSize: '12px', color: '#34d399', minWidth: '70px', flexShrink: 0 }}>Příjmy</span>
                   <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${incPct}%`, backgroundColor: '#34d399', borderRadius: '5px', transition: 'width 0.4s' }} />
                   </div>
                   <span style={{ fontSize: '12px', color: '#34d399', minWidth: '90px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalIncome)}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', color: '#f87171', minWidth: '60px', flexShrink: 0 }}>Výdaje</span>
+                  <span style={{ fontSize: '12px', color: '#f87171', minWidth: '70px', flexShrink: 0 }}>Výdaje</span>
                   <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${expPct}%`, backgroundColor: '#f87171', borderRadius: '5px', transition: 'width 0.4s' }} />
                   </div>
                   <span style={{ fontSize: '12px', color: '#f87171', minWidth: '90px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalExpenses)}</span>
                 </div>
+                {totalBudget > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '12px', color: '#a78bfa', minWidth: '70px', flexShrink: 0 }}>Rozpočet</span>
+                    <div style={{ flex: 1, height: '10px', borderRadius: '5px', backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${budPct}%`, backgroundColor: '#a78bfa', borderRadius: '5px', transition: 'width 0.4s' }} />
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#a78bfa', minWidth: '90px', textAlign: 'right', flexShrink: 0 }}>{fmt(totalBudget)}</span>
+                  </div>
+                )}
               </div>
             )
           })()}
+        </div>
+      )}
+
+      {/* Budget edit modal */}
+      {budgetEdit && (
+        <div style={{ marginBottom: '24px', padding: '20px', borderRadius: '12px', backgroundColor: '#111118', border: '1px solid #7c3aed' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <span style={{ fontSize: '14px', fontWeight: '700', color: '#a78bfa' }}>Plánovaný rozpočet podle kategorií</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={saveBudgets} disabled={saving}
+                style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                {saving ? 'Ukládám...' : 'Uložit'}
+              </button>
+              <button onClick={() => setBudgetEdit(false)}
+                style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', backgroundColor: '#1e1e2e', color: '#9ca3af', border: 'none', cursor: 'pointer' }}>
+                Zrušit
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+            {CATEGORIES.map(cat => {
+              const cc = CATEGORY_COLORS[cat] || CATEGORY_COLORS['JINÉ']
+              return (
+                <div key={cat} style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: cc.bg, border: `1px solid ${cc.border}` }}>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: cc.color, marginBottom: '6px' }}>{cat}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="number"
+                      value={budgetInputs[cat] || ''}
+                      onChange={e => setBudgetInputs(prev => ({ ...prev, [cat]: e.target.value }))}
+                      placeholder="0"
+                      style={{ flex: 1, backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '4px', padding: '5px 8px', fontSize: '12px', outline: 'none', minWidth: 0 }}
+                    />
+                    <span style={{ fontSize: '11px', color: '#4b5563', flexShrink: 0 }}>Kč</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -125,35 +231,68 @@ export default function PrehledPage({ params }: Props) {
         {/* Výdaje po kategoriích */}
         {expenses.length > 0 && (
           <div>
-            <h2 style={{ fontSize: '14px', fontWeight: '700', color: '#f1f5f9', marginBottom: '14px', margin: '0 0 14px 0' }}>
-              Výdaje podle kategorií
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <h2 style={{ fontSize: '14px', fontWeight: '700', color: '#f1f5f9', margin: 0 }}>
+                Výdaje podle kategorií
+              </h2>
+              {!budgetEdit && (
+                <button onClick={openBudgetEdit}
+                  style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '11px', backgroundColor: '#1e1035', color: '#a78bfa', border: '1px solid #3d2d6b', cursor: 'pointer' }}>
+                  Nastavit rozpočet
+                </button>
+              )}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {categoryRows.map(([cat, data]) => (
-                <div key={cat} style={{ padding: '14px 16px', borderRadius: '10px', backgroundColor: '#161616', border: '1px solid #2d1515' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: '600', color: '#f1f5f9' }}>{cat}</span>
-                      <span style={{ fontSize: '11px', color: '#374151' }}>{data.count} pol.</span>
+              {categoryRows.map(([cat, data]) => {
+                const budget = budgets[cat] || 0
+                const cc = CATEGORY_COLORS[cat] || CATEGORY_COLORS['JINÉ']
+                return (
+                  <div key={cat} style={{ padding: '14px 16px', borderRadius: '10px', backgroundColor: cc.bg, border: `1px solid ${cc.border}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: budget > 0 ? '4px' : '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '600', color: cc.color }}>{cat}</span>
+                        <span style={{ fontSize: '11px', color: '#374151' }}>{data.count} pol.</span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: budget > 0 && data.total > budget ? '#f87171' : cc.color }}>{fmt(data.total)}</span>
+                        <span style={{ fontSize: '11px', color: '#4b5563', marginLeft: '6px' }}>
+                          {totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0}%
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#f87171' }}>{fmt(data.total)}</span>
-                      <span style={{ fontSize: '11px', color: '#4b5563', marginLeft: '6px' }}>
-                        {totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0}%
-                      </span>
-                    </div>
+                    {budget > 0 ? (
+                      <BudgetBar spent={data.total} budget={budget} />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Bar value={data.total} max={totalExpenses} color={cc.color} />
+                      </div>
+                    )}
+                    {data.paid > 0 && (
+                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#4b5563', display: 'flex', gap: '12px' }}>
+                        <span style={{ color: '#34d399' }}>zaplaceno: {fmt(data.paid)}</span>
+                        {data.total - data.paid > 0 && <span style={{ color: '#f87171' }}>zbývá: {fmt(data.total - data.paid)}</span>}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Bar value={data.total} max={totalExpenses} color="#f87171" />
-                  </div>
-                  {data.paid > 0 && (
-                    <div style={{ marginTop: '6px', fontSize: '11px', color: '#4b5563', display: 'flex', gap: '12px' }}>
-                      <span style={{ color: '#34d399' }}>zaplaceno: {fmt(data.paid)}</span>
-                      {data.total - data.paid > 0 && <span style={{ color: '#f87171' }}>zbývá: {fmt(data.total - data.paid)}</span>}
+                )
+              })}
+
+              {/* Categories with budget but no expenses */}
+              {activeCategoriesWithBudget
+                .filter(cat => !byCategory[cat] && (budgets[cat] || 0) > 0)
+                .map(cat => {
+                  const cc = CATEGORY_COLORS[cat] || CATEGORY_COLORS['JINÉ']
+                  const budget = budgets[cat]
+                  return (
+                    <div key={cat} style={{ padding: '14px 16px', borderRadius: '10px', backgroundColor: cc.bg, border: `1px solid ${cc.border}`, opacity: 0.6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '600', color: cc.color }}>{cat}</span>
+                        <span style={{ fontSize: '11px', color: '#4b5563' }}>0 / {fmt(budget)}</span>
+                      </div>
+                      <BudgetBar spent={0} budget={budget} />
                     </div>
-                  )}
-                </div>
-              ))}
+                  )
+                })}
             </div>
           </div>
         )}
@@ -185,8 +324,18 @@ export default function PrehledPage({ params }: Props) {
       </div>
 
       {expenses.length === 0 && income.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '64px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #2d1515', color: '#6b7280' }}>
-          Žádná data. Přidej výdaje nebo příjmy k této akci.
+        <div>
+          <div style={{ textAlign: 'center', padding: '64px', borderRadius: '12px', backgroundColor: '#161616', border: '1px solid #2d1515', color: '#6b7280', marginBottom: '16px' }}>
+            Žádná data. Přidej výdaje nebo příjmy k této akci.
+          </div>
+          {!budgetEdit && (
+            <div style={{ textAlign: 'center' }}>
+              <button onClick={openBudgetEdit}
+                style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#1e1035', color: '#a78bfa', border: '1px solid #3d2d6b', cursor: 'pointer' }}>
+                Nastavit plánovaný rozpočet
+              </button>
+            </div>
+          )}
         </div>
       )}
     </EventLayout>

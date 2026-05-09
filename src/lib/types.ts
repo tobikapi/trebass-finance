@@ -13,6 +13,7 @@ export interface Event {
   status: EventStatus
   description: string | null
   stages: string[]
+  budgets: Record<string, number>
   created_at: string
 }
 
