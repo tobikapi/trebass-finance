@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Expense, CATEGORIES, PaymentTiming } from '@/lib/types'
+import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
 
@@ -75,6 +75,17 @@ export default function VydajePage({ params }: Props) {
   )
   function toggleCat(cat: string) { setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] })) }
 
+  type SortKey = 'default' | 'price_desc' | 'price_asc' | 'item_asc' | 'paid'
+  const [sortKey, setSortKey] = useState<SortKey>('default')
+
+  function sortItems(items: Expense[]): Expense[] {
+    if (sortKey === 'price_desc') return [...items].sort((a, b) => b.price - a.price)
+    if (sortKey === 'price_asc') return [...items].sort((a, b) => a.price - b.price)
+    if (sortKey === 'item_asc') return [...items].sort((a, b) => a.item.localeCompare(b.item, 'cs'))
+    if (sortKey === 'paid') return [...items].sort((a, b) => Number(a.paid) - Number(b.paid))
+    return items
+  }
+
   const inputStyle = { backgroundColor: '#0a0a0f', border: '1px solid #2a2a3e', color: '#f1f5f9', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
   const labelStyle = { color: '#9ca3af', fontSize: '12px', display: 'block', marginBottom: '4px' }
 
@@ -94,7 +105,15 @@ export default function VydajePage({ params }: Props) {
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
+            style={{ backgroundColor: '#111118', border: '1px solid #2a2a3e', color: '#9ca3af', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', outline: 'none' }}>
+            <option value="default">Řazení: výchozí</option>
+            <option value="price_desc">Cena ↓</option>
+            <option value="price_asc">Cena ↑</option>
+            <option value="item_asc">Název A–Z</option>
+            <option value="paid">Nezaplacené první</option>
+          </select>
           <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
             className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: '#111118', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e' }}>
             {refreshing ? '...' : '↻'}
@@ -167,20 +186,21 @@ export default function VydajePage({ params }: Props) {
           {Object.entries(grouped).map(([category, items]) => {
             const catTotal = items.reduce((s, e) => s + e.price, 0)
             const isCollapsed = !!collapsed[category]
+            const cc = CATEGORY_COLORS[category] || CATEGORY_COLORS['JINÉ']
             return (
-              <div key={category} className="rounded-xl overflow-hidden" style={{ border: '1px solid #2a2a3e' }}>
+              <div key={category} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${cc.border}` }}>
                 {/* Hlavička kategorie — kliknutím sbalit/rozbalit */}
                 <div
                   onClick={() => toggleCat(category)}
                   className="px-5 py-2.5 flex items-center justify-between"
-                  style={{ backgroundColor: '#1a1a2e', cursor: 'pointer', userSelect: 'none' }}
+                  style={{ backgroundColor: cc.bg, cursor: 'pointer', userSelect: 'none' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '11px', color: '#4b5563', transition: 'transform 0.15s', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
-                    <span className="text-xs font-semibold tracking-wider" style={{ color: '#a78bfa' }}>{category}</span>
+                    <span style={{ fontSize: '11px', color: cc.color, opacity: 0.6, transition: 'transform 0.15s', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
+                    <span className="text-xs font-semibold tracking-wider" style={{ color: cc.color }}>{category}</span>
                     {isCollapsed && <span style={{ fontSize: '11px', color: '#374151' }}>{items.length} položek</span>}
                   </div>
-                  <span className="text-xs font-semibold" style={{ color: isCollapsed ? '#a78bfa' : '#6b7280' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
+                  <span className="text-xs font-semibold" style={{ color: isCollapsed ? cc.color : '#6b7280' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
                 </div>
                 {!isCollapsed && (
                   <div className="collapse-content">
@@ -191,7 +211,7 @@ export default function VydajePage({ params }: Props) {
                       ))}
                     </div>
                     {/* Řádky */}
-                    {items.map((exp) => (
+                    {sortItems(items).map((exp) => (
                       <div key={exp.id} className="expense-row">
                         <div>
                           <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>

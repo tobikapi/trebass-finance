@@ -53,6 +53,7 @@ export default function LineupPage({ params }: Props) {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [search, setSearch] = useState('')
 
   async function load() {
     const [{ data: lineup }, { data: ctc }, { data: ev }] = await Promise.all([
@@ -145,6 +146,10 @@ export default function LineupPage({ params }: Props) {
   const totalDeposits = artists.reduce((s, a) => s + a.deposit, 0)
   const unpaid = artists.filter((a) => !a.paid).length
   const unstagedArtists = artists.filter(a => !a.stage || !stages.includes(a.stage))
+
+  const filteredArtists = search.trim()
+    ? artists.filter(a => a.artist_name.toLowerCase().includes(search.toLowerCase()) || (a.notes || '').toLowerCase().includes(search.toLowerCase()))
+    : artists
 
   function renderForm(stageName: string) {
     const dayLabel = multiDay && form.date ? fmtDay(form.date) : null
@@ -265,7 +270,7 @@ export default function LineupPage({ params }: Props) {
   }
 
   function renderDaySection(stageName: string, dayStr: string) {
-    const dayArtists = artists.filter(a => a.stage === stageName && a.date === dayStr)
+    const dayArtists = filteredArtists.filter(a => a.stage === stageName && a.date === dayStr)
     const isDayFormOpen = activeStage === stageName && activeDate === dayStr
     const dayTotal = dayArtists.reduce((s, a) => s + a.fee, 0)
     const dayUnpaid = dayArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee - a.deposit), 0)
@@ -315,10 +320,18 @@ export default function LineupPage({ params }: Props) {
             </div>
           ))}
         </div>
-        <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-          style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#1e1e2e', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer' }}>
-          {refreshing ? '...' : '↻'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Hledat artista..."
+            style={{ backgroundColor: '#161616', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '8px', padding: '7px 12px', fontSize: '13px', outline: 'none', width: '160px' }}
+          />
+          <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
+            style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#1e1e2e', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e', cursor: 'pointer' }}>
+            {refreshing ? '...' : '↻'}
+          </button>
+        </div>
       </div>
 
       {/* Správa stages */}
@@ -353,7 +366,7 @@ export default function LineupPage({ params }: Props) {
       ) : (
         <div>
           {stages.map(stageName => {
-            const stageArtists = artists.filter(a => a.stage === stageName)
+            const stageArtists = filteredArtists.filter(a => a.stage === stageName)
             const isStageFormOpen = !multiDay && activeStage === stageName
             const stageTotal = stageArtists.reduce((s, a) => s + a.fee, 0)
             const stageUnpaid = stageArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee - a.deposit), 0)

@@ -94,6 +94,25 @@ export const CATEGORIES = [
   'POWER', 'DOPRAVA', 'BAR', 'POJISTKA', 'REKLAMA', 'JINÉ',
 ]
 
+export const CATEGORY_COLORS: Record<string, { color: string; bg: string; border: string }> = {
+  'INFRASTRUKTURA': { color: '#60a5fa', bg: '#0d1f35', border: '#1e3a5f' },
+  'LINEUP':         { color: '#f4978e', bg: '#2d1515', border: '#5f1515' },
+  'SECURITY':       { color: '#f87171', bg: '#2a0a0a', border: '#5f1515' },
+  'VÝSTUPY':        { color: '#34d399', bg: '#052e16', border: '#0a5c2c' },
+  'POMOCNÁ SÍLA':   { color: '#fbbf24', bg: '#2d2005', border: '#5c4000' },
+  'TISK':           { color: '#a78bfa', bg: '#1a1035', border: '#3d2d6b' },
+  'TOPENÍ':         { color: '#fb923c', bg: '#2d1500', border: '#5c3010' },
+  'LOKALITA':       { color: '#4ade80', bg: '#0a2e1a', border: '#0a5020' },
+  'DEKORACE':       { color: '#f472b6', bg: '#2d0520', border: '#5f1545' },
+  'TECHNIKA':       { color: '#38bdf8', bg: '#0a1e2e', border: '#0a3e5c' },
+  'POWER':          { color: '#fde68a', bg: '#2d2500', border: '#5c4a00' },
+  'DOPRAVA':        { color: '#6ee7b7', bg: '#052a1a', border: '#0a4a30' },
+  'BAR':            { color: '#f59e0b', bg: '#2d1c00', border: '#5c3800' },
+  'POJISTKA':       { color: '#c084fc', bg: '#1a0830', border: '#3d1a5c' },
+  'REKLAMA':        { color: '#f97316', bg: '#2d1000', border: '#5c2210' },
+  'JINÉ':           { color: '#9ca3af', bg: '#1a1a1a', border: '#2d2d2d' },
+}
+
 export const INCOME_SOURCES = ['VSTUPNÉ', 'BAR', 'SPONZOR', 'DOTACE', 'JINÉ']
 
 export const STATUS_LABELS: Record<EventStatus, string> = {

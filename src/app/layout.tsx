@@ -14,6 +14,15 @@ const awakenning = localFont({
 export const metadata: Metadata = {
   title: "Třebass Finance",
   description: "Finanční systém pro hudební festivaly Třebass",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Třebass",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
