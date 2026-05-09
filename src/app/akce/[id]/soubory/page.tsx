@@ -58,10 +58,31 @@ export default function SouboryPage({ params }: Props) {
     setLoading(false)
   }
 
+  const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
+
+  const ALLOWED_TYPES = [
+    'application/pdf',
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'text/csv',
+    'application/zip', 'application/x-zip-compressed',
+  ]
+
   async function uploadFiles(files: FileList | null) {
     if (!files || files.length === 0) return
     setUploading(true)
     for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`Soubor "${file.name}" je příliš velký (max 20 MB).`)
+        continue
+      }
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        alert(`Typ souboru "${file.name}" není povolen.`)
+        continue
+      }
       const filePath = `${id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
       if (uploadError) { alert('Chyba při nahrávání: ' + uploadError.message); continue }
