@@ -259,6 +259,12 @@ button:not(:disabled):active { transform: scale(0.96); }
 .form-grid-lineup   { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .prehled-bottom-grid { display: grid; gap: 24px; }
 
+/* Kalendář */
+.kalendar-grid { display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: start; }
+.kalendar-card { padding: 24px; }
+.kalendar-cell { height: 72px; }
+.kalendar-sidebar-title { font-size: 12px; }
+
 @media (max-width: 768px) {
   .expense-header, .lineup-header { display: none !important; }
 
@@ -293,6 +299,14 @@ button:not(:disabled):active { transform: scale(0.96); }
 
   .form-grid-expenses, .form-grid-lineup { grid-template-columns: 1fr 1fr !important; }
   .prehled-bottom-grid { grid-template-columns: 1fr !important; }
+
+  /* Kalendář — mobilní */
+  .kalendar-grid { grid-template-columns: 1fr; }
+  .kalendar-card { padding: 14px !important; }
+  .kalendar-cell { height: 52px !important; }
+  .kalendar-sidebar-title { font-size: 11px; }
+  .kalendar-month-title { font-size: 15px !important; }
+  .kalendar-page-title { font-size: 22px !important; margin-bottom: 20px !important; }
 }
 
 @media print {

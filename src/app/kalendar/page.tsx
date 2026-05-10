@@ -94,23 +94,23 @@ export default function KalendarPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+      <div className="kalendar-page-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Kalendář</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Přehled akcí a termínů úkolů</p>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '24px', alignItems: 'start' }}>
+      <div className="kalendar-grid">
         {/* Hlavní kalendář */}
-        <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '24px' }}>
+        <div className="kalendar-card" style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px' }}>
           {/* Navigace měsíce */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button onClick={prevMonth} style={{ padding: '6px 14px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}>‹</button>
               <button onClick={nextMonth} style={{ padding: '6px 14px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}>›</button>
             </div>
-            <span style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)' }}>{MONTHS[month]} {year}</span>
+            <span className="kalendar-month-title" style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)' }}>{MONTHS[month]} {year}</span>
             <button
               onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); setSelectedDay(null) }}
               style={{
@@ -138,7 +138,7 @@ export default function KalendarPage() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
               {cells.map((day, i) => {
-                if (!day) return <div key={i} style={{ height: '72px' }} />
+                if (!day) return <div key={i} className="kalendar-cell" />
                 const dayEvents = getEventsForDay(day)
                 const dayTasks = getTasksForDay(day)
                 const tod = isToday(day)
@@ -149,8 +149,9 @@ export default function KalendarPage() {
                   <div
                     key={i}
                     onClick={() => hasContent && setSelectedDay(isSel ? null : day)}
+                    className="kalendar-cell"
                     style={{
-                      height: '72px', padding: '6px 5px', borderRadius: '6px',
+                      padding: '5px 4px', borderRadius: '6px',
                       backgroundColor: isSel ? 'var(--bg-card-dark)' : tod ? 'rgba(224,85,85,0.08)' : 'var(--bg-card)',
                       border: `1px solid ${isSel ? '#e05555' : tod ? 'rgba(224,85,85,0.4)' : 'var(--border-subtle)'}`,
                       cursor: hasContent ? 'pointer' : 'default',
@@ -257,7 +258,7 @@ export default function KalendarPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {overdueTasks.length > 0 && (
             <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>⚠️ Po termínu ({overdueTasks.length})</div>
+              <div className="kalendar-sidebar-title" style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>⚠️ Po termínu ({overdueTasks.length})</div>
               {overdueTasks.map(t => (
                 <div key={t.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{t.title}</div>
@@ -271,7 +272,7 @@ export default function KalendarPage() {
           )}
 
           <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>Nadcházející akce</div>
+            <div className="kalendar-sidebar-title" style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>Nadcházející akce</div>
             {upcomingEvents.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Žádné plánované akce</div>
             ) : upcomingEvents.map(ev => (
@@ -288,7 +289,7 @@ export default function KalendarPage() {
           </div>
 
           <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>Nadcházející úkoly</div>
+            <div className="kalendar-sidebar-title" style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>Nadcházející úkoly</div>
             {upcomingTasks.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Žádné blížící se termíny</div>
             ) : upcomingTasks.map(t => (
