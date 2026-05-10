@@ -48,11 +48,11 @@ export default function EventForm({ existing }: Props) {
     }
   }
 
-  const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: '#f1f5f9', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px' }
-  const labelStyle = { color: '#9ca3af', fontSize: '13px', fontWeight: '500' as const, marginBottom: '6px', display: 'block' as const }
+  const inputStyle = { backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px' }
+  const labelStyle = { color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '500' as const, marginBottom: '6px', display: 'block' as const }
 
   return (
-    <form onSubmit={handleSubmit} style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <form onSubmit={handleSubmit} style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
         <label style={labelStyle}>Název akce *</label>
         <input required value={form.name} onChange={f('name')} placeholder="např. TŘEBASS OPEN AIR 2026" style={inputStyle} />
@@ -81,7 +81,7 @@ export default function EventForm({ existing }: Props) {
             onClick={() => setShowTime(v => !v)}
             style={{
               width: '36px', height: '20px', borderRadius: '10px', position: 'relative', flexShrink: 0,
-              backgroundColor: showTime ? '#e05555' : '#2d2d2d',
+              backgroundColor: showTime ? '#e05555' : 'var(--bg-card-dark)',
               transition: 'background-color 0.2s',
               cursor: 'pointer',
             }}
@@ -92,7 +92,7 @@ export default function EventForm({ existing }: Props) {
               transition: 'left 0.2s',
             }} />
           </div>
-          <span style={{ fontSize: '13px', color: '#9ca3af' }}>Přidat čas</span>
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Přidat čas</span>
         </label>
 
         {showTime && (
@@ -135,7 +135,7 @@ export default function EventForm({ existing }: Props) {
         <button type="submit" disabled={loading} style={{ padding: '10px 24px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
           {loading ? 'Ukládám...' : existing ? 'Uložit změny' : 'Vytvořit akci'}
         </button>
-        <button type="button" onClick={() => router.back()} style={{ padding: '10px 24px', backgroundColor: '#1e1e1e', color: '#9ca3af', borderRadius: '8px', fontSize: '14px', border: 'none', cursor: 'pointer' }}>
+        <button type="button" onClick={() => router.back()} style={{ padding: '10px 24px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '14px', border: 'none', cursor: 'pointer' }}>
           Zrušit
         </button>
       </div>

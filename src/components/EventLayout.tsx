@@ -78,7 +78,7 @@ export default function EventLayout({ eventId, children }: Props) {
                   fontSize: '13px',
                   fontWeight: isActive ? '600' : '400',
                   backgroundColor: isActive ? '#e05555' : 'transparent',
-                  color: isActive ? '#fff' : '#9ca3af',
+                  color: isActive ? '#fff' : 'var(--text-secondary)',
                   textDecoration: 'none',
                   transition: 'all 0.15s',
                 }}

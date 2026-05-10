@@ -38,8 +38,8 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#f1f5f9', margin: 0 }}>Akce</h1>
-          <p style={{ marginTop: '4px', fontSize: '14px', color: '#6b7280', marginBottom: 0 }}>Všechny festivaly a události</p>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Akce</h1>
+          <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Všechny festivaly a události</p>
         </div>
         <Link href="/akce/nova" style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
           + Nová akce
@@ -52,8 +52,8 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
             <button key={f.value} onClick={() => setFilter(f.value)} style={{
               padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '500',
               border: 'none', cursor: 'pointer',
-              backgroundColor: filter === f.value ? '#e05555' : '#1e1e1e',
-              color: filter === f.value ? '#fff' : '#9ca3af',
+              backgroundColor: filter === f.value ? '#e05555' : 'var(--bg-card-dark)',
+              color: filter === f.value ? '#fff' : 'var(--text-secondary)',
             }}>
               {f.label}
             </button>
@@ -64,8 +64,8 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
             <button key={s} onClick={() => setSort(s)} style={{
               padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
               border: 'none', cursor: 'pointer',
-              backgroundColor: sort === s ? '#1e1e2e' : 'transparent',
-              color: sort === s ? '#a78bfa' : '#4b5563',
+              backgroundColor: sort === s ? 'var(--bg-badge)' : 'transparent',
+              color: sort === s ? '#a78bfa' : 'var(--text-dim)',
             }}>
               {s === 'desc' ? '↓ Nejnovější' : '↑ Nejstarší'}
             </button>
@@ -74,34 +74,34 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '64px', backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', color: '#6b7280' }}>
+        <div style={{ textAlign: 'center', padding: '64px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', color: 'var(--text-muted)' }}>
           Žádné akce. <Link href="/akce/nova" style={{ color: '#e05555' }}>Vytvoř první →</Link>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {filtered.map((event) => (
-            <div key={event.id} className="card-hover" style={{ backgroundColor: '#161616', border: '1px solid #2d1515', borderRadius: '12px', overflow: 'hidden' }}>
+            <div key={event.id} className="card-hover" style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', overflow: 'hidden' }}>
               <Link href={`/akce/${event.id}/vydaje`} style={{ display: 'block', padding: '20px 24px', textDecoration: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                   <div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: '#f1f5f9' }}>{event.name}</div>
-                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
+                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>{event.name}</div>
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
                       <span>📅 {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}</span>
                       {event.location && <span>📍 {event.location}</span>}
                       {event.type && <span>🎪 {event.type}</span>}
                     </div>
-                    {event.description && <div style={{ marginTop: '8px', fontSize: '13px', color: '#9ca3af' }}>{event.description}</div>}
+                    {event.description && <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>{event.description}</div>}
                   </div>
                   <span className={STATUS_COLORS[event.status]} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', flexShrink: 0 }}>
                     {STATUS_LABELS[event.status]}
                   </span>
                 </div>
               </Link>
-              <div style={{ borderTop: '1px solid #1e1e1e', padding: '8px 24px', display: 'flex', gap: '16px' }}>
+              <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '8px 24px', display: 'flex', gap: '16px' }}>
                 <button onClick={() => router.push(`/akce/${event.id}/upravit`)} style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
                   ✏️ Upravit
                 </button>
-                <button onClick={() => handleDelete(event)} style={{ fontSize: '12px', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
+                <button onClick={() => handleDelete(event)} style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
                   🗑 Smazat
                 </button>
               </div>

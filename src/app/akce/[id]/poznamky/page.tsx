@@ -67,11 +67,11 @@ export default function PoznamkyPage({ params }: Props) {
     <EventLayout eventId={id}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
         <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-          style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: 'var(--bg-card-alt)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid #2d1515', cursor: 'pointer' }}>
+          style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: 'var(--bg-card-alt)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border-card)', cursor: 'pointer' }}>
           {refreshing ? '...' : '↻ Obnovit'}
         </button>
       </div>
-      <form onSubmit={handleSubmit} style={{ marginBottom: '24px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '20px' }}>
+      <form onSubmit={handleSubmit} style={{ marginBottom: '24px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '20px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
           <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flexShrink: 0 }}>Píše:</span>
           <div style={{ display: 'flex', gap: '6px' }}>
@@ -88,7 +88,7 @@ export default function PoznamkyPage({ params }: Props) {
         <textarea
           value={content} onChange={e => setContent(e.target.value)}
           placeholder="Napiš poznámku pro tým..." rows={3}
-          style={{ backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px', resize: 'vertical', marginBottom: '12px' }}
+          style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px', resize: 'vertical', marginBottom: '12px' }}
         />
         <button type="submit" disabled={saving || !content.trim()} style={{
           padding: '8px 20px', backgroundColor: '#e05555', color: '#fff',
@@ -108,7 +108,7 @@ export default function PoznamkyPage({ params }: Props) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {notes.map(note => (
-            <div key={note.id} style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '10px', padding: '16px' }}>
+            <div key={note.id} style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '10px', padding: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{
@@ -125,7 +125,7 @@ export default function PoznamkyPage({ params }: Props) {
                   Smazat
                 </button>
               </div>
-              <p style={{ fontSize: '14px', color: '#e2e8f0', margin: 0, lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{note.content}</p>
+              <p style={{ fontSize: '14px', color: 'var(--text-primary)', margin: 0, lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{note.content}</p>
             </div>
           ))}
         </div>

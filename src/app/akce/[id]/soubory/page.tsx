@@ -141,9 +141,9 @@ export default function SouboryPage({ params }: Props) {
         onDrop={e => { e.preventDefault(); setDragOver(false); uploadFiles(e.dataTransfer.files) }}
         onClick={() => fileRef.current?.click()}
         style={{
-          border: `2px dashed ${dragOver ? '#e05555' : '#2d1515'}`,
+          border: `2px dashed ${dragOver ? '#e05555' : 'var(--border)'}`,
           borderRadius: '12px', padding: '40px', textAlign: 'center',
-          backgroundColor: dragOver ? '#1a0a0a' : 'var(--bg-card-alt)',
+          backgroundColor: dragOver ? 'rgba(224,85,85,0.06)' : 'var(--bg-card-alt)',
           cursor: 'pointer', marginBottom: '24px', transition: 'all 0.15s',
         }}
       >
@@ -165,7 +165,7 @@ export default function SouboryPage({ params }: Props) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {documents.map(doc => (
-            <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '10px' }}>
+            <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
                 <span style={{ fontSize: '24px', flexShrink: 0 }}>{fileIcon(doc.file_type)}</span>
                 <div style={{ minWidth: 0 }}>
@@ -179,7 +179,7 @@ export default function SouboryPage({ params }: Props) {
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginLeft: '16px' }}>
                 <a href={getPublicUrl(doc.file_path)} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: '12px', color: '#f4978e', textDecoration: 'none', padding: '4px 12px', border: '1px solid #2d1515', borderRadius: '6px' }}>
+                  style={{ fontSize: '12px', color: '#f4978e', textDecoration: 'none', padding: '4px 12px', border: '1px solid var(--border)', borderRadius: '6px' }}>
                   Otevřít
                 </a>
                 <button onClick={() => handleDownload(doc)}

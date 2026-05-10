@@ -73,7 +73,7 @@ export default function Navigation() {
   const isLight = theme === 'light'
 
   return (
-    <header style={{ backgroundColor: 'var(--bg-nav)', borderBottom: '1px solid #2d1515', position: 'sticky', top: 0, zIndex: 50, transition: 'background-color 0.2s' }}>
+    <header style={{ backgroundColor: 'var(--bg-nav)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 50, transition: 'background-color 0.2s' }}>
       {/* Top row */}
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', height: '64px', gap: '32px' }}>
 
@@ -91,8 +91,8 @@ export default function Navigation() {
               <Link key={item.href} href={item.href} style={{
                 padding: '6px 16px', borderRadius: '6px', fontSize: '15px',
                 fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em',
-                color: isActive ? '#f4978e' : 'var(--text-secondary)',
-                backgroundColor: isActive ? '#2d1515' : 'transparent',
+                color: isActive ? '#e05555' : 'var(--text-secondary)',
+                backgroundColor: isActive ? 'rgba(224,85,85,0.12)' : 'transparent',
                 textDecoration: 'none', transition: 'all 0.15s',
                 borderBottom: isActive ? '2px solid #e05555' : '2px solid transparent',
               }}>
@@ -106,7 +106,7 @@ export default function Navigation() {
 
         {/* Odpočet do příští akce */}
         {nextEvent && cdParts && (
-          <div className="nav-user-desktop" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '3px', borderRight: '1px solid #2d1515', paddingRight: '20px', marginRight: '4px' }}>
+          <div className="nav-user-desktop" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '3px', borderRight: '1px solid var(--border-subtle)', paddingRight: '20px', marginRight: '4px' }}>
             <div style={{ fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
               {nextEvent.name.length > 24 ? nextEvent.name.slice(0, 24) + '…' : nextEvent.name}
             </div>
@@ -123,7 +123,7 @@ export default function Navigation() {
                     <div style={{ fontSize: '7px', color: 'var(--text-dim)', letterSpacing: '0.1em', marginTop: '1px' }}>{u}</div>
                   </div>
                   {i < arr.length - 1 && (
-                    <div style={{ fontSize: '16px', fontWeight: '800', color: '#3d1515', lineHeight: 1, marginBottom: '10px' }}>:</div>
+                    <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-dim)', lineHeight: 1, marginBottom: '10px' }}>:</div>
                   )}
                 </div>
               ))}

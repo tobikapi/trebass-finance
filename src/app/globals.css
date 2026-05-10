@@ -148,7 +148,7 @@ h1, h2, h3, .font-awakenning {
     right: 0;
     bottom: 0;
     background-color: var(--bg-nav);
-    border-top: 1px solid #2d1515;
+    border-top: 1px solid var(--border-subtle);
     overflow-y: auto;
     overscroll-behavior: contain;
     z-index: 49;
@@ -166,8 +166,8 @@ h1, h2, h3, .font-awakenning {
     min-height: 52px;
   }
   .nav-mobile-link.active {
-    background-color: #2d1515;
-    color: #f4978e;
+    background-color: rgba(224,85,85,0.12);
+    color: #e05555;
   }
   .nav-mobile-divider {
     height: 1px;
@@ -222,7 +222,7 @@ h1, h2, h3, .font-awakenning {
 .card-hover:hover {
   transform: translateY(-3px);
   box-shadow: 0 6px 24px rgba(224, 85, 85, 0.12);
-  border-color: #3d1515 !important;
+  border-color: rgba(224,85,85,0.4) !important;
 }
 
 button:not(:disabled):active { transform: scale(0.96); }

@@ -103,7 +103,7 @@ export default function KalendarPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '24px', alignItems: 'start' }}>
         {/* Hlavní kalendář */}
-        <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '24px' }}>
+        <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '24px' }}>
           {/* Navigace měsíce */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -115,8 +115,8 @@ export default function KalendarPage() {
               onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); setSelectedDay(null) }}
               style={{
                 padding: '6px 14px',
-                backgroundColor: isCurrentMonth ? '#2d1515' : 'var(--bg-card-dark)',
-                color: isCurrentMonth ? '#f4978e' : 'var(--text-secondary)',
+                backgroundColor: isCurrentMonth ? 'rgba(224,85,85,0.15)' : 'var(--bg-card-dark)',
+                color: isCurrentMonth ? '#e05555' : 'var(--text-secondary)',
                 border: `1px solid ${isCurrentMonth ? '#e05555' : 'transparent'}`,
                 borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600',
               }}
@@ -151,8 +151,8 @@ export default function KalendarPage() {
                     onClick={() => hasContent && setSelectedDay(isSel ? null : day)}
                     style={{
                       height: '72px', padding: '6px 5px', borderRadius: '6px',
-                      backgroundColor: isSel ? '#200e0e' : tod ? '#170c0c' : '#0c0c0c',
-                      border: `1px solid ${isSel ? '#e05555' : tod ? '#4a1515' : 'var(--border-subtle)'}`,
+                      backgroundColor: isSel ? 'var(--bg-card-dark)' : tod ? 'rgba(224,85,85,0.08)' : 'var(--bg-card)',
+                      border: `1px solid ${isSel ? '#e05555' : tod ? 'rgba(224,85,85,0.4)' : 'var(--border-subtle)'}`,
                       cursor: hasContent ? 'pointer' : 'default',
                       overflow: 'hidden', display: 'flex', flexDirection: 'column',
                       transition: 'border-color 0.12s, background-color 0.12s',
@@ -160,7 +160,7 @@ export default function KalendarPage() {
                   >
                     <div style={{
                       fontSize: '12px', fontWeight: tod ? '700' : '400',
-                      color: tod ? '#f4978e' : 'var(--text-muted)',
+                      color: tod ? '#e05555' : 'var(--text-muted)',
                       marginBottom: '4px', flexShrink: 0,
                     }}>{day}</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', flex: 1, alignContent: 'flex-start', overflow: 'hidden' }}>
@@ -172,7 +172,7 @@ export default function KalendarPage() {
                       ))}
                     </div>
                     {dayEvents.length > 0 && (
-                      <div style={{ fontSize: '9px', color: isSel ? '#f4978e' : '#a05555', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0 }}>
+                      <div style={{ fontSize: '9px', color: 'var(--text-secondary)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0 }}>
                         {dayEvents[0].name}{total > 1 ? ` +${total - 1}` : ''}
                       </div>
                     )}
@@ -189,8 +189,8 @@ export default function KalendarPage() {
 
           {/* Detail vybraného dne */}
           {selectedDay && (selEvents.length > 0 || selTasks.length > 0) && (
-            <div className="collapse-content" style={{ marginTop: '12px', padding: '16px 20px', backgroundColor: '#0e0808', border: '1px solid #4a1515', borderRadius: '10px' }}>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: '#f4978e', marginBottom: '14px' }}>
+            <div className="collapse-content" style={{ marginTop: '12px', padding: '16px 20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '10px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#e05555', marginBottom: '14px' }}>
                 {selectedDay}. {MONTHS_GEN[month]} {year}
               </div>
               {selEvents.length > 0 && (
@@ -256,7 +256,7 @@ export default function KalendarPage() {
         {/* Postranní panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {overdueTasks.length > 0 && (
-            <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #4a1515', borderRadius: '12px', padding: '16px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
               <div style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>⚠️ Po termínu ({overdueTasks.length})</div>
               {overdueTasks.map(t => (
                 <div key={t.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -270,8 +270,8 @@ export default function KalendarPage() {
             </div>
           )}
 
-          <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '16px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#f4978e', marginBottom: '10px' }}>Nadcházející akce</div>
+          <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>Nadcházející akce</div>
             {upcomingEvents.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Žádné plánované akce</div>
             ) : upcomingEvents.map(ev => (
@@ -287,8 +287,8 @@ export default function KalendarPage() {
             ))}
           </div>
 
-          <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '12px', padding: '16px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#f4978e', marginBottom: '10px' }}>Nadcházející úkoly</div>
+          <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#e05555', marginBottom: '10px' }}>Nadcházející úkoly</div>
             {upcomingTasks.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Žádné blížící se termíny</div>
             ) : upcomingTasks.map(t => (

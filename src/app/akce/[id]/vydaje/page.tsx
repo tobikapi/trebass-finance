@@ -101,7 +101,7 @@ export default function VydajePage({ params }: Props) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-4">
           {[
-            { label: 'Celkem', value: totalPrice, color: '#f1f5f9' },
+            { label: 'Celkem', value: totalPrice, color: 'var(--text-primary)' },
             { label: 'Zálohy', value: totalDeposit, color: '#60a5fa' },
             { label: 'Bez zálohy', value: totalWithoutDeposit, color: '#f87171' },
             { label: 'Zbývá zaplatit', value: totalUnpaid, color: '#fbbf24' },
@@ -130,7 +130,7 @@ export default function VydajePage({ params }: Props) {
             <option value="paid">Nezaplacené první</option>
           </select>
           <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: '#111118', color: refreshing ? '#4b5563' : '#9ca3af', border: '1px solid #2a2a3e' }}>
+            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-card)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}>
             {refreshing ? '...' : '↻'}
           </button>
           <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
@@ -173,7 +173,7 @@ export default function VydajePage({ params }: Props) {
               <input type="number" value={form.deposit} onChange={(e) => setForm({ ...form, deposit: e.target.value })} placeholder="0" style={{ ...inputStyle, width: '100%' }} />
             </div>
             <div className="col-span-1 flex items-end">
-              <label className="flex items-center gap-2 cursor-pointer" style={{ color: '#9ca3af', fontSize: '13px' }}>
+              <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
                 <input type="checkbox" checked={form.paid} onChange={(e) => setForm({ ...form, paid: e.target.checked })} />
                 Zaplaceno
               </label>
@@ -191,7 +191,7 @@ export default function VydajePage({ params }: Props) {
       )}
 
       {loading ? (
-        <div className="text-center py-16" style={{ color: '#6b7280' }}>Načítám...</div>
+        <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>Načítám...</div>
       ) : expenses.length === 0 ? (
         <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           Zatím žádné výdaje. Klikni + Přidat výdaj.
@@ -216,19 +216,19 @@ export default function VydajePage({ params }: Props) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '11px', color: cc.color, opacity: 0.6, transition: 'transform 0.15s', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
                           <span className="text-xs font-semibold tracking-wider" style={{ color: cc.color }}>{category}</span>
-                          {isCollapsed && <span style={{ fontSize: '11px', color: '#374151' }}>{items.length} položek</span>}
+                          {isCollapsed && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>{items.length} položek</span>}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {budget > 0 && (
-                            <span style={{ fontSize: '11px', color: over ? '#f87171' : '#4b5563' }}>
+                            <span style={{ fontSize: '11px', color: over ? '#f87171' : 'var(--text-dim)' }}>
                               {over ? `+${(catTotal - budget).toLocaleString('cs-CZ')}` : `zbývá ${(budget - catTotal).toLocaleString('cs-CZ')}`} Kč
                             </span>
                           )}
-                          <span className="text-xs font-semibold" style={{ color: over ? '#f87171' : isCollapsed ? cc.color : '#6b7280' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
+                          <span className="text-xs font-semibold" style={{ color: over ? '#f87171' : isCollapsed ? cc.color : 'var(--text-muted)' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
                         </div>
                       </div>
                       {budget > 0 && (
-                        <div style={{ height: '3px', backgroundColor: '#1e1e2e', overflow: 'hidden' }}>
+                        <div style={{ height: '3px', backgroundColor: 'var(--bg-card-dark)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${pct}%`, backgroundColor: barColor, transition: 'width 0.3s ease' }} />
                         </div>
                       )}
@@ -240,15 +240,15 @@ export default function VydajePage({ params }: Props) {
                     {/* Záhlaví sloupců */}
                     <div className="expense-header">
                       {['Položka / Poznámka', 'Platba', 'Cena', 'Záloha', 'Zbývá', 'Paid', ''].map((h, i) => (
-                        <div key={h + i} className="text-xs font-medium" style={{ color: '#4b5563', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
+                        <div key={h + i} className="text-xs font-medium" style={{ color: 'var(--text-dim)', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
                       ))}
                     </div>
                     {/* Řádky */}
                     {sortItems(items).map((exp) => (
                       <div key={exp.id} className="expense-row">
                         <div>
-                          <div style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>
-                          {exp.note && <div style={{ color: '#6b7280', fontSize: '11px', marginTop: '2px' }}>{exp.note}</div>}
+                          <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>
+                          {exp.note && <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>{exp.note}</div>}
                         </div>
                         <div>
                           {exp.payment_timing
