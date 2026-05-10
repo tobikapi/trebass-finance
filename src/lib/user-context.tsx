@@ -31,6 +31,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // getSession reads from localStorage — no network, resolves immediately
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      if (currentUser) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+        setProfile(data)
+      }
+      setLoading(false)
+    })
+
+    // onAuthStateChange handles token refresh, login, logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null
       setUser(currentUser)
