@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
+import { useRealtime } from '@/lib/use-realtime'
 
 type Budgets = Record<string, number>
 
@@ -35,6 +36,7 @@ export default function VydajePage({ params }: Props) {
   }
 
   useEffect(() => { load() }, [id])
+  const { live } = useRealtime(['expenses', 'events'], load, id)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -130,7 +132,8 @@ export default function VydajePage({ params }: Props) {
             <option value="paid">Nezaplacené první</option>
           </select>
           <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-card)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-card)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: live ? '#34d399' : 'var(--text-faint)', flexShrink: 0, display: 'inline-block' }} />
             {refreshing ? '...' : '↻'}
           </button>
           <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>

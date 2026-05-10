@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import EventLayout from '@/components/EventLayout'
 import { createNote, deleteNote } from '@/app/actions'
+import { useRealtime } from '@/lib/use-realtime'
 
 interface Props { params: Promise<{ id: string }> }
 interface Note { id: string; author: string; content: string; created_at: string }
@@ -32,6 +33,7 @@ export default function PoznamkyPage({ params }: Props) {
     })
     load()
   }, [id])
+  const { live } = useRealtime(['notes'], load, id)
 
   async function load() {
     const { data } = await supabase
@@ -67,7 +69,8 @@ export default function PoznamkyPage({ params }: Props) {
     <EventLayout eventId={id}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
         <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-          style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: 'var(--bg-card-alt)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border-card)', cursor: 'pointer' }}>
+          style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: 'var(--bg-card-alt)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border-card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: live ? '#34d399' : 'var(--text-faint)', flexShrink: 0 }} />
           {refreshing ? '...' : '↻ Obnovit'}
         </button>
       </div>

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { LineupArtist } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { createArtist, updateArtist, deleteArtist, toggleArtistPaid, updateEventStages } from '@/app/actions'
+import { useRealtime } from '@/lib/use-realtime'
 
 interface Props { params: Promise<{ id: string }> }
 interface Contact { id: string; name: string; type: string; fee: number }
@@ -115,6 +116,7 @@ export default function LineupPage({ params }: Props) {
   }
 
   useEffect(() => { load() }, [id])
+  const { live } = useRealtime(['lineup', 'events'], load, id)
 
   function pickContact(contactId: string) {
     if (!contactId) return
@@ -361,7 +363,8 @@ export default function LineupPage({ params }: Props) {
             style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px', padding: '7px 12px', fontSize: '13px', outline: 'none', width: '160px' }}
           />
           <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
-            style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: 'var(--bg-badge)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
+            style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', backgroundColor: 'var(--bg-badge)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: live ? '#34d399' : 'var(--text-faint)', flexShrink: 0 }} />
             {refreshing ? '...' : '↻'}
           </button>
         </div>

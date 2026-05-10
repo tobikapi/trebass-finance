@@ -11,6 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts'
+import { useRealtime } from '@/lib/use-realtime'
 
 interface RawExpense { event_id: string; price: number; category: string; paid: boolean; deposit: number }
 interface RawIncome  { event_id: string; amount: number }
@@ -110,33 +111,33 @@ export default function Dashboard() {
     if (!authLoading && !can('viewDashboard')) router.replace('/akce')
   }, [authLoading, can, router])
 
-  useEffect(() => {
-    async function load() {
-      const [{ data: evts }, { data: exps }, { data: incs }, { data: actExps }, { data: actIncs }, { data: actLineup }, { data: actNotes }] = await Promise.all([
-        supabase.from('events').select('*').order('date', { ascending: false }),
-        supabase.from('expenses').select('price, event_id, category, paid, deposit'),
-        supabase.from('income').select('amount, event_id'),
-        supabase.from('expenses').select('event_id, category, item, price, created_at').order('created_at', { ascending: false }).limit(8),
-        supabase.from('income').select('event_id, source, amount, created_at').order('created_at', { ascending: false }).limit(8),
-        supabase.from('lineup').select('event_id, artist_name, fee, created_at').order('created_at', { ascending: false }).limit(8),
-        supabase.from('notes').select('event_id, author, content, created_at').order('created_at', { ascending: false }).limit(5),
-      ])
-      setAllEvents(evts || [])
-      setAllExpenses(exps || [])
-      setAllIncome(incs || [])
+  async function loadDashboard() {
+    const [{ data: evts }, { data: exps }, { data: incs }, { data: actExps }, { data: actIncs }, { data: actLineup }, { data: actNotes }] = await Promise.all([
+      supabase.from('events').select('*').order('date', { ascending: false }),
+      supabase.from('expenses').select('price, event_id, category, paid, deposit'),
+      supabase.from('income').select('amount, event_id'),
+      supabase.from('expenses').select('event_id, category, item, price, created_at').order('created_at', { ascending: false }).limit(8),
+      supabase.from('income').select('event_id, source, amount, created_at').order('created_at', { ascending: false }).limit(8),
+      supabase.from('lineup').select('event_id, artist_name, fee, created_at').order('created_at', { ascending: false }).limit(8),
+      supabase.from('notes').select('event_id, author, content, created_at').order('created_at', { ascending: false }).limit(5),
+    ])
+    setAllEvents(evts || [])
+    setAllExpenses(exps || [])
+    setAllIncome(incs || [])
 
-      const items: ActivityItem[] = [
-        ...(actExps || []).map(e => ({ type: 'expense' as const, event_id: e.event_id, icon: '💸', label: `${e.item} (${e.category})`, amount: e.price, created_at: e.created_at })),
-        ...(actIncs || []).map(i => ({ type: 'income' as const, event_id: i.event_id, icon: '💰', label: i.source, amount: i.amount, created_at: i.created_at })),
-        ...(actLineup || []).map(l => ({ type: 'lineup' as const, event_id: l.event_id, icon: '🎧', label: l.artist_name, amount: l.fee || undefined, created_at: l.created_at })),
-        ...(actNotes || []).map(n => ({ type: 'note' as const, event_id: n.event_id, icon: '📝', label: `${n.author}: ${n.content.slice(0, 40)}${n.content.length > 40 ? '…' : ''}`, created_at: n.created_at })),
-      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10)
-      setActivity(items)
+    const items: ActivityItem[] = [
+      ...(actExps || []).map(e => ({ type: 'expense' as const, event_id: e.event_id, icon: '💸', label: `${e.item} (${e.category})`, amount: e.price, created_at: e.created_at })),
+      ...(actIncs || []).map(i => ({ type: 'income' as const, event_id: i.event_id, icon: '💰', label: i.source, amount: i.amount, created_at: i.created_at })),
+      ...(actLineup || []).map(l => ({ type: 'lineup' as const, event_id: l.event_id, icon: '🎧', label: l.artist_name, amount: l.fee || undefined, created_at: l.created_at })),
+      ...(actNotes || []).map(n => ({ type: 'note' as const, event_id: n.event_id, icon: '📝', label: `${n.author}: ${n.content.slice(0, 40)}${n.content.length > 40 ? '…' : ''}`, created_at: n.created_at })),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10)
+    setActivity(items)
 
-      setLoading(false)
-    }
-    load()
-  }, [])
+    setLoading(false)
+  }
+
+  useEffect(() => { loadDashboard() }, [])
+  useRealtime(['events', 'expenses', 'income', 'lineup', 'notes'], loadDashboard)
 
   const availableYears = useMemo(() => {
     const years = new Set(allEvents.map(e => e.date ? new Date(e.date).getFullYear().toString() : null).filter(Boolean))
