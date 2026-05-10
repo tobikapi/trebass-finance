@@ -14,6 +14,7 @@ import {
 
 interface RawExpense { event_id: string; price: number; category: string; paid: boolean; deposit: number }
 interface RawIncome  { event_id: string; amount: number }
+interface ActivityItem { type: 'expense' | 'income' | 'lineup' | 'note'; event_id: string; icon: string; label: string; amount?: number; created_at: string }
 
 const PIE_COLORS = ['#e05555','#f4978e','#f59e0b','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#4ade80','#38bdf8','#c084fc','#fbbf24','#2dd4bf','#f87171','#94a3b8','#e879f9']
 
@@ -72,6 +73,18 @@ function StatCard({ label, value, sub, color, loading }: { label: string; value:
   )
 }
 
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'právě teď'
+  if (mins < 60) return `před ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `před ${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'včera'
+  return `před ${days} dny`
+}
+
 function countdown(dateStr: string) {
   const [y, m, d] = dateStr.split('-').map(Number)
   const diff = new Date(y, m - 1, d).getTime() - Date.now()
@@ -89,6 +102,7 @@ export default function Dashboard() {
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
   const [loading, setLoading] = useState(true)
+  const [activity, setActivity] = useState<ActivityItem[]>([])
   const [yearFilter,   setYearFilter]   = useState<string>('vse')
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'vse'>('vse')
 
@@ -98,14 +112,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: evts }, { data: exps }, { data: incs }] = await Promise.all([
+      const [{ data: evts }, { data: exps }, { data: incs }, { data: actExps }, { data: actIncs }, { data: actLineup }, { data: actNotes }] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: false }),
         supabase.from('expenses').select('price, event_id, category, paid, deposit'),
         supabase.from('income').select('amount, event_id'),
+        supabase.from('expenses').select('event_id, category, item, price, created_at').order('created_at', { ascending: false }).limit(8),
+        supabase.from('income').select('event_id, source, amount, created_at').order('created_at', { ascending: false }).limit(8),
+        supabase.from('lineup').select('event_id, artist_name, fee, created_at').order('created_at', { ascending: false }).limit(8),
+        supabase.from('notes').select('event_id, author, content, created_at').order('created_at', { ascending: false }).limit(5),
       ])
       setAllEvents(evts || [])
       setAllExpenses(exps || [])
       setAllIncome(incs || [])
+
+      const items: ActivityItem[] = [
+        ...(actExps || []).map(e => ({ type: 'expense' as const, event_id: e.event_id, icon: '💸', label: `${e.item} (${e.category})`, amount: e.price, created_at: e.created_at })),
+        ...(actIncs || []).map(i => ({ type: 'income' as const, event_id: i.event_id, icon: '💰', label: i.source, amount: i.amount, created_at: i.created_at })),
+        ...(actLineup || []).map(l => ({ type: 'lineup' as const, event_id: l.event_id, icon: '🎧', label: l.artist_name, amount: l.fee || undefined, created_at: l.created_at })),
+        ...(actNotes || []).map(n => ({ type: 'note' as const, event_id: n.event_id, icon: '📝', label: `${n.author}: ${n.content.slice(0, 40)}${n.content.length > 40 ? '…' : ''}`, created_at: n.created_at })),
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10)
+      setActivity(items)
+
       setLoading(false)
     }
     load()
@@ -182,7 +209,7 @@ export default function Dashboard() {
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Dashboard</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-            {activeFiltersLabel ? `Filtr: ${activeFiltersLabel}` : 'Přehled všech akcí a financí'}
+            {activeFiltersLabel ? `Filtr: ${activeFiltersLabel}` : `${allEvents.length} akcí celkem · přehled financí`}
           </p>
         </div>
         <Link href="/akce/nova" style={{ padding: '9px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.05em' }}>
@@ -229,10 +256,10 @@ export default function Dashboard() {
               const evBalance = (sum?.income || 0) - (sum?.expenses || 0)
               return (
                 <Link key={ev.id} href={`/akce/${ev.id}/prehled`} style={{ textDecoration: 'none' }}>
-                  <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid #2d1515', borderRadius: '10px', padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+                  <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: '10px', padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', lineHeight: 1.3 }}>{ev.name}</div>
-                      {cd && <span style={{ fontSize: '11px', fontWeight: '700', color: '#e05555', backgroundColor: '#2d1515', padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap', marginLeft: '8px' }}>{cd}</span>}
+                      {cd && <span style={{ fontSize: '11px', fontWeight: '700', color: '#e05555', backgroundColor: 'rgba(224,85,85,0.12)', padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap', marginLeft: '8px' }}>{cd}</span>}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                       {formatDateRange(ev.date, ev.date_end)} {ev.location && `· ${ev.location}`}
@@ -358,6 +385,45 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Poslední aktivita */}
+      {activity.length > 0 && (
+        <div style={{ marginBottom: '32px' }}>
+          <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', letterSpacing: '0.08em', margin: '0 0 12px 0', textTransform: 'uppercase' }}>Poslední aktivita</h2>
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+            {activity.map((item, i) => {
+              const ev = allEvents.find(e => e.id === item.event_id)
+              return (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '11px 16px',
+                  borderBottom: i < activity.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                }}>
+                  <span style={{ fontSize: '16px', flexShrink: 0, width: '24px', textAlign: 'center' }}>{item.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.label}
+                    </div>
+                    {ev && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ev.name}
+                      </div>
+                    )}
+                  </div>
+                  {item.amount != null && item.amount > 0 && (
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: item.type === 'income' ? '#34d399' : item.type === 'expense' ? '#f87171' : 'var(--text-secondary)', flexShrink: 0 }}>
+                      {item.type === 'income' ? '+' : ''}{item.amount.toLocaleString('cs-CZ')} Kč
+                    </div>
+                  )}
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', flexShrink: 0, minWidth: '70px', textAlign: 'right' }}>
+                    {timeAgo(item.created_at)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Foto strip */}
       <div>
