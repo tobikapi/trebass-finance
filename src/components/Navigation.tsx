@@ -73,6 +73,7 @@ export default function Navigation() {
   const isLight = theme === 'light'
 
   return (
+    <>
     <header style={{ backgroundColor: 'var(--bg-nav)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 50, transition: 'background-color 0.2s' }}>
       {/* Top row */}
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', height: '64px', gap: '32px' }}>
@@ -182,9 +183,9 @@ export default function Navigation() {
           </button>
         </div>
       </div>
+    </header>
 
-      {/* Mobile fullscreen dropdown */}
-      {menuOpen && (
+    {menuOpen && (
         <div className="nav-mobile-dropdown">
           {/* Nav links */}
           <div style={{ padding: '8px 16px', flex: 1 }}>
@@ -234,6 +235,6 @@ export default function Navigation() {
           )}
         </div>
       )}
-    </header>
+    </>
   )
 }
