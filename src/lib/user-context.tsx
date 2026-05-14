@@ -31,21 +31,25 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // onAuthStateChange fires INITIAL_SESSION immediately from localStorage
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      if (currentUser) {
-        const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
-        setProfile(data)
-      } else {
-        setProfile(null)
+      try {
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+        if (currentUser) {
+          const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+          setProfile(data)
+        } else {
+          setProfile(null)
+        }
+      } catch {
+        // ignore profile fetch errors
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     })
 
-    // Fallback: if onAuthStateChange doesn't fire within 3s, unblock the UI
-    const timeout = setTimeout(() => setLoading(false), 3000)
+    // Fallback: if onAuthStateChange doesn't fire within 2s, unblock the UI
+    const timeout = setTimeout(() => setLoading(false), 2000)
 
     return () => {
       subscription.unsubscribe()

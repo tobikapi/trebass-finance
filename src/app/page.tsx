@@ -103,6 +103,7 @@ export default function Dashboard() {
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
   const [loading, setLoading] = useState(true)
+  const [dbError, setDbError] = useState<string | null>(null)
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [yearFilter,   setYearFilter]   = useState<string>('vse')
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'vse'>('vse')
@@ -112,8 +113,9 @@ export default function Dashboard() {
   }, [authLoading, can, router])
 
   async function loadDashboard() {
+    setDbError(null)
     try {
-      const [{ data: evts }, { data: exps }, { data: incs }, { data: actExps }, { data: actIncs }, { data: actLineup }, { data: actNotes }] = await Promise.all([
+      const [evtsRes, expsRes, incsRes, actExpsRes, actIncsRes, actLineupRes, actNotesRes] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: false }),
         supabase.from('expenses').select('price, event_id, category, paid, deposit'),
         supabase.from('income').select('amount, event_id'),
@@ -122,25 +124,36 @@ export default function Dashboard() {
         supabase.from('lineup').select('event_id, artist_name, fee, created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('notes').select('event_id, author, content, created_at').order('created_at', { ascending: false }).limit(5),
       ])
-      setAllEvents(evts || [])
-      setAllExpenses(exps || [])
-      setAllIncome(incs || [])
 
+      const firstError = [evtsRes, expsRes, incsRes].find(r => r.error)?.error
+      if (firstError) {
+        console.error('[Dashboard] Supabase error:', firstError)
+        setDbError(firstError.message)
+      }
+
+      setAllEvents(evtsRes.data || [])
+      setAllExpenses(expsRes.data || [])
+      setAllIncome(incsRes.data || [])
+
+      const actNotes = actNotesRes.data
       const items: ActivityItem[] = [
-        ...(actExps || []).map(e => ({ type: 'expense' as const, event_id: e.event_id, icon: '💸', label: `${e.item} (${e.category})`, amount: e.price, created_at: e.created_at })),
-        ...(actIncs || []).map(i => ({ type: 'income' as const, event_id: i.event_id, icon: '💰', label: i.source, amount: i.amount, created_at: i.created_at })),
-        ...(actLineup || []).map(l => ({ type: 'lineup' as const, event_id: l.event_id, icon: '🎧', label: l.artist_name, amount: l.fee || undefined, created_at: l.created_at })),
+        ...(actExpsRes.data || []).map(e => ({ type: 'expense' as const, event_id: e.event_id, icon: '💸', label: `${e.item} (${e.category})`, amount: e.price, created_at: e.created_at })),
+        ...(actIncsRes.data || []).map(i => ({ type: 'income' as const, event_id: i.event_id, icon: '💰', label: i.source, amount: i.amount, created_at: i.created_at })),
+        ...(actLineupRes.data || []).map(l => ({ type: 'lineup' as const, event_id: l.event_id, icon: '🎧', label: l.artist_name, amount: l.fee || undefined, created_at: l.created_at })),
         ...(actNotes || []).map(n => ({ type: 'note' as const, event_id: n.event_id, icon: '📝', label: `${n.author}: ${n.content.slice(0, 40)}${n.content.length > 40 ? '…' : ''}`, created_at: n.created_at })),
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10)
       setActivity(items)
+    } catch (err) {
+      console.error('[Dashboard] Unexpected error:', err)
+      setDbError(String(err))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    if (!authLoading) loadDashboard()
-  }, [authLoading])
+    loadDashboard()
+  }, [])
   useRealtime(['events', 'expenses', 'income', 'lineup', 'notes'], loadDashboard)
 
   const availableYears = useMemo(() => {
@@ -241,6 +254,13 @@ export default function Dashboard() {
           </button>
         )}
       </div>
+
+      {/* DB error banner */}
+      {dbError && (
+        <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: 'rgba(26,5,5,0.9)', border: '1px solid #5a1a1a', borderRadius: '10px', fontSize: '13px', color: '#f4978e' }}>
+          Chyba databáze: {dbError}
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="stat-grid" style={{ marginBottom: '16px' }}>
