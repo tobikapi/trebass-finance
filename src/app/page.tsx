@@ -3,9 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { useUser } from '@/lib/user-context'
 import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus, formatDateRange, CATEGORY_COLORS } from '@/lib/types'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -97,8 +95,6 @@ function countdown(dateStr: string) {
 }
 
 export default function Dashboard() {
-  const { can, loading: authLoading } = useUser()
-  const router = useRouter()
   const [allEvents,   setAllEvents]   = useState<Event[]>([])
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
@@ -107,10 +103,6 @@ export default function Dashboard() {
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [yearFilter,   setYearFilter]   = useState<string>('vse')
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'vse'>('vse')
-
-  useEffect(() => {
-    if (!authLoading && !can('viewDashboard')) router.replace('/akce')
-  }, [authLoading, can, router])
 
   async function loadDashboard() {
     setDbError(null)
@@ -152,7 +144,10 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    loadDashboard()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) loadDashboard()
+      else setLoading(false)
+    })
   }, [])
   useRealtime(['events', 'expenses', 'income', 'lineup', 'notes'], loadDashboard)
 
