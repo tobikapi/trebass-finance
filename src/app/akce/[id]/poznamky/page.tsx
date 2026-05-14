@@ -36,11 +36,14 @@ export default function PoznamkyPage({ params }: Props) {
   const { live } = useRealtime(['notes'], load, id)
 
   async function load() {
-    const { data } = await supabase
-      .from('notes').select('*').eq('event_id', id)
-      .order('created_at', { ascending: false })
-    setNotes(data || [])
-    setLoading(false)
+    try {
+      const { data } = await supabase
+        .from('notes').select('*').eq('event_id', id)
+        .order('created_at', { ascending: false })
+      setNotes(data || [])
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {

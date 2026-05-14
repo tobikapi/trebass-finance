@@ -77,21 +77,24 @@ export default function LineupPage({ params }: Props) {
   const [search, setSearch] = useState('')
 
   async function load() {
-    const [{ data: lineup }, { data: ctc }, { data: ev }] = await Promise.all([
-      supabase.from('lineup').select('*').eq('event_id', id).order('set_time').order('artist_name'),
-      supabase.from('contacts').select('id, name, type, fee').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
-      supabase.from('events').select('stages, date, date_end').eq('id', id).single(),
-    ])
-    setArtists(lineup || [])
-    setContacts(ctc || [])
-    setStages(ev?.stages || [])
-    setEventDates({ date: ev?.date || null, date_end: ev?.date_end || null })
-    setCollapsedStages(prev => {
-      const next = { ...prev }
-      for (const s of ev?.stages || []) { if (!(s in next)) next[s] = true }
-      return next
-    })
-    setLoading(false)
+    try {
+      const [{ data: lineup }, { data: ctc }, { data: ev }] = await Promise.all([
+        supabase.from('lineup').select('*').eq('event_id', id).order('set_time').order('artist_name'),
+        supabase.from('contacts').select('id, name, type, fee').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
+        supabase.from('events').select('stages, date, date_end').eq('id', id).single(),
+      ])
+      setArtists(lineup || [])
+      setContacts(ctc || [])
+      setStages(ev?.stages || [])
+      setEventDates({ date: ev?.date || null, date_end: ev?.date_end || null })
+      setCollapsedStages(prev => {
+        const next = { ...prev }
+        for (const s of ev?.stages || []) { if (!(s in next)) next[s] = true }
+        return next
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   function stageColor(stageName: string) {

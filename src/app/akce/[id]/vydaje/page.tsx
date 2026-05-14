@@ -26,13 +26,16 @@ export default function VydajePage({ params }: Props) {
   const [refreshing, setRefreshing] = useState(false)
 
   async function load() {
-    const [{ data: expData }, { data: evData }] = await Promise.all([
-      supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at'),
-      supabase.from('events').select('budgets').eq('id', id).single(),
-    ])
-    setExpenses(expData || [])
-    setBudgets(evData?.budgets || {})
-    setLoading(false)
+    try {
+      const [{ data: expData }, { data: evData }] = await Promise.all([
+        supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at'),
+        supabase.from('events').select('budgets').eq('id', id).single(),
+      ])
+      setExpenses(expData || [])
+      setBudgets(evData?.budgets || {})
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [id])

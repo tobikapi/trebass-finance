@@ -53,15 +53,18 @@ export default function PrehledPage({ params }: Props) {
   const [saving, setSaving] = useState(false)
 
   async function load() {
-    const [{ data: exp }, { data: inc }, { data: ev }] = await Promise.all([
-      supabase.from('expenses').select('*').eq('event_id', id),
-      supabase.from('income').select('*').eq('event_id', id),
-      supabase.from('events').select('*').eq('id', id).single(),
-    ])
-    setExpenses(exp || [])
-    setIncome(inc || [])
-    setEvent(ev)
-    setLoading(false)
+    try {
+      const [{ data: exp }, { data: inc }, { data: ev }] = await Promise.all([
+        supabase.from('expenses').select('*').eq('event_id', id),
+        supabase.from('income').select('*').eq('event_id', id),
+        supabase.from('events').select('*').eq('id', id).single(),
+      ])
+      setExpenses(exp || [])
+      setIncome(inc || [])
+      setEvent(ev)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [id])

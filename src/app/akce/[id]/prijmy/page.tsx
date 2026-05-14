@@ -22,11 +22,15 @@ export default function PrijmyPage({ params }: Props) {
   const [refreshing, setRefreshing] = useState(false)
 
   async function load() {
-    const [{ data: inc }, { data: exp }] = await Promise.all([
-      supabase.from('income').select('*').eq('event_id', id).order('created_at'),
-      supabase.from('expenses').select('price, deposit').eq('event_id', id),
-    ])
-    setIncome(inc || []); setExpenses(exp || []); setLoading(false)
+    try {
+      const [{ data: inc }, { data: exp }] = await Promise.all([
+        supabase.from('income').select('*').eq('event_id', id).order('created_at'),
+        supabase.from('expenses').select('price, deposit').eq('event_id', id),
+      ])
+      setIncome(inc || []); setExpenses(exp || [])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [id])
