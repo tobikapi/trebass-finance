@@ -1,5 +1,5 @@
 -- Třebass Finance - Databázové schéma
--- Spusť tento SQL v Supabase SQL Editoru
+-- Aktuální stav k 2026-05-15
 -- DŮLEŽITÉ: Pokud tabulky již existují, použij ALTER TABLE pro přidání chybějících sloupců.
 
 create table if not exists events (
@@ -18,7 +18,6 @@ create table if not exists events (
   created_at timestamp with time zone default now()
 );
 
--- Přidej chybějící sloupce pokud tabulka events již existuje:
 alter table events add column if not exists date_end date;
 alter table events add column if not exists time_start text;
 alter table events add column if not exists time_end text;
@@ -35,8 +34,11 @@ create table if not exists expenses (
   price numeric default 0,
   deposit numeric default 0,
   paid boolean default false,
+  lineup_artist_id uuid,
   created_at timestamp with time zone default now()
 );
+
+alter table expenses add column if not exists lineup_artist_id uuid;
 
 create table if not exists income (
   id uuid default gen_random_uuid() primary key,
@@ -55,14 +57,14 @@ create table if not exists lineup (
   deposit numeric default 0,
   paid boolean default false,
   set_time text,
-  day text,
+  date date,
   stage text,
   notes text,
   created_at timestamp with time zone default now()
 );
 
--- Přidej chybějící sloupce pokud tabulka lineup již existuje:
-alter table lineup add column if not exists day text;
+-- date = datum vystoupení (pro vícedenní akce), day je zastaralý sloupec ponechaný z migrace
+alter table lineup add column if not exists date date;
 alter table lineup add column if not exists stage text;
 
 create table if not exists team_contributions (
@@ -82,6 +84,43 @@ create table if not exists notes (
   created_at timestamp with time zone default now()
 );
 
+create table if not exists contacts (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  type text,
+  fee numeric default 0,
+  email text,
+  phone text,
+  note text,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists tasks (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  description text,
+  assigned_to text,
+  assigned_to_members text[] default '{}',
+  status text default 'todo' check (status in ('todo', 'in_progress', 'done')),
+  priority text default 'medium' check (priority in ('low', 'medium', 'high')),
+  due_date date,
+  event_id uuid references events(id) on delete set null,
+  created_at timestamp with time zone default now()
+);
+
+alter table tasks add column if not exists assigned_to_members text[] default '{}';
+
+create table if not exists documents (
+  id uuid default gen_random_uuid() primary key,
+  event_id uuid references events(id) on delete cascade,
+  name text not null,
+  file_path text not null,
+  file_size bigint,
+  file_type text,
+  uploaded_by text,
+  created_at timestamp with time zone default now()
+);
+
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text,
@@ -96,9 +135,12 @@ alter table income enable row level security;
 alter table lineup enable row level security;
 alter table team_contributions enable row level security;
 alter table notes enable row level security;
+alter table contacts enable row level security;
+alter table tasks enable row level security;
+alter table documents enable row level security;
 alter table profiles enable row level security;
 
--- Policies (create only if they don't exist)
+-- Policies — allow all (role systém je dočasně vypnutý)
 do $$ begin
   if not exists (select 1 from pg_policies where tablename = 'events'             and policyname = 'allow all') then
     create policy "allow all" on events             for all using (true) with check (true); end if;
@@ -112,6 +154,17 @@ do $$ begin
     create policy "allow all" on team_contributions for all using (true) with check (true); end if;
   if not exists (select 1 from pg_policies where tablename = 'notes'              and policyname = 'allow all') then
     create policy "allow all" on notes              for all using (true) with check (true); end if;
+  if not exists (select 1 from pg_policies where tablename = 'contacts'           and policyname = 'allow all') then
+    create policy "allow all" on contacts           for all using (true) with check (true); end if;
+  if not exists (select 1 from pg_policies where tablename = 'tasks'              and policyname = 'allow all') then
+    create policy "allow all" on tasks              for all using (true) with check (true); end if;
+  if not exists (select 1 from pg_policies where tablename = 'documents'          and policyname = 'allow all') then
+    create policy "allow all" on documents          for all using (true) with check (true); end if;
   if not exists (select 1 from pg_policies where tablename = 'profiles'           and policyname = 'allow all') then
     create policy "allow all" on profiles           for all using (true) with check (true); end if;
 end $$;
+
+-- ON DELETE CASCADE pro lineup_artist_id v expenses
+-- (pokud ještě není nastaveno)
+-- ALTER TABLE expenses ADD CONSTRAINT fk_lineup_artist
+--   FOREIGN KEY (lineup_artist_id) REFERENCES lineup(id) ON DELETE CASCADE;
