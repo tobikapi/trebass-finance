@@ -138,7 +138,9 @@ export default function Dashboard() {
     }
   }
 
-  useEffect(() => { loadDashboard() }, [])
+  useEffect(() => {
+    if (!authLoading) loadDashboard()
+  }, [authLoading])
   useRealtime(['events', 'expenses', 'income', 'lineup', 'notes'], loadDashboard)
 
   const availableYears = useMemo(() => {
