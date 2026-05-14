@@ -25,17 +25,20 @@ export default function TiskPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: ev }, { data: ex }, { data: inc }, { data: lin }, { data: tm }, { data: nt }] = await Promise.all([
-        supabase.from('events').select('*').eq('id', id).single(),
-        supabase.from('expenses').select('*').eq('event_id', id).order('category'),
-        supabase.from('income').select('*').eq('event_id', id),
-        supabase.from('lineup').select('*').eq('event_id', id).order('set_time'),
-        supabase.from('team_contributions').select('*').eq('event_id', id),
-        supabase.from('notes').select('*').eq('event_id', id).order('created_at', { ascending: false }),
-      ])
-      setEvent(ev); setExpenses(ex || []); setIncome(inc || [])
-      setLineup(lin || []); setTeam(tm || []); setNotes(nt || [])
-      setLoading(false)
+      try {
+        const [{ data: ev }, { data: ex }, { data: inc }, { data: lin }, { data: tm }, { data: nt }] = await Promise.all([
+          supabase.from('events').select('*').eq('id', id).single(),
+          supabase.from('expenses').select('*').eq('event_id', id).order('category'),
+          supabase.from('income').select('*').eq('event_id', id),
+          supabase.from('lineup').select('*').eq('event_id', id).order('set_time'),
+          supabase.from('team_contributions').select('*').eq('event_id', id),
+          supabase.from('notes').select('*').eq('event_id', id).order('created_at', { ascending: false }),
+        ])
+        setEvent(ev); setExpenses(ex || []); setIncome(inc || [])
+        setLineup(lin || []); setTeam(tm || []); setNotes(nt || [])
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [id])

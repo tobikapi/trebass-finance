@@ -31,18 +31,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // getSession reads from localStorage — no network, resolves immediately
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      if (currentUser) {
-        const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
-        setProfile(data)
-      }
-      setLoading(false)
-    })
-
-    // onAuthStateChange handles token refresh, login, logout
+    // onAuthStateChange fires INITIAL_SESSION immediately from localStorage
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null
       setUser(currentUser)
@@ -54,7 +43,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false)
     })
-    return () => subscription.unsubscribe()
+
+    // Fallback: if onAuthStateChange doesn't fire within 3s, unblock the UI
+    const timeout = setTimeout(() => setLoading(false), 3000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   const effectiveRole = user ? 'admin' as const : null

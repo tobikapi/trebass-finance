@@ -119,7 +119,7 @@ export default function LineupPage({ params }: Props) {
   }
 
   useEffect(() => { load() }, [id])
-  const { live } = useRealtime(['lineup', 'events'], load, id)
+  const { live } = useRealtime(['lineup'], load, id)
 
   function pickContact(contactId: string) {
     if (!contactId) return

@@ -39,7 +39,7 @@ export default function VydajePage({ params }: Props) {
   }
 
   useEffect(() => { load() }, [id])
-  const { live } = useRealtime(['expenses', 'events'], load, id)
+  const { live } = useRealtime(['expenses'], load, id)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()

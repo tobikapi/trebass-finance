@@ -68,7 +68,7 @@ export default function PrehledPage({ params }: Props) {
   }
 
   useEffect(() => { load() }, [id])
-  useRealtime(['expenses', 'income', 'events'], load, id)
+  useRealtime(['expenses', 'income'], load, id)
 
   const totalIncome = income.reduce((s, i) => s + i.amount, 0)
   const totalExpenses = expenses.reduce((s, e) => s + e.price, 0)
