@@ -31,27 +31,44 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
+    // Read session from localStorage immediately — avoids nav flash on first render
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      if (currentUser) {
+        try {
+          const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+          if (mounted) setProfile(data)
+        } catch { /* ignore */ }
+      }
+      if (mounted) setLoading(false)
+    })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return
       try {
         const currentUser = session?.user ?? null
         setUser(currentUser)
         if (currentUser) {
           const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
-          setProfile(data)
+          if (mounted) setProfile(data)
         } else {
-          setProfile(null)
+          if (mounted) setProfile(null)
         }
       } catch {
         // ignore profile fetch errors
       } finally {
-        setLoading(false)
+        if (mounted) setLoading(false)
       }
     })
 
-    // Fallback: if onAuthStateChange doesn't fire within 2s, unblock the UI
-    const timeout = setTimeout(() => setLoading(false), 2000)
+    const timeout = setTimeout(() => { if (mounted) setLoading(false) }, 2000)
 
     return () => {
+      mounted = false
       subscription.unsubscribe()
       clearTimeout(timeout)
     }
