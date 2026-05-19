@@ -144,10 +144,7 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) loadDashboard()
-      else setLoading(false)
-    })
+    loadDashboard()
   }, [])
   useRealtime(['events', 'expenses', 'income', 'lineup', 'notes'], loadDashboard)
 
