@@ -1,0 +1,290 @@
+'use client'
+
+import { useState } from 'react'
+import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
+import EventLayout from '@/components/EventLayout'
+import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
+import { useRealtime } from '@/lib/use-realtime'
+import { supabase } from '@/lib/supabase'
+
+type Budgets = Record<string, number>
+
+const TIMINGS: PaymentTiming[] = ['PŘED AKCÍ', 'BĚHEM AKCE', 'PO AKCI']
+const emptyForm = { category: CATEGORIES[0], item: '', note: '', payment_timing: '' as PaymentTiming | '', price: '', deposit: '', paid: false }
+
+interface Props {
+  id: string
+  initialExpenses: Expense[]
+  initialBudgets: Budgets
+}
+
+export default function VydajeClient({ id, initialExpenses, initialBudgets }: Props) {
+  const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
+  const [budgets, setBudgets] = useState<Budgets>(initialBudgets)
+  const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  async function load() {
+    const [{ data: expData }, { data: evData }] = await Promise.all([
+      supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at'),
+      supabase.from('events').select('budgets').eq('id', id).single(),
+    ])
+    setExpenses(expData || [])
+    setBudgets(evData?.budgets || {})
+  }
+
+  const { live } = useRealtime(['expenses'], load, id)
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const payload = {
+      event_id: id, category: form.category, item: form.item,
+      note: form.note || null, payment_timing: form.payment_timing || null,
+      price: parseFloat(form.price) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid,
+    }
+    const result = editId ? await updateExpense(editId, payload) : await createExpense(payload)
+    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    await load()
+    setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
+  }
+
+  async function handleDelete(expId: string) {
+    if (!confirm('Smazat tento výdaj?')) return
+    await deleteExpense(expId)
+    await load()
+  }
+
+  async function handleTogglePaid(exp: Expense) {
+    await toggleExpensePaid(exp.id, !exp.paid)
+    await load()
+  }
+
+  function startEdit(exp: Expense) {
+    setForm({ category: exp.category, item: exp.item, note: exp.note || '', payment_timing: exp.payment_timing || '', price: exp.price.toString(), deposit: exp.deposit.toString(), paid: exp.paid })
+    setEditId(exp.id); setShowForm(true)
+  }
+
+  const grouped = CATEGORIES.reduce((acc, cat) => {
+    const items = expenses.filter((e) => e.category === cat)
+    if (items.length > 0) acc[cat] = items
+    return acc
+  }, {} as Record<string, Expense[]>)
+
+  const totalPrice = expenses.reduce((s, e) => s + e.price, 0)
+  const totalDeposit = expenses.reduce((s, e) => s + e.deposit, 0)
+  const totalWithoutDeposit = totalPrice - totalDeposit
+  const totalUnpaid = expenses.filter((e) => !e.paid).reduce((s, e) => s + (e.price - e.deposit), 0)
+
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(CATEGORIES.map(c => [c, true]))
+  )
+  function toggleCat(cat: string) { setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] })) }
+
+  type SortKey = 'default' | 'price_desc' | 'price_asc' | 'item_asc' | 'paid'
+  const [sortKey, setSortKey] = useState<SortKey>('default')
+
+  function sortItems(items: Expense[]): Expense[] {
+    if (sortKey === 'price_desc') return [...items].sort((a, b) => b.price - a.price)
+    if (sortKey === 'price_asc') return [...items].sort((a, b) => a.price - b.price)
+    if (sortKey === 'item_asc') return [...items].sort((a, b) => a.item.localeCompare(b.item, 'cs'))
+    if (sortKey === 'paid') return [...items].sort((a, b) => Number(a.paid) - Number(b.paid))
+    return items
+  }
+
+  const inputStyle = { backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px' }
+  const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block', marginBottom: '4px' }
+
+  return (
+    <EventLayout eventId={id}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-4">
+          {[
+            { label: 'Celkem', value: totalPrice, color: 'var(--text-primary)' },
+            { label: 'Zálohy', value: totalDeposit, color: '#60a5fa' },
+            { label: 'Bez zálohy', value: totalWithoutDeposit, color: '#f87171' },
+            { label: 'Zbývá zaplatit', value: totalUnpaid, color: '#fbbf24' },
+          ].map((s) => (
+            <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
+              <div className="font-semibold text-sm" style={{ color: s.color }}>{s.value.toLocaleString('cs-CZ')} Kč</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button onClick={() => setCollapsed(Object.fromEntries(CATEGORIES.map(c => [c, false])))}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Rozbalit vše
+          </button>
+          <button onClick={() => setCollapsed(Object.fromEntries(CATEGORIES.map(c => [c, true])))}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Zabalit vše
+          </button>
+          <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
+            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', outline: 'none' }}>
+            <option value="default">Řazení: výchozí</option>
+            <option value="price_desc">Cena ↓</option>
+            <option value="price_asc">Cena ↑</option>
+            <option value="item_asc">Název A–Z</option>
+            <option value="paid">Nezaplacené první</option>
+          </select>
+          <button onClick={async () => { setRefreshing(true); await load(); setRefreshing(false) }} disabled={refreshing}
+            className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-card)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: live ? '#34d399' : 'var(--text-faint)', flexShrink: 0, display: 'inline-block' }} />
+            {refreshing ? '...' : '↻'}
+          </button>
+          <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+            + Přidat výdaj
+          </button>
+        </div>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSave} className="mb-6 p-5 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid #7c3aed' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: '#a78bfa' }}>{editId ? 'Upravit výdaj' : 'Nový výdaj'}</h3>
+          <div className="form-grid-expenses">
+            <div className="col-span-1">
+              <label style={labelStyle}>Kategorie</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, width: '100%' }}>
+                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label style={labelStyle}>Položka *</label>
+              <input required value={form.item} onChange={(e) => setForm({ ...form, item: e.target.value })} placeholder="Název položky" style={{ ...inputStyle, width: '100%' }} />
+            </div>
+            <div className="col-span-3">
+              <label style={labelStyle}>Poznámka</label>
+              <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Volitelná poznámka" style={{ ...inputStyle, width: '100%' }} />
+            </div>
+            <div className="col-span-1">
+              <label style={labelStyle}>Platba</label>
+              <select value={form.payment_timing} onChange={(e) => setForm({ ...form, payment_timing: e.target.value as PaymentTiming })} style={{ ...inputStyle, width: '100%' }}>
+                <option value="">—</option>
+                {TIMINGS.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="col-span-1">
+              <label style={labelStyle}>Cena (Kč)</label>
+              <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0" style={{ ...inputStyle, width: '100%' }} />
+            </div>
+            <div className="col-span-1">
+              <label style={labelStyle}>Záloha (Kč)</label>
+              <input type="number" value={form.deposit} onChange={(e) => setForm({ ...form, deposit: e.target.value })} placeholder="0" style={{ ...inputStyle, width: '100%' }} />
+            </div>
+            <div className="col-span-1 flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                <input type="checkbox" checked={form.paid} onChange={(e) => setForm({ ...form, paid: e.target.checked })} />
+                Zaplaceno
+              </label>
+            </div>
+            <div className="col-span-2 flex items-end gap-2">
+              <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+                {saving ? 'Ukládám...' : 'Uložit'}
+              </button>
+              <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)' }}>
+                Zrušit
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {expenses.length === 0 ? (
+        <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+          Zatím žádné výdaje. Klikni + Přidat výdaj.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(grouped).map(([category, items]) => {
+            const catTotal = items.reduce((s, e) => s + e.price, 0)
+            const isCollapsed = !!collapsed[category]
+            const cc = CATEGORY_COLORS[category] || CATEGORY_COLORS['JINÉ']
+            return (
+              <div key={category} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${cc.border}` }}>
+                {(() => {
+                  const budget = budgets[category] || 0
+                  const over = budget > 0 && catTotal > budget
+                  const pct = budget > 0 ? Math.min((catTotal / budget) * 100, 100) : 0
+                  const barColor = over ? '#f87171' : pct > 80 ? '#fbbf24' : cc.color
+                  return (
+                    <div onClick={() => toggleCat(category)} style={{ backgroundColor: cc.bg, cursor: 'pointer', userSelect: 'none' }}>
+                      <div className="px-5 py-2.5 flex items-center justify-between">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', color: cc.color, opacity: 0.6, transition: 'transform 0.15s', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
+                          <span className="text-xs font-semibold tracking-wider" style={{ color: cc.color }}>{category}</span>
+                          {isCollapsed && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>{items.length} položek</span>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {budget > 0 && (
+                            <span style={{ fontSize: '11px', color: over ? '#f87171' : 'var(--text-dim)' }}>
+                              {over ? `+${(catTotal - budget).toLocaleString('cs-CZ')}` : `zbývá ${(budget - catTotal).toLocaleString('cs-CZ')}`} Kč
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold" style={{ color: over ? '#f87171' : isCollapsed ? cc.color : 'var(--text-muted)' }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
+                        </div>
+                      </div>
+                      {budget > 0 && (
+                        <div style={{ height: '3px', backgroundColor: 'var(--bg-card-dark)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, backgroundColor: barColor, transition: 'width 0.3s ease' }} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+                {!isCollapsed && (
+                  <div className="collapse-content">
+                    <div className="expense-header">
+                      {['Položka / Poznámka', 'Platba', 'Cena', 'Záloha', 'Zbývá', 'Paid', ''].map((h, i) => (
+                        <div key={h + i} className="text-xs font-medium" style={{ color: 'var(--text-dim)', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
+                      ))}
+                    </div>
+                    {sortItems(items).map((exp) => (
+                      <div key={exp.id} className="expense-row">
+                        <div>
+                          <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>
+                          {exp.note && <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>{exp.note}</div>}
+                        </div>
+                        <div>
+                          {exp.payment_timing
+                            ? <span style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)', fontSize: '11px', padding: '2px 7px', borderRadius: '4px', whiteSpace: 'nowrap' }}>{exp.payment_timing}</span>
+                            : <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>}
+                        </div>
+                        <div style={{ textAlign: 'right', color: 'var(--text-primary)', fontSize: '13px', fontWeight: '500' }}>
+                          {exp.price.toLocaleString('cs-CZ')} Kč
+                        </div>
+                        <div style={{ textAlign: 'right', color: exp.deposit > 0 ? '#60a5fa' : 'var(--text-faint)', fontSize: '13px' }}>
+                          {exp.deposit > 0 ? `${exp.deposit.toLocaleString('cs-CZ')} Kč` : '—'}
+                        </div>
+                        <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: exp.paid || exp.price - exp.deposit <= 0 ? '#34d399' : '#f87171' }}>
+                          {exp.paid ? '0 Kč' : `${(exp.price - exp.deposit).toLocaleString('cs-CZ')} Kč`}
+                        </div>
+                        <div>
+                          <button onClick={() => handleTogglePaid(exp)} style={{
+                            backgroundColor: exp.paid ? '#14532d' : 'var(--bg-badge)',
+                            color: exp.paid ? '#34d399' : '#f87171',
+                            fontSize: '11px', fontWeight: '600',
+                            padding: '2px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer',
+                          }}>
+                            {exp.paid ? 'ANO' : 'NE'}
+                          </button>
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                          <button onClick={() => startEdit(exp)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
+                          <button onClick={() => handleDelete(exp.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </EventLayout>
+  )
+}
