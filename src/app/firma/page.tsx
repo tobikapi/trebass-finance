@@ -78,11 +78,11 @@ export default function FirmaPage() {
   }, [expenses, income])
 
   const filteredExp = useMemo(() =>
-    yearFilter === 'vse' ? expenses : expenses.filter(e => e.date && e.date.split('-')[0] === yearFilter),
+    yearFilter === 'vse' ? expenses : expenses.filter(e => !e.date || e.date.split('-')[0] === yearFilter),
     [expenses, yearFilter]
   )
   const filteredInc = useMemo(() =>
-    yearFilter === 'vse' ? income : income.filter(i => i.date && i.date.split('-')[0] === yearFilter),
+    yearFilter === 'vse' ? income : income.filter(i => !i.date || i.date.split('-')[0] === yearFilter),
     [income, yearFilter]
   )
 
