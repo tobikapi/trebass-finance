@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { EventEquipment } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { createEquipment, updateEquipment, deleteEquipment } from '@/app/actions'
@@ -14,13 +14,15 @@ interface Props {
 
 const emptyForm = { name: '', note: '', quantity: '1', unit_price: '', total_price: '' }
 
-const inputStyle = {
+const inputStyle: CSSProperties = {
   backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)',
   color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px',
   outline: 'none', fontSize: '13px', width: '100%',
-} as const
+}
 
-const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
+const labelStyle: CSSProperties = {
+  color: 'var(--text-secondary)', fontSize: '12px', display: 'block', marginBottom: '4px',
+}
 
 export default function TechnikaClient({ id, initialEquipment }: Props) {
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
@@ -38,13 +40,18 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   const { live } = useRealtime(['event_equipment'], load, id)
 
   function handleQtyOrPrice(field: 'quantity' | 'unit_price' | 'total_price', value: string) {
-    const updated = { ...form, [field]: value }
-    if (field !== 'total_price') {
-      const q = parseFloat(field === 'quantity' ? value : updated.quantity) || 0
-      const u = parseFloat(field === 'unit_price' ? value : updated.unit_price) || 0
-      updated.total_price = q > 0 && u > 0 ? String(q * u) : updated.total_price
+    if (field === 'total_price') {
+      setForm(f => ({ ...f, total_price: value }))
+      return
     }
-    setForm(updated)
+    setForm(f => {
+      const qty = field === 'quantity' ? value : f.quantity
+      const up  = field === 'unit_price' ? value : f.unit_price
+      const q = parseFloat(qty) || 0
+      const u = parseFloat(up) || 0
+      const total = q > 0 && u > 0 ? String(q * u) : f.total_price
+      return { ...f, [field]: value, total_price: total }
+    })
   }
 
   async function handleSave(e: React.FormEvent) {

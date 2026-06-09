@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
   CompanyExpense, CompanyIncome,
@@ -18,15 +18,14 @@ const emptyIncForm = {
   source: COMPANY_INCOME_SOURCES[0], amount: '', note: '', date: '',
 }
 
-const inputStyle = {
+const inputStyle: CSSProperties = {
   backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)',
   color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px',
   outline: 'none', fontSize: '13px', width: '100%',
-} as const
+}
 
-const labelStyle = {
-  color: 'var(--text-secondary)', fontSize: '12px',
-  display: 'block' as const, marginBottom: '4px',
+const labelStyle: CSSProperties = {
+  color: 'var(--text-secondary)', fontSize: '12px', display: 'block', marginBottom: '4px',
 }
 
 function fmt(n: number) { return n.toLocaleString('cs-CZ') + ' Kč' }

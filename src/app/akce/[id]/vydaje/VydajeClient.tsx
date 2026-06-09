@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Expense, EventEquipment, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
+import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
+
+interface EquipmentItem { id: string; name: string }
 import EventLayout from '@/components/EventLayout'
 import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
 import { useRealtime } from '@/lib/use-realtime'
@@ -24,7 +26,7 @@ interface Props {
 export default function VydajeClient({ id, initialExpenses, initialBudgets }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [budgets, setBudgets] = useState<Budgets>(initialBudgets)
-  const [equipment, setEquipment] = useState<EventEquipment[]>([])
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
