@@ -10,7 +10,6 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts'
 import { useRealtime } from '@/lib/use-realtime'
-import { useUser } from '@/lib/user-context'
 
 interface RawExpense { event_id: string; price: number; category: string; paid: boolean; deposit: number }
 interface RawIncome  { event_id: string; amount: number }
@@ -96,7 +95,6 @@ function countdown(dateStr: string) {
 }
 
 export default function Dashboard() {
-  const { loading: authLoading } = useUser()
   const [allEvents,   setAllEvents]   = useState<Event[]>([])
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
@@ -146,8 +144,11 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    if (!authLoading) loadDashboard()
-  }, [authLoading])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) loadDashboard()
+      else setLoading(false)
+    })
+  }, [])
   useRealtime(['events', 'expenses', 'income', 'lineup', 'notes'], loadDashboard)
 
   const availableYears = useMemo(() => {
