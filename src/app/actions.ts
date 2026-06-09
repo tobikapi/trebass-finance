@@ -84,7 +84,7 @@ export async function updateEventBudgets(id: string, budgets: Record<string, num
 // EXPENSES
 export async function createExpense(payload: {
   event_id: string; category: string; item: string; note: string | null;
-  payment_timing: string | null; price: number; deposit: number; paid: boolean
+  payment_timing: string | null; price: number; deposit: number; paid: boolean; equipment_id: string | null
 }) {
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('expenses').insert([payload]).select().single()
@@ -94,7 +94,7 @@ export async function createExpense(payload: {
 
 export async function updateExpense(id: string, payload: {
   category: string; item: string; note: string | null;
-  payment_timing: string | null; price: number; deposit: number; paid: boolean
+  payment_timing: string | null; price: number; deposit: number; paid: boolean; equipment_id: string | null
 }) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('expenses').update(payload).eq('id', id)
@@ -380,6 +380,32 @@ export async function updateCompanyIncome(id: string, payload: {
 export async function deleteCompanyIncome(id: string) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('company_income').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+// EQUIPMENT (TECHNIKA)
+export async function createEquipment(payload: {
+  event_id: string; name: string; note: string | null; quantity: number; unit_price: number; total_price: number
+}) {
+  const supabase = await requireAuth()
+  const { data, error } = await supabase.from('event_equipment').insert([payload]).select().single()
+  if (error) return { error: error.message }
+  return { data }
+}
+
+export async function updateEquipment(id: string, payload: {
+  name: string; note: string | null; quantity: number; unit_price: number; total_price: number
+}) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('event_equipment').update(payload).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function deleteEquipment(id: string) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('event_equipment').delete().eq('id', id)
   if (error) return { error: error.message }
   return { data: true }
 }

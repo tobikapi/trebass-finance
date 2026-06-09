@@ -16,6 +16,7 @@ const TABS = (id: string) => [
   { href: `/akce/${id}/vydaje`,   label: '💸 Výdaje'   },
   { href: `/akce/${id}/prijmy`,   label: '💰 Příjmy'   },
   { href: `/akce/${id}/lineup`,   label: '🎧 Lineup'   },
+  { href: `/akce/${id}/technika`, label: '🔧 Technika' },
   { href: `/akce/${id}/tym`,      label: '👥 Tým'      },
   { href: `/akce/${id}/poznamky`, label: '📝 Poznámky' },
   { href: `/akce/${id}/soubory`,  label: '📎 Soubory'  },

@@ -54,6 +54,18 @@ export interface Expense {
   price: number
   deposit: number
   paid: boolean
+  equipment_id: string | null
+  created_at: string
+}
+
+export interface EventEquipment {
+  id: string
+  event_id: string
+  name: string
+  note: string | null
+  quantity: number
+  unit_price: number
+  total_price: number
   created_at: string
 }
 

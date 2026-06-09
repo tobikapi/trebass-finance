@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
+import { useState, useEffect } from 'react'
+import { Expense, EventEquipment, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
 import { useRealtime } from '@/lib/use-realtime'
@@ -10,7 +10,10 @@ import { supabase } from '@/lib/supabase'
 type Budgets = Record<string, number>
 
 const TIMINGS: PaymentTiming[] = ['PŘED AKCÍ', 'BĚHEM AKCE', 'PO AKCI']
-const emptyForm = { category: CATEGORIES[0], item: '', note: '', payment_timing: '' as PaymentTiming | '', price: '', deposit: '', paid: false }
+const emptyForm = {
+  category: CATEGORIES[0], item: '', note: '', payment_timing: '' as PaymentTiming | '',
+  price: '', deposit: '', paid: false, equipment_id: '',
+}
 
 interface Props {
   id: string
@@ -21,11 +24,17 @@ interface Props {
 export default function VydajeClient({ id, initialExpenses, initialBudgets }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [budgets, setBudgets] = useState<Budgets>(initialBudgets)
+  const [equipment, setEquipment] = useState<EventEquipment[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+
+  useEffect(() => {
+    supabase.from('event_equipment').select('id, name').eq('event_id', id).order('name')
+      .then(({ data }) => setEquipment(data || []))
+  }, [id])
 
   async function load() {
     const [{ data: expData }, { data: evData }] = await Promise.all([
@@ -44,7 +53,8 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
     const payload = {
       event_id: id, category: form.category, item: form.item,
       note: form.note || null, payment_timing: form.payment_timing || null,
-      price: parseFloat(form.price) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid,
+      price: parseFloat(form.price) || 0, deposit: parseFloat(form.deposit) || 0,
+      paid: form.paid, equipment_id: form.equipment_id || null,
     }
     const result = editId ? await updateExpense(editId, payload) : await createExpense(payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
@@ -54,17 +64,20 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
 
   async function handleDelete(expId: string) {
     if (!confirm('Smazat tento výdaj?')) return
-    await deleteExpense(expId)
-    await load()
+    await deleteExpense(expId); await load()
   }
 
   async function handleTogglePaid(exp: Expense) {
-    await toggleExpensePaid(exp.id, !exp.paid)
-    await load()
+    await toggleExpensePaid(exp.id, !exp.paid); await load()
   }
 
   function startEdit(exp: Expense) {
-    setForm({ category: exp.category, item: exp.item, note: exp.note || '', payment_timing: exp.payment_timing || '', price: exp.price.toString(), deposit: exp.deposit.toString(), paid: exp.paid })
+    setForm({
+      category: exp.category, item: exp.item, note: exp.note || '',
+      payment_timing: exp.payment_timing || '', price: exp.price.toString(),
+      deposit: exp.deposit.toString(), paid: exp.paid,
+      equipment_id: exp.equipment_id || '',
+    })
     setEditId(exp.id); setShowForm(true)
   }
 
@@ -74,10 +87,9 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
     return acc
   }, {} as Record<string, Expense[]>)
 
-  const totalPrice = expenses.reduce((s, e) => s + e.price, 0)
-  const totalDeposit = expenses.reduce((s, e) => s + e.deposit, 0)
-  const totalWithoutDeposit = totalPrice - totalDeposit
-  const totalUnpaid = expenses.filter((e) => !e.paid).reduce((s, e) => s + (e.price - e.deposit), 0)
+  const totalPrice    = expenses.reduce((s, e) => s + e.price, 0)
+  const totalDeposit  = expenses.reduce((s, e) => s + e.deposit, 0)
+  const totalUnpaid   = expenses.filter((e) => !e.paid).reduce((s, e) => s + (e.price - e.deposit), 0)
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
     () => Object.fromEntries(CATEGORIES.map(c => [c, true]))
@@ -86,7 +98,6 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
 
   type SortKey = 'default' | 'price_desc' | 'price_asc' | 'item_asc' | 'paid'
   const [sortKey, setSortKey] = useState<SortKey>('default')
-
   function sortItems(items: Expense[]): Expense[] {
     if (sortKey === 'price_desc') return [...items].sort((a, b) => b.price - a.price)
     if (sortKey === 'price_asc') return [...items].sort((a, b) => a.price - b.price)
@@ -103,10 +114,10 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-4">
           {[
-            { label: 'Celkem', value: totalPrice, color: 'var(--text-primary)' },
-            { label: 'Zálohy', value: totalDeposit, color: '#60a5fa' },
-            { label: 'Bez zálohy', value: totalWithoutDeposit, color: '#f87171' },
-            { label: 'Zbývá zaplatit', value: totalUnpaid, color: '#fbbf24' },
+            { label: 'Celkem',        value: totalPrice,               color: 'var(--text-primary)' },
+            { label: 'Zálohy',        value: totalDeposit,             color: '#60a5fa' },
+            { label: 'Bez zálohy',    value: totalPrice - totalDeposit, color: '#f87171' },
+            { label: 'Zbývá zaplatit',value: totalUnpaid,              color: '#fbbf24' },
           ].map((s) => (
             <div key={s.label} className="px-4 py-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
@@ -181,6 +192,17 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
                 Zaplaceno
               </label>
             </div>
+            {equipment.length > 0 && (
+              <div className="col-span-2">
+                <label style={labelStyle}>🔧 Přiřadit k technice</label>
+                <select value={form.equipment_id} onChange={(e) => setForm({ ...form, equipment_id: e.target.value })} style={{ ...inputStyle, width: '100%' }}>
+                  <option value="">— bez přiřazení —</option>
+                  {equipment.map(eq => (
+                    <option key={eq.id} value={eq.id}>{eq.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="col-span-2 flex items-end gap-2">
               <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
                 {saving ? 'Ukládám...' : 'Uložit'}
@@ -246,7 +268,14 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
                       <div key={exp.id} className="expense-row">
                         <div>
                           <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>
-                          {exp.note && <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>{exp.note}</div>}
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                            {exp.note && <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{exp.note}</span>}
+                            {exp.equipment_id && equipment.find(eq => eq.id === exp.equipment_id) && (
+                              <span style={{ fontSize: '10px', color: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                                🔧 {equipment.find(eq => eq.id === exp.equipment_id)?.name}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div>
                           {exp.payment_timing
