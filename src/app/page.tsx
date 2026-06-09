@@ -149,12 +149,16 @@ export default function Dashboard() {
   useRealtime(['events', 'expenses', 'income', 'lineup', 'notes'], loadDashboard)
 
   const availableYears = useMemo(() => {
-    const years = new Set(allEvents.map(e => e.date ? new Date(e.date).getFullYear().toString() : null).filter(Boolean))
+    const years = new Set(allEvents.map(e => {
+      if (!e.date) return null
+      const [y] = e.date.split('-').map(Number)
+      return String(y)
+    }).filter(Boolean))
     return Array.from(years).sort((a, b) => Number(b) - Number(a)) as string[]
   }, [allEvents])
 
   const filteredEvents = useMemo(() => allEvents.filter(e => {
-    const yearOk = yearFilter === 'vse' || (e.date && new Date(e.date).getFullYear().toString() === yearFilter)
+    const yearOk = yearFilter === 'vse' || (e.date && e.date.split('-')[0] === yearFilter)
     const statusOk = statusFilter === 'vse' || e.status === statusFilter
     return yearOk && statusOk
   }), [allEvents, yearFilter, statusFilter])

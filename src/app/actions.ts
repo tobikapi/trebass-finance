@@ -325,3 +325,61 @@ export async function deleteTask(id: string) {
   if (error) return { error: error.message }
   return { data: true }
 }
+
+// COMPANY (FIRMA)
+export async function createCompanyExpense(payload: {
+  category: string; item: string; note: string | null; amount: number; paid: boolean; date: string | null
+}) {
+  const supabase = await requireAuth()
+  const { data, error } = await supabase.from('company_expenses').insert([payload]).select().single()
+  if (error) return { error: error.message }
+  return { data }
+}
+
+export async function updateCompanyExpense(id: string, payload: {
+  category: string; item: string; note: string | null; amount: number; paid: boolean; date: string | null
+}) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('company_expenses').update(payload).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function deleteCompanyExpense(id: string) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('company_expenses').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function toggleCompanyExpensePaid(id: string, paid: boolean) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('company_expenses').update({ paid }).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function createCompanyIncome(payload: {
+  source: string; amount: number; note: string | null; date: string | null
+}) {
+  const supabase = await requireAuth()
+  const { data, error } = await supabase.from('company_income').insert([payload]).select().single()
+  if (error) return { error: error.message }
+  return { data }
+}
+
+export async function updateCompanyIncome(id: string, payload: {
+  source: string; amount: number; note: string | null; date: string | null
+}) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('company_income').update(payload).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function deleteCompanyIncome(id: string) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('company_income').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}

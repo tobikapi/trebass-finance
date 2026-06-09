@@ -96,7 +96,7 @@ export default function SplashScreen() {
 
         <div style={{
           fontSize: '11px', color: 'rgba(255,255,255,0.35)',
-          fontFamily: 'Awakenning, sans-serif', letterSpacing: '0.28em',
+          fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.28em',
         }}>
           FINANCE SYSTEM
         </div>

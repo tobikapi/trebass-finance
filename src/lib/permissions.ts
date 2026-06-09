@@ -25,6 +25,7 @@ type PermissionMap = {
   viewUkoly: boolean
   viewKontakty: boolean
   viewArchiv: boolean
+  viewFirma: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -38,18 +39,21 @@ export const PERMISSIONS: Record<Role, PermissionMap> = {
     viewDashboard: true, viewAkce: true, viewVydaje: true, viewPrijmy: true,
     viewLineup: true, viewLineupFees: true, viewTym: true, viewPoznamky: true,
     viewSoubory: true, viewUkoly: true, viewKontakty: true, viewArchiv: true,
+    viewFirma: true,
     canCreate: true, canEdit: true, canDelete: true, canManageUsers: true,
   },
   clen: {
     viewDashboard: true, viewAkce: true, viewVydaje: true, viewPrijmy: true,
     viewLineup: true, viewLineupFees: true, viewTym: true, viewPoznamky: true,
     viewSoubory: true, viewUkoly: true, viewKontakty: true, viewArchiv: true,
+    viewFirma: true,
     canCreate: true, canEdit: true, canDelete: false, canManageUsers: false,
   },
   host: {
     viewDashboard: false, viewAkce: true, viewVydaje: false, viewPrijmy: false,
     viewLineup: true, viewLineupFees: false, viewTym: false, viewPoznamky: false,
     viewSoubory: true, viewUkoly: false, viewKontakty: false, viewArchiv: false,
+    viewFirma: false,
     canCreate: false, canEdit: false, canDelete: false, canManageUsers: false,
   },
 }

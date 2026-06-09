@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase'
 const ALL_NAV_ITEMS = [
   { href: '/', label: 'Dashboard', permission: 'viewDashboard' as const },
   { href: '/akce', label: 'Akce', permission: 'viewAkce' as const },
+  { href: '/firma', label: 'Firma', permission: 'viewFirma' as const },
   { href: '/kalendar', label: 'Kalendář', permission: 'viewUkoly' as const },
   { href: '/ukoly', label: 'Úkoly', permission: 'viewUkoly' as const },
   { href: '/kontakty', label: 'Kontakty', permission: 'viewKontakty' as const },

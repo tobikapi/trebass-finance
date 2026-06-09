@@ -61,7 +61,7 @@ export default function ArchivPage() {
             return (
               <Link
                 key={event.id}
-                href={`/akce/${event.id}/vydaje`}
+                href={`/akce/${event.id}/prehled`}
                 className="block p-5 rounded-xl transition-opacity hover:opacity-80"
                 style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
               >

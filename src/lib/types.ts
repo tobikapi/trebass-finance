@@ -116,6 +116,41 @@ export const CATEGORY_COLORS: Record<string, { color: string; bg: string; border
 
 export const INCOME_SOURCES = ['VSTUPNÉ', 'BAR', 'SPONZOR', 'DOTACE', 'JINÉ']
 
+export const COMPANY_CATEGORIES = [
+  'DANĚ A ODVODY', 'MZDY A ODMĚNY', 'POJISTNÉ', 'SOFTWARE A SLUŽBY', 'SPLATKY MAJITELŮ', 'JINÉ',
+]
+
+export const COMPANY_CATEGORY_COLORS: Record<string, { color: string; bg: string; border: string }> = {
+  'DANĚ A ODVODY':     { color: '#f87171', bg: '#2a0a0a', border: '#5f1515' },
+  'MZDY A ODMĚNY':    { color: '#fbbf24', bg: '#2d2005', border: '#5c4000' },
+  'POJISTNÉ':          { color: '#60a5fa', bg: '#0d1f35', border: '#1e3a5f' },
+  'SOFTWARE A SLUŽBY': { color: '#a78bfa', bg: '#1a1035', border: '#3d2d6b' },
+  'SPLATKY MAJITELŮ':  { color: '#34d399', bg: '#052e16', border: '#0a5c2c' },
+  'JINÉ':              { color: '#9ca3af', bg: '#1a1a1a', border: '#2d2d2d' },
+}
+
+export const COMPANY_INCOME_SOURCES = ['FAKTURA', 'DOTACE', 'JINÉ']
+
+export interface CompanyExpense {
+  id: string
+  category: string
+  item: string
+  note: string | null
+  amount: number
+  paid: boolean
+  date: string | null
+  created_at: string
+}
+
+export interface CompanyIncome {
+  id: string
+  source: string
+  amount: number
+  note: string | null
+  date: string | null
+  created_at: string
+}
+
 export const STATUS_LABELS: Record<EventStatus, string> = {
   pripravuje_se: 'Připravuje se',
   probihá: 'Probíhá',

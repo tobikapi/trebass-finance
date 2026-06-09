@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import { Event, STATUS_LABELS, STATUS_COLORS, formatDateRange } from '@/lib/types'
 import { useUser } from '@/lib/user-context'
 
