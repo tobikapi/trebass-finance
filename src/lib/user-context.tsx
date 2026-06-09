@@ -74,7 +74,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const effectiveRole = user ? 'admin' as const : null
+  // During loading, assume admin — proxy.ts guarantees only authenticated users reach here.
+  // Without this, nav items flash invisible until getSession() resolves (~200ms).
+  const effectiveRole = (loading || user) ? 'admin' as const : null
 
   return (
     <UserContext.Provider value={{
