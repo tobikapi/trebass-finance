@@ -11,8 +11,8 @@ import { supabase } from '@/lib/supabase'
 
 const NAV_ITEMS = [
   { href: '/',          label: 'Dashboard' },
-  { href: '/akce',      label: 'Akce'      },
   { href: '/firma',     label: 'Firma'     },
+  { href: '/akce',      label: 'Akce'      },
   { href: '/kalendar',  label: 'Kalendář'  },
   { href: '/ukoly',     label: 'Úkoly'     },
   { href: '/kontakty',  label: 'Kontakty'  },

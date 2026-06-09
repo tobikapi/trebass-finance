@@ -52,8 +52,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } else {
           if (mounted) setProfile(null)
         }
-      } catch { /* ignore */ }
-      finally { if (mounted) setLoading(false) }
+      } catch {
+        // ignore profile fetch errors
+      } finally {
+        if (mounted) setLoading(false)
+      }
     })
 
     const timeout = setTimeout(() => { if (mounted) setLoading(false) }, 2000)
