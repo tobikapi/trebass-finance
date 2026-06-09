@@ -50,15 +50,16 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const payload = {
-      event_id: id,
+    const base = {
       name: form.name,
       note: form.note || null,
       quantity: parseFloat(form.quantity) || 1,
       unit_price: parseFloat(form.unit_price) || 0,
       total_price: parseFloat(form.total_price) || 0,
     }
-    const result = editId ? await updateEquipment(editId, payload) : await createEquipment(payload)
+    const result = editId
+      ? await updateEquipment(editId, base)
+      : await createEquipment({ event_id: id, ...base })
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
