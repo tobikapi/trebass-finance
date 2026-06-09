@@ -5,34 +5,30 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Event, STATUS_LABELS, STATUS_COLORS, formatDateRange } from '@/lib/types'
-import { useUser } from '@/lib/user-context'
 
 interface Props {
   eventId: string
   children: React.ReactNode
 }
 
+const TABS = (id: string) => [
+  { href: `/akce/${id}/prehled`,  label: '📊 Přehled'  },
+  { href: `/akce/${id}/vydaje`,   label: '💸 Výdaje'   },
+  { href: `/akce/${id}/prijmy`,   label: '💰 Příjmy'   },
+  { href: `/akce/${id}/lineup`,   label: '🎧 Lineup'   },
+  { href: `/akce/${id}/tym`,      label: '👥 Tým'      },
+  { href: `/akce/${id}/poznamky`, label: '📝 Poznámky' },
+  { href: `/akce/${id}/soubory`,  label: '📎 Soubory'  },
+]
+
 export default function EventLayout({ eventId, children }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [event, setEvent] = useState<Event | null>(null)
-  const { can } = useUser()
 
   useEffect(() => {
     supabase.from('events').select('*').eq('id', eventId).single().then(({ data }) => setEvent(data))
   }, [eventId])
-
-  const allTabs = [
-    { href: `/akce/${eventId}/prehled`, label: '📊 Přehled', permission: 'viewVydaje' as const },
-    { href: `/akce/${eventId}/vydaje`, label: '💸 Výdaje', permission: 'viewVydaje' as const },
-    { href: `/akce/${eventId}/prijmy`, label: '💰 Příjmy', permission: 'viewPrijmy' as const },
-    { href: `/akce/${eventId}/lineup`, label: '🎧 Lineup', permission: 'viewLineup' as const },
-    { href: `/akce/${eventId}/tym`, label: '👥 Tým', permission: 'viewTym' as const },
-    { href: `/akce/${eventId}/poznamky`, label: '📝 Poznámky', permission: 'viewPoznamky' as const },
-    { href: `/akce/${eventId}/soubory`, label: '📎 Soubory', permission: 'viewSoubory' as const },
-  ]
-
-  const tabs = allTabs.filter(tab => can(tab.permission))
 
   return (
     <div>
@@ -54,7 +50,7 @@ export default function EventLayout({ eventId, children }: Props) {
               >
                 🖨️ Tisk / PDF
               </button>
-              <span className={`${STATUS_COLORS[event.status]}`} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500' }}>
+              <span className={STATUS_COLORS[event.status]} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500' }}>
                 {STATUS_LABELS[event.status]}
               </span>
             </div>
@@ -62,26 +58,18 @@ export default function EventLayout({ eventId, children }: Props) {
         </div>
       </div>
 
-      {/* Tabs — horizontally scrollable on mobile */}
       <div className="event-tabs-wrap">
         <div className="event-tabs-inner">
-          {tabs.map((tab) => {
+          {TABS(eventId).map((tab) => {
             const isActive = pathname === tab.href
             return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: '7px',
-                  fontSize: '13px',
-                  fontWeight: isActive ? '600' : '400',
-                  backgroundColor: isActive ? '#e05555' : 'transparent',
-                  color: isActive ? '#fff' : 'var(--text-secondary)',
-                  textDecoration: 'none',
-                  transition: 'all 0.15s',
-                }}
-              >
+              <Link key={tab.href} href={tab.href} style={{
+                padding: '8px 18px', borderRadius: '7px', fontSize: '13px',
+                fontWeight: isActive ? '600' : '400',
+                backgroundColor: isActive ? '#e05555' : 'transparent',
+                color: isActive ? '#fff' : 'var(--text-secondary)',
+                textDecoration: 'none', transition: 'all 0.15s',
+              }}>
                 {tab.label}
               </Link>
             )

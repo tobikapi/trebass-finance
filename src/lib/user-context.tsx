@@ -3,26 +3,21 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { Role, Permission, can as canFn } from '@/lib/permissions'
 
 export interface Profile {
   id: string
   name: string
   email: string
-  role: Role
 }
 
 interface UserContextType {
   user: User | null
   profile: Profile | null
-  role: Role | null
-  can: (permission: Permission) => boolean
   loading: boolean
 }
 
 const UserContext = createContext<UserContextType>({
-  user: null, profile: null, role: null,
-  can: () => false, loading: true,
+  user: null, profile: null, loading: true,
 })
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
@@ -33,14 +28,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true
 
-    // Read session from localStorage immediately — avoids nav flash on first render
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return
       const currentUser = session?.user ?? null
       setUser(currentUser)
       if (currentUser) {
         try {
-          const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+          const { data } = await supabase.from('profiles').select('id, name, email').eq('id', currentUser.id).single()
           if (mounted) setProfile(data)
         } catch { /* ignore */ }
       }
@@ -53,16 +47,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         const currentUser = session?.user ?? null
         setUser(currentUser)
         if (currentUser) {
-          const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
+          const { data } = await supabase.from('profiles').select('id, name, email').eq('id', currentUser.id).single()
           if (mounted) setProfile(data)
         } else {
           if (mounted) setProfile(null)
         }
-      } catch {
-        // ignore profile fetch errors
-      } finally {
-        if (mounted) setLoading(false)
-      }
+      } catch { /* ignore */ }
+      finally { if (mounted) setLoading(false) }
     })
 
     const timeout = setTimeout(() => { if (mounted) setLoading(false) }, 2000)
@@ -74,18 +65,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // During loading, assume admin — proxy.ts guarantees only authenticated users reach here.
-  // Without this, nav items flash invisible until getSession() resolves (~200ms).
-  const effectiveRole = (loading || user) ? 'admin' as const : null
-
   return (
-    <UserContext.Provider value={{
-      user,
-      profile,
-      role: effectiveRole,
-      can: (p) => canFn(effectiveRole, p),
-      loading,
-    }}>
+    <UserContext.Provider value={{ user, profile, loading }}>
       {children}
     </UserContext.Provider>
   )

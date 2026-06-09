@@ -7,17 +7,16 @@ import { useState, useEffect, useTransition } from 'react'
 import { signOut } from '@/app/login/actions'
 import { useUser } from '@/lib/user-context'
 import { useTheme } from '@/lib/theme-context'
-import { ROLE_LABELS, ROLE_COLORS } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase'
 
-const ALL_NAV_ITEMS = [
-  { href: '/', label: 'Dashboard', permission: 'viewDashboard' as const },
-  { href: '/akce', label: 'Akce', permission: 'viewAkce' as const },
-  { href: '/firma', label: 'Firma', permission: 'viewFirma' as const },
-  { href: '/kalendar', label: 'Kalendář', permission: 'viewUkoly' as const },
-  { href: '/ukoly', label: 'Úkoly', permission: 'viewUkoly' as const },
-  { href: '/kontakty', label: 'Kontakty', permission: 'viewKontakty' as const },
-  { href: '/archiv', label: 'Archiv', permission: 'viewArchiv' as const },
+const NAV_ITEMS = [
+  { href: '/',          label: 'Dashboard' },
+  { href: '/akce',      label: 'Akce'      },
+  { href: '/firma',     label: 'Firma'     },
+  { href: '/kalendar',  label: 'Kalendář'  },
+  { href: '/ukoly',     label: 'Úkoly'     },
+  { href: '/kontakty',  label: 'Kontakty'  },
+  { href: '/archiv',    label: 'Archiv'    },
 ]
 
 const MEMBER_COLORS: Record<string, string> = {
@@ -28,15 +27,12 @@ export default function Navigation() {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const { profile, role } = useUser()
+  const { profile } = useUser()
   const { theme, toggleTheme } = useTheme()
 
   const userName = profile?.name || ''
   const avatarColor = MEMBER_COLORS[userName] || '#e05555'
   const initials = userName.slice(0, 2).toUpperCase()
-
-  // Role system is disabled — show all items immediately, no async dependency
-  const visibleItems = ALL_NAV_ITEMS
 
   const [nextEvent, setNextEvent] = useState<{ name: string; date: string } | null>(null)
   const [cdParts, setCdParts] = useState<{ d: number; h: number; m: number; s: number } | null>(null)
@@ -55,10 +51,7 @@ export default function Navigation() {
       const [y, mo, day] = nextEvent!.date.split('-').map(Number)
       const diff = new Date(y, mo - 1, day).getTime() - Date.now()
       if (diff <= 0) {
-        setNextEvent(null)
-        setCdParts(null)
-        setRefetchKey(k => k + 1)
-        return
+        setNextEvent(null); setCdParts(null); setRefetchKey(k => k + 1); return
       }
       setCdParts({
         d: Math.floor(diff / 86400000),
@@ -77,18 +70,15 @@ export default function Navigation() {
   return (
     <>
     <header style={{ backgroundColor: 'var(--bg-nav)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 50, transition: 'background-color 0.2s' }}>
-      {/* Top row */}
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', height: '64px', gap: '32px' }}>
 
-        {/* Logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <Image src="/logo.png" alt="Třebass" width={120} height={45}
             style={{ objectFit: 'contain', height: '36px', width: 'auto', filter: isLight ? 'brightness(0.85)' : 'none' }} />
         </Link>
 
-        {/* Desktop nav */}
         <nav className="nav-desktop">
-          {visibleItems.map((item) => {
+          {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link key={item.href} href={item.href} style={{
@@ -107,7 +97,6 @@ export default function Navigation() {
 
         <div style={{ flex: 1 }} />
 
-        {/* Odpočet do příští akce */}
         {nextEvent && cdParts && (
           <div className="nav-user-desktop" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '3px', borderRight: '1px solid var(--border-subtle)', paddingRight: '20px', marginRight: '4px' }}>
             <div style={{ fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
@@ -134,41 +123,21 @@ export default function Navigation() {
           </div>
         )}
 
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          title={isLight ? 'Přepnout na tmavý režim' : 'Přepnout na světlý režim'}
+        <button onClick={toggleTheme} title={isLight ? 'Tmavý režim' : 'Světlý režim'}
           className="nav-user-desktop"
-          style={{
-            width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0,
-            backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)',
-            cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.15s', color: 'var(--text-secondary)',
-          }}
-        >
+          style={{ width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0, backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', color: 'var(--text-secondary)' }}>
           {isLight ? '🌙' : '☀️'}
         </button>
 
-        {/* Desktop user + logout */}
         {userName && (
           <div className="nav-user-desktop">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '30px', height: '30px', borderRadius: '50%',
-                backgroundColor: avatarColor, color: '#0c0c0c',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '11px', fontWeight: '700',
-              }}>{initials}</div>
-              <div>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em', display: 'block' }}>
-                  {userName}
-                </span>
-                {role && (
-                  <span style={{ fontSize: '10px', fontWeight: '600', color: ROLE_COLORS[role], letterSpacing: '0.05em' }}>
-                    {ROLE_LABELS[role]}
-                  </span>
-                )}
+              <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700' }}>
+                {initials}
               </div>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em' }}>
+                {userName}
+              </span>
             </div>
             <button disabled={isPending} onClick={() => startTransition(() => signOut())}
               style={{ fontSize: '12px', color: '#e05555', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 14px', transition: 'all 0.15s' }}>
@@ -177,7 +146,6 @@ export default function Navigation() {
           </div>
         )}
 
-        {/* Mobile — jen hamburger */}
         <div className="nav-hamburger">
           <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', fontSize: '22px', color: menuOpen ? '#f4978e' : 'var(--text-secondary)', background: 'none', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
@@ -188,55 +156,42 @@ export default function Navigation() {
     </header>
 
     {menuOpen && (
-        <div className="nav-mobile-dropdown">
-          {/* Nav links */}
-          <div style={{ padding: '8px 16px', flex: 1 }}>
-            {visibleItems.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
-                  className={`nav-mobile-link${isActive ? ' active' : ''}`}>
-                  {item.label}
-                </Link>
-              )
-            })}
-            {role === 'admin' && (
-              <Link href="/admin" onClick={() => setMenuOpen(false)}
-                className={`nav-mobile-link${pathname === '/admin' ? ' active' : ''}`}>
-                Admin
+      <div className="nav-mobile-dropdown">
+        <div style={{ padding: '8px 16px', flex: 1 }}>
+          {NAV_ITEMS.map((item) => {
+            const isActive = pathname === item.href
+            return (
+              <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
+                className={`nav-mobile-link${isActive ? ' active' : ''}`}>
+                {item.label}
               </Link>
-            )}
-          </div>
-
-          {/* User info + logout + theme toggle */}
-          {userName && (
-            <div style={{ padding: '16px', borderTop: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{
-                  width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
-                  backgroundColor: avatarColor, color: '#0c0c0c',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '14px', fontWeight: '700',
-                }}>{initials}</div>
-                <div>
-                  <div style={{ fontSize: '15px', color: 'var(--text-primary)', fontWeight: '500', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>{userName}</div>
-                  {role && <div style={{ fontSize: '11px', color: ROLE_COLORS[role], fontWeight: '600', marginTop: '2px' }}>{ROLE_LABELS[role]}</div>}
-                </div>
-                {/* Theme toggle v mobile menu */}
-                <button onClick={toggleTheme}
-                  style={{ marginLeft: 'auto', width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {isLight ? '🌙' : '☀️'}
-                </button>
-              </div>
-              <button disabled={isPending} onClick={() => startTransition(() => signOut())}
-                style={{ width: '100%', padding: '13px', backgroundColor: '#1a0808', color: '#e05555', border: '1px solid #3d1515', borderRadius: '10px', cursor: 'pointer', fontSize: '15px', fontWeight: '600', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
-                {isPending ? 'Odhlašuji...' : 'Odhlásit se'}
-              </button>
-              <div style={{ height: 'env(safe-area-inset-bottom, 8px)' }} />
-            </div>
-          )}
+            )
+          })}
         </div>
-      )}
+
+        {userName && (
+          <div style={{ padding: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700' }}>
+                {initials}
+              </div>
+              <div style={{ fontSize: '15px', color: 'var(--text-primary)', fontWeight: '500', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
+                {userName}
+              </div>
+              <button onClick={toggleTheme}
+                style={{ marginLeft: 'auto', width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {isLight ? '🌙' : '☀️'}
+              </button>
+            </div>
+            <button disabled={isPending} onClick={() => startTransition(() => signOut())}
+              style={{ width: '100%', padding: '13px', backgroundColor: '#1a0808', color: '#e05555', border: '1px solid #3d1515', borderRadius: '10px', cursor: 'pointer', fontSize: '15px', fontWeight: '600', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
+              {isPending ? 'Odhlašuji...' : 'Odhlásit se'}
+            </button>
+            <div style={{ height: 'env(safe-area-inset-bottom, 8px)' }} />
+          </div>
+        )}
+      </div>
+    )}
     </>
   )
 }
