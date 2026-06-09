@@ -28,14 +28,15 @@ export default function Navigation() {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const { profile, role, can } = useUser()
+  const { profile, role } = useUser()
   const { theme, toggleTheme } = useTheme()
 
   const userName = profile?.name || ''
   const avatarColor = MEMBER_COLORS[userName] || '#e05555'
   const initials = userName.slice(0, 2).toUpperCase()
 
-  const visibleItems = ALL_NAV_ITEMS.filter(item => can(item.permission))
+  // Role system is disabled — show all items immediately, no async dependency
+  const visibleItems = ALL_NAV_ITEMS
 
   const [nextEvent, setNextEvent] = useState<{ name: string; date: string } | null>(null)
   const [cdParts, setCdParts] = useState<{ d: number; h: number; m: number; s: number } | null>(null)
@@ -199,7 +200,7 @@ export default function Navigation() {
                 </Link>
               )
             })}
-            {can('canManageUsers') && (
+            {role === 'admin' && (
               <Link href="/admin" onClick={() => setMenuOpen(false)}
                 className={`nav-mobile-link${pathname === '/admin' ? ' active' : ''}`}>
                 Admin
