@@ -15,7 +15,16 @@ const emptyExpForm = {
   category: COMPANY_CATEGORIES[0], item: '', note: '', amount: '', paid: false, date: '',
 }
 const emptyIncForm = {
-  source: COMPANY_INCOME_SOURCES[0], amount: '', note: '', date: '',
+  source: COMPANY_INCOME_SOURCES[0], name: '', amount: '', note: '', date: '',
+}
+
+interface ContributionRow {
+  id: string
+  name: string
+  amount: number
+  note: string | null
+  event_name: string
+  year: string
 }
 
 const inputStyle: CSSProperties = {
@@ -36,6 +45,7 @@ function fmtDate(d: string) {
 export default function FirmaPage() {
   const [expenses, setExpenses] = useState<CompanyExpense[]>([])
   const [income, setIncome] = useState<CompanyIncome[]>([])
+  const [contributions, setContributions] = useState<ContributionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [yearFilter, setYearFilter] = useState<string>(String(new Date().getFullYear()))
 
@@ -54,12 +64,23 @@ export default function FirmaPage() {
 
   async function load() {
     try {
-      const [{ data: exp }, { data: inc }] = await Promise.all([
+      const [{ data: exp }, { data: inc }, { data: contrib }, { data: events }] = await Promise.all([
         supabase.from('company_expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
         supabase.from('company_income').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
+        supabase.from('team_contributions').select('*'),
+        supabase.from('events').select('id, name, date'),
       ])
       setExpenses(exp || [])
       setIncome(inc || [])
+      const eventsById = new Map((events || []).map(e => [e.id, e]))
+      setContributions((contrib || []).map(c => {
+        const ev = eventsById.get(c.event_id)
+        return {
+          id: c.id, name: c.name, amount: c.amount, note: c.note,
+          event_name: ev?.name || 'Neznámá akce',
+          year: ev?.date ? ev.date.split('-')[0] : c.created_at.split('-')[0],
+        }
+      }))
     } finally {
       setLoading(false)
     }
@@ -72,9 +93,10 @@ export default function FirmaPage() {
       String(new Date().getFullYear()),
       ...expenses.map(e => e.date ? e.date.split('-')[0] : null).filter(Boolean) as string[],
       ...income.map(i => i.date ? i.date.split('-')[0] : null).filter(Boolean) as string[],
+      ...contributions.map(c => c.year),
     ])
     return Array.from(years).sort((a, b) => Number(b) - Number(a))
-  }, [expenses, income])
+  }, [expenses, income, contributions])
 
   const filteredExp = useMemo(() =>
     yearFilter === 'vse' ? expenses : expenses.filter(e => !e.date || e.date.split('-')[0] === yearFilter),
@@ -84,11 +106,27 @@ export default function FirmaPage() {
     yearFilter === 'vse' ? income : income.filter(i => !i.date || i.date.split('-')[0] === yearFilter),
     [income, yearFilter]
   )
+  const filteredContrib = useMemo(() =>
+    yearFilter === 'vse' ? contributions : contributions.filter(c => c.year === yearFilter),
+    [contributions, yearFilter]
+  )
 
-  const totalExpenses = filteredExp.reduce((s, e) => s + e.amount, 0)
-  const totalIncome   = filteredInc.reduce((s, i) => s + i.amount, 0)
-  const balance       = totalIncome - totalExpenses
-  const totalUnpaid   = filteredExp.filter(e => !e.paid).reduce((s, e) => s + e.amount, 0)
+  const totalExpenses     = filteredExp.reduce((s, e) => s + e.amount, 0)
+  const totalIncomeManual = filteredInc.reduce((s, i) => s + i.amount, 0)
+  const totalContrib      = filteredContrib.reduce((s, c) => s + c.amount, 0)
+  const totalIncome       = totalIncomeManual + totalContrib
+  const balance           = totalIncome - totalExpenses
+  const totalUnpaid       = filteredExp.filter(e => !e.paid).reduce((s, e) => s + e.amount, 0)
+
+  const groupedContrib = useMemo(() => {
+    const acc: Record<string, { total: number; items: ContributionRow[] }> = {}
+    for (const c of filteredContrib) {
+      if (!acc[c.name]) acc[c.name] = { total: 0, items: [] }
+      acc[c.name].total += c.amount
+      acc[c.name].items.push(c)
+    }
+    return Object.entries(acc).sort((a, b) => b[1].total - a[1].total)
+  }, [filteredContrib])
 
   const groupedExp = useMemo(() =>
     COMPANY_CATEGORIES.reduce((acc, cat) => {
@@ -142,7 +180,7 @@ export default function FirmaPage() {
     e.preventDefault()
     setSavingInc(true)
     const payload = {
-      source: incForm.source, amount: parseFloat(incForm.amount) || 0,
+      source: incForm.source, name: incForm.name || null, amount: parseFloat(incForm.amount) || 0,
       note: incForm.note || null, date: incForm.date || null,
     }
     const result = editIncId
@@ -159,7 +197,7 @@ export default function FirmaPage() {
   }
 
   function startEditInc(inc: CompanyIncome) {
-    setIncForm({ source: inc.source, amount: inc.amount.toString(), note: inc.note || '', date: inc.date || '' })
+    setIncForm({ source: inc.source, name: inc.name || '', amount: inc.amount.toString(), note: inc.note || '', date: inc.date || '' })
     setEditIncId(inc.id); setShowIncForm(true)
   }
 
@@ -169,7 +207,7 @@ export default function FirmaPage() {
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Firma</h1>
         <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'var(--text-muted)' }}>
-          Firemní výdaje a příjmy mimo akce
+          Firemní výdaje a vklady (z úspor i z jednotlivých akcí)
         </p>
       </div>
 
@@ -342,26 +380,26 @@ export default function FirmaPage() {
           )}
         </div>
 
-        {/* ===== PŘÍJMY ===== */}
+        {/* ===== VKLADY ===== */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Příjmy firmy</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Vklady do firmy</h2>
             <button
               onClick={() => { setIncForm(emptyIncForm); setEditIncId(null); setShowIncForm(v => !v) }}
               style={{ padding: '7px 16px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer' }}
             >
-              + Přidat příjem
+              + Přidat vklad
             </button>
           </div>
 
           {showIncForm && (
             <form onSubmit={handleIncSave} style={{ marginBottom: '16px', padding: '18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid #16a34a' }}>
               <div style={{ fontSize: '13px', fontWeight: '600', color: '#34d399', marginBottom: '14px' }}>
-                {editIncId ? 'Upravit příjem' : 'Nový firemní příjem'}
+                {editIncId ? 'Upravit vklad' : 'Nový vklad mimo akce'}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 <div>
-                  <label style={labelStyle}>Zdroj</label>
+                  <label style={labelStyle}>Typ vkladu</label>
                   <select value={incForm.source} onChange={e => setIncForm({ ...incForm, source: e.target.value })} style={inputStyle}>
                     {COMPANY_INCOME_SOURCES.map(s => <option key={s}>{s}</option>)}
                   </select>
@@ -371,10 +409,14 @@ export default function FirmaPage() {
                   <input type="date" value={incForm.date} onChange={e => setIncForm({ ...incForm, date: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
+                  <label style={labelStyle}>Jméno *</label>
+                  <input required value={incForm.name} onChange={e => setIncForm({ ...incForm, name: e.target.value })} placeholder="Kdo vkládá" style={inputStyle} />
+                </div>
+                <div>
                   <label style={labelStyle}>Částka (Kč) *</label>
                   <input required type="number" value={incForm.amount} onChange={e => setIncForm({ ...incForm, amount: e.target.value })} placeholder="0" style={inputStyle} />
                 </div>
-                <div>
+                <div style={{ gridColumn: '1 / -1' }}>
                   <label style={labelStyle}>Poznámka</label>
                   <input value={incForm.note} onChange={e => setIncForm({ ...incForm, note: e.target.value })} placeholder="Volitelná poznámka" style={inputStyle} />
                 </div>
@@ -394,7 +436,7 @@ export default function FirmaPage() {
             <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Načítám...</div>
           ) : Object.keys(groupedInc).length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '13px' }}>
-              Žádné příjmy. Přidej první firemní příjem.
+              Žádné vklady mimo akce. Přidej první vklad.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -409,9 +451,11 @@ export default function FirmaPage() {
                     {items.map(inc => (
                       <div key={inc.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '10px', alignItems: 'center' }}>
                         <div>
-                          {inc.note && <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{inc.note}</div>}
-                          {inc.date && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '1px' }}>{fmtDate(inc.date)}</div>}
-                          {!inc.note && !inc.date && <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>—</div>}
+                          <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{inc.name || '—'}</div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                            {inc.note && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{inc.note}</span>}
+                            {inc.date && <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{fmtDate(inc.date)}</span>}
+                          </div>
                         </div>
                         <span style={{ fontSize: '13px', fontWeight: '600', color: '#34d399', flexShrink: 0 }}>
                           {inc.amount.toLocaleString('cs-CZ')} Kč
@@ -429,12 +473,54 @@ export default function FirmaPage() {
               {/* Total */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 16px', borderRadius: '8px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', fontSize: '12px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>
-                  Celkem: <strong style={{ color: '#34d399' }}>{fmt(totalIncome)}</strong>
+                  Celkem mimo akce: <strong style={{ color: '#34d399' }}>{fmt(totalIncomeManual)}</strong>
                 </span>
               </div>
             </div>
           )}
         </div>
+      </div>
+
+      {/* ===== VKLADY Z AKCÍ (auto, ze sekce Tým) ===== */}
+      <div style={{ marginTop: '32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Vklady z akcí</h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Přidávají se v sekci Tým u jednotlivé akce</span>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Načítám...</div>
+        ) : groupedContrib.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '32px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '13px' }}>
+            Zatím žádné vklady z akcí pro vybraný rok.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+            {groupedContrib.map(([name, { total, items }]) => (
+              <div key={name} style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(56,189,248,0.35)' }}>
+                <div style={{ backgroundColor: 'rgba(56,189,248,0.06)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#38bdf8' }}>{name}</span>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#38bdf8' }}>{total.toLocaleString('cs-CZ')} Kč</span>
+                </div>
+                {items.map(c => (
+                  <div key={c.id} style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{c.event_name}</div>
+                      {c.note && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{c.note}</div>}
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', flexShrink: 0 }}>{c.amount.toLocaleString('cs-CZ')} Kč</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 16px', borderRadius: '8px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', fontSize: '12px', gridColumn: '1 / -1' }}>
+              <span style={{ color: 'var(--text-muted)' }}>
+                Celkem z akcí: <strong style={{ color: '#38bdf8' }}>{fmt(totalContrib)}</strong>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

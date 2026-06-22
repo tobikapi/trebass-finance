@@ -360,7 +360,7 @@ export async function toggleCompanyExpensePaid(id: string, paid: boolean) {
 }
 
 export async function createCompanyIncome(payload: {
-  source: string; amount: number; note: string | null; date: string | null
+  source: string; name: string | null; amount: number; note: string | null; date: string | null
 }) {
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('company_income').insert([payload]).select().single()
@@ -369,7 +369,7 @@ export async function createCompanyIncome(payload: {
 }
 
 export async function updateCompanyIncome(id: string, payload: {
-  source: string; amount: number; note: string | null; date: string | null
+  source: string; name: string | null; amount: number; note: string | null; date: string | null
 }) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('company_income').update(payload).eq('id', id)

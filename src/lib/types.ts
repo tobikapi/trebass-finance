@@ -141,7 +141,7 @@ export const COMPANY_CATEGORY_COLORS: Record<string, { color: string; bg: string
   'JINÉ':              { color: '#9ca3af', bg: '#1a1a1a', border: '#2d2d2d' },
 }
 
-export const COMPANY_INCOME_SOURCES = ['FAKTURA', 'DOTACE', 'JINÉ']
+export const COMPANY_INCOME_SOURCES = ['VKLAD Z ÚSPOR', 'JINÉ']
 
 export interface CompanyExpense {
   id: string
@@ -157,6 +157,7 @@ export interface CompanyExpense {
 export interface CompanyIncome {
   id: string
   source: string
+  name: string | null
   amount: number
   note: string | null
   date: string | null
