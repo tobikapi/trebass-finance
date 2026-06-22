@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { EventEquipment } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { createEquipment, updateEquipment, deleteEquipment } from '@/app/actions'
@@ -12,7 +12,9 @@ interface Props {
   initialEquipment: EventEquipment[]
 }
 
-const emptyForm = { name: '', note: '', quantity: '1', unit_price: '', total_price: '' }
+interface ExpenseOption { id: string; item: string }
+
+const emptyForm = { name: '', note: '', quantity: '1', unit_price: '', total_price: '', expense_id: '' }
 
 const inputStyle: CSSProperties = {
   backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)',
@@ -26,6 +28,7 @@ const labelStyle: CSSProperties = {
 
 export default function TechnikaClient({ id, initialEquipment }: Props) {
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
+  const [expenseOptions, setExpenseOptions] = useState<ExpenseOption[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -33,11 +36,17 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   const [refreshing, setRefreshing] = useState(false)
 
   async function load() {
-    const { data } = await supabase.from('event_equipment').select('*').eq('event_id', id).order('created_at')
+    const [{ data }, { data: exp }] = await Promise.all([
+      supabase.from('event_equipment').select('*').eq('event_id', id).order('created_at'),
+      supabase.from('expenses').select('id, item').eq('event_id', id).eq('category', 'TECHNIKA').order('item'),
+    ])
     setEquipment(data || [])
+    setExpenseOptions(exp || [])
   }
 
-  const { live } = useRealtime(['event_equipment'], load, id)
+  useEffect(() => { load() }, [id])
+
+  const { live } = useRealtime(['event_equipment', 'expenses'], load, id)
 
   function handleQtyOrPrice(field: 'quantity' | 'unit_price' | 'total_price', value: string) {
     if (field === 'total_price') {
@@ -63,6 +72,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       quantity: parseFloat(form.quantity) || 1,
       unit_price: parseFloat(form.unit_price) || 0,
       total_price: parseFloat(form.total_price) || 0,
+      expense_id: form.expense_id || null,
     }
     const result = editId
       ? await updateEquipment(editId, base)
@@ -78,7 +88,11 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   }
 
   function startEdit(eq: EventEquipment) {
-    setForm({ name: eq.name, note: eq.note || '', quantity: eq.quantity.toString(), unit_price: eq.unit_price.toString(), total_price: eq.total_price.toString() })
+    setForm({
+      name: eq.name, note: eq.note || '', quantity: eq.quantity.toString(),
+      unit_price: eq.unit_price.toString(), total_price: eq.total_price.toString(),
+      expense_id: eq.expense_id || '',
+    })
     setEditId(eq.id); setShowForm(true)
   }
 
@@ -134,9 +148,18 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
               <label style={labelStyle}>Celkem (Kč)</label>
               <input type="number" value={form.total_price} onChange={e => handleQtyOrPrice('total_price', e.target.value)} placeholder="0" style={inputStyle} />
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ gridColumn: '1 / 3' }}>
               <label style={labelStyle}>Poznámka</label>
               <input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Volitelná poznámka" style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: '3 / -1' }}>
+              <label style={labelStyle}>🔧 Přiřadit k výdaji</label>
+              <select value={form.expense_id} onChange={e => setForm({ ...form, expense_id: e.target.value })} style={inputStyle}>
+                <option value="">— bez přiřazení —</option>
+                {expenseOptions.map(opt => (
+                  <option key={opt.id} value={opt.id}>{opt.item}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -166,7 +189,14 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
           {/* Rows */}
           {equipment.map((eq, i) => (
             <div key={eq.id} style={{ display: 'grid', gridTemplateColumns: '1fr 180px 60px 90px 90px 90px', padding: '10px 16px', alignItems: 'center', borderBottom: i < equipment.length - 1 ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
-              <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px' }}>{eq.name}</div>
+              <div>
+                <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px' }}>{eq.name}</div>
+                {eq.expense_id && (
+                  <span style={{ fontSize: '10px', color: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                    💸 {expenseOptions.find(o => o.id === eq.expense_id)?.item || 'výdaj'}
+                  </span>
+                )}
+              </div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.note || '—'}</div>
               <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.quantity}</div>
               <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.unit_price > 0 ? `${eq.unit_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>

@@ -84,7 +84,7 @@ export async function updateEventBudgets(id: string, budgets: Record<string, num
 // EXPENSES
 export async function createExpense(payload: {
   event_id: string; category: string; item: string; note: string | null;
-  payment_timing: string | null; price: number; deposit: number; paid: boolean; equipment_id: string | null
+  payment_timing: string | null; price: number; deposit: number; paid: boolean
 }) {
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('expenses').insert([payload]).select().single()
@@ -94,7 +94,7 @@ export async function createExpense(payload: {
 
 export async function updateExpense(id: string, payload: {
   category: string; item: string; note: string | null;
-  payment_timing: string | null; price: number; deposit: number; paid: boolean; equipment_id: string | null
+  payment_timing: string | null; price: number; deposit: number; paid: boolean
 }) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('expenses').update(payload).eq('id', id)
@@ -388,27 +388,42 @@ export async function deleteCompanyIncome(id: string) {
 }
 
 // EQUIPMENT (TECHNIKA)
+async function recalcExpensePrice(supabase: Awaited<ReturnType<typeof requireAuth>>, expenseId: string | null) {
+  if (!expenseId) return
+  const { data } = await supabase.from('event_equipment').select('total_price').eq('expense_id', expenseId)
+  const sum = (data || []).reduce((s, e) => s + e.total_price, 0)
+  await supabase.from('expenses').update({ price: sum }).eq('id', expenseId)
+}
+
 export async function createEquipment(payload: {
   event_id: string; name: string; note: string | null; quantity: number; unit_price: number; total_price: number
+  expense_id: string | null
 }) {
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('event_equipment').insert([payload]).select().single()
   if (error) return { error: error.message }
+  await recalcExpensePrice(supabase, payload.expense_id)
   return { data }
 }
 
 export async function updateEquipment(id: string, payload: {
   name: string; note: string | null; quantity: number; unit_price: number; total_price: number
+  expense_id: string | null
 }) {
   const supabase = await requireAuth()
+  const { data: prev } = await supabase.from('event_equipment').select('expense_id').eq('id', id).single()
   const { error } = await supabase.from('event_equipment').update(payload).eq('id', id)
   if (error) return { error: error.message }
+  await recalcExpensePrice(supabase, payload.expense_id)
+  if (prev?.expense_id && prev.expense_id !== payload.expense_id) await recalcExpensePrice(supabase, prev.expense_id)
   return { data: true }
 }
 
 export async function deleteEquipment(id: string) {
   const supabase = await requireAuth()
+  const { data: prev } = await supabase.from('event_equipment').select('expense_id').eq('id', id).single()
   const { error } = await supabase.from('event_equipment').delete().eq('id', id)
   if (error) return { error: error.message }
+  await recalcExpensePrice(supabase, prev?.expense_id ?? null)
   return { data: true }
 }

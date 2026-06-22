@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
-
-interface EquipmentItem { id: string; name: string }
 import EventLayout from '@/components/EventLayout'
 import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
 import { useRealtime } from '@/lib/use-realtime'
@@ -14,7 +12,7 @@ type Budgets = Record<string, number>
 const TIMINGS: PaymentTiming[] = ['PŘED AKCÍ', 'BĚHEM AKCE', 'PO AKCI']
 const emptyForm = {
   category: CATEGORIES[0], item: '', note: '', payment_timing: '' as PaymentTiming | '',
-  price: '', deposit: '', paid: false, equipment_id: '',
+  price: '', deposit: '', paid: false,
 }
 
 interface Props {
@@ -26,28 +24,31 @@ interface Props {
 export default function VydajeClient({ id, initialExpenses, initialBudgets }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [budgets, setBudgets] = useState<Budgets>(initialBudgets)
-  const [equipment, setEquipment] = useState<EquipmentItem[]>([])
+  const [linkedExpenseIds, setLinkedExpenseIds] = useState<Set<string>>(new Set())
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    supabase.from('event_equipment').select('id, name').eq('event_id', id).order('name')
-      .then(({ data }) => setEquipment(data || []))
-  }, [id])
+  async function loadLinkedEquipment() {
+    const { data } = await supabase.from('event_equipment').select('expense_id').eq('event_id', id)
+    setLinkedExpenseIds(new Set((data || []).map(e => e.expense_id).filter((x): x is string => !!x)))
+  }
+
+  useEffect(() => { loadLinkedEquipment() }, [id])
 
   async function load() {
     const [{ data: expData }, { data: evData }] = await Promise.all([
       supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at'),
       supabase.from('events').select('budgets').eq('id', id).single(),
     ])
+    await loadLinkedEquipment()
     setExpenses(expData || [])
     setBudgets(evData?.budgets || {})
   }
 
-  const { live } = useRealtime(['expenses'], load, id)
+  const { live } = useRealtime(['expenses', 'event_equipment'], load, id)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -56,7 +57,7 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
       event_id: id, category: form.category, item: form.item,
       note: form.note || null, payment_timing: form.payment_timing || null,
       price: parseFloat(form.price) || 0, deposit: parseFloat(form.deposit) || 0,
-      paid: form.paid, equipment_id: form.equipment_id || null,
+      paid: form.paid,
     }
     const result = editId ? await updateExpense(editId, payload) : await createExpense(payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
@@ -78,7 +79,6 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
       category: exp.category, item: exp.item, note: exp.note || '',
       payment_timing: exp.payment_timing || '', price: exp.price.toString(),
       deposit: exp.deposit.toString(), paid: exp.paid,
-      equipment_id: exp.equipment_id || '',
     })
     setEditId(exp.id); setShowForm(true)
   }
@@ -181,8 +181,13 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
               </select>
             </div>
             <div className="col-span-1">
-              <label style={labelStyle}>Cena (Kč)</label>
-              <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0" style={{ ...inputStyle, width: '100%' }} />
+              <label style={labelStyle}>Cena (Kč){editId && linkedExpenseIds.has(editId) ? ' 🔧' : ''}</label>
+              <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })}
+                placeholder="0" style={{ ...inputStyle, width: '100%' }}
+                disabled={!!editId && linkedExpenseIds.has(editId)} />
+              {editId && linkedExpenseIds.has(editId) && (
+                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '3px' }}>Počítá se automaticky z přiřazené techniky</div>
+              )}
             </div>
             <div className="col-span-1">
               <label style={labelStyle}>Záloha (Kč)</label>
@@ -194,17 +199,6 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
                 Zaplaceno
               </label>
             </div>
-            {equipment.length > 0 && (
-              <div className="col-span-2">
-                <label style={labelStyle}>🔧 Přiřadit k technice</label>
-                <select value={form.equipment_id} onChange={(e) => setForm({ ...form, equipment_id: e.target.value })} style={{ ...inputStyle, width: '100%' }}>
-                  <option value="">— bez přiřazení —</option>
-                  {equipment.map(eq => (
-                    <option key={eq.id} value={eq.id}>{eq.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div className="col-span-2 flex items-end gap-2">
               <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
                 {saving ? 'Ukládám...' : 'Uložit'}
@@ -272,9 +266,9 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
                           <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: '500' }}>{exp.item}</div>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
                             {exp.note && <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{exp.note}</span>}
-                            {exp.equipment_id && equipment.find(eq => eq.id === exp.equipment_id) && (
+                            {linkedExpenseIds.has(exp.id) && (
                               <span style={{ fontSize: '10px', color: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.1)', padding: '1px 6px', borderRadius: '4px' }}>
-                                🔧 {equipment.find(eq => eq.id === exp.equipment_id)?.name}
+                                🔧 sync z techniky
                               </span>
                             )}
                           </div>

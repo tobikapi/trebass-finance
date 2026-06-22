@@ -54,7 +54,6 @@ export interface Expense {
   price: number
   deposit: number
   paid: boolean
-  equipment_id: string | null
   created_at: string
 }
 
@@ -66,6 +65,7 @@ export interface EventEquipment {
   quantity: number
   unit_price: number
   total_price: number
+  expense_id: string | null
   created_at: string
 }
 
