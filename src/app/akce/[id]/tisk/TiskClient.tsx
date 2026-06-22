@@ -153,7 +153,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
           ← Zpět
         </button>
         <span style={{ fontSize: '12px', color: 'var(--text-dim)', marginLeft: '4px' }}>
-          Pro PDF: v dialogu tisku zvol „Uložit jako PDF"
+          Pro PDF: v dialogu tisku zvol „Uložit jako PDF&rdquo;
         </span>
       </div>
 

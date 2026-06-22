@@ -7,7 +7,7 @@ export function useRealtime(
   eventId?: string
 ) {
   const callbackRef = useRef(onUpdate)
-  callbackRef.current = onUpdate
+  useEffect(() => { callbackRef.current = onUpdate }, [onUpdate])
   const [live, setLive] = useState(false)
 
   useEffect(() => {

@@ -153,7 +153,7 @@ export async function createArtist(payload: {
 
   // Sync to expenses — LINEUP category, linked via lineup_artist_id
   const noteParts = [payload.stage, payload.set_time].filter(Boolean)
-  await supabase.from('expenses').insert([{
+  const { error: expError } = await supabase.from('expenses').insert([{
     event_id: payload.event_id,
     category: 'LINEUP',
     item: payload.artist_name,
@@ -164,6 +164,7 @@ export async function createArtist(payload: {
     paid: payload.paid,
     lineup_artist_id: data.id,
   }])
+  if (expError) return { error: expError.message }
 
   return { data }
 }
@@ -178,13 +179,14 @@ export async function updateArtist(id: string, payload: {
 
   // Sync linked expense
   const noteParts = [payload.stage, payload.set_time].filter(Boolean)
-  await supabase.from('expenses').update({
+  const { error: expError } = await supabase.from('expenses').update({
     item: payload.artist_name,
     note: noteParts.length ? noteParts.join(' · ') : null,
     price: payload.fee,
     deposit: payload.deposit,
     paid: payload.paid,
   }).eq('lineup_artist_id', id)
+  if (expError) return { error: expError.message }
 
   return { data: true }
 }
@@ -203,7 +205,8 @@ export async function toggleArtistPaid(id: string, paid: boolean) {
   if (error) return { error: error.message }
 
   // Sync paid status to linked expense
-  await supabase.from('expenses').update({ paid }).eq('lineup_artist_id', id)
+  const { error: expError } = await supabase.from('expenses').update({ paid }).eq('lineup_artist_id', id)
+  if (expError) return { error: expError.message }
 
   return { data: true }
 }

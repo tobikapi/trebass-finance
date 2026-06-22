@@ -25,12 +25,15 @@ const STATUS_OPTS: { value: EventStatus | 'vse'; label: string }[] = [
   { value: 'archivovano',   label: 'Archivováno' },
 ]
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipPayloadItem { name: string; value: number; color: string }
+interface CustomTooltipProps { active?: boolean; payload?: TooltipPayloadItem[]; label?: string }
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null
   return (
     <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', boxShadow: 'var(--shadow)' }}>
       <div style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '6px' }}>{label}</div>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div key={p.name} style={{ color: p.color, marginBottom: '2px' }}>
           {p.name}: {Number(p.value).toLocaleString('cs-CZ')} Kč
         </div>
@@ -39,7 +42,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-const CustomPieTooltip = ({ active, payload }: any) => {
+const CustomPieTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null
   return (
     <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
@@ -277,7 +280,6 @@ export default function Dashboard() {
             {upcomingEvents.map(ev => {
               const cd = ev.date ? countdown(ev.date) : null
               const sum = eventSummary[ev.id]
-              const evBalance = (sum?.income || 0) - (sum?.expenses || 0)
               return (
                 <Link key={ev.id} href={`/akce/${ev.id}/prehled`} style={{ textDecoration: 'none' }}>
                   <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: '10px', padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}>

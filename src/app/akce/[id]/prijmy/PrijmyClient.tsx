@@ -57,7 +57,7 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
   const totalExpenses = expenses.reduce((s, e) => s + e.price, 0)
   const totalDeposit = expenses.reduce((s, e) => s + e.deposit, 0)
   const totalExpensesWithoutDeposit = totalExpenses - totalDeposit
-  const balance = totalIncome - totalExpensesWithoutDeposit
+  const balance = totalIncome - totalExpenses
 
   const bySource = INCOME_SOURCES.reduce((acc, src) => {
     const items = income.filter((i) => i.source === src)

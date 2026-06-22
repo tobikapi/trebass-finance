@@ -107,7 +107,11 @@ export default function UkolyPage() {
   const getPriorityColor = (p: string) => PRIORITIES.find((x) => x.value === p)?.color || '#6b7280'
   const getStatusInfo = (s: string) => STATUSES.find((x) => x.value === s) || STATUSES[0]
 
-  const isOverdue = (task: Task) => task.due_date && task.status !== 'done' && new Date(task.due_date) < new Date()
+  const todayISO = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const isOverdue = (task: Task) => !!task.due_date && task.status !== 'done' && task.due_date < todayISO()
 
   return (
     <div>
