@@ -78,10 +78,15 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
       const filePath = `${id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
       if (uploadError) { alert('Chyba při nahrávání: ' + uploadError.message); continue }
-      await supabase.from('documents').insert([{
+      const { error: insertError } = await supabase.from('documents').insert([{
         event_id: id, name: file.name, file_path: filePath,
         file_size: file.size, file_type: file.type, uploaded_by: uploader,
       }])
+      if (insertError) {
+        alert(`Soubor "${file.name}" se nahrál, ale uložení záznamu selhalo: ${insertError.message}`)
+        await supabase.storage.from('documents').remove([filePath])
+        continue
+      }
     }
     await load()
     setUploading(false)
