@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
-import { createExpense, updateExpense, deleteExpense, toggleExpensePaid } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 
@@ -59,7 +59,7 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
       price: parseFloat(form.price) || 0, deposit: parseFloat(form.deposit) || 0,
       paid: form.paid,
     }
-    const result = editId ? await updateExpense(editId, payload) : await createExpense(payload)
+    const result = editId ? await callAction('updateExpense', editId, payload) : await callAction('createExpense', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
@@ -67,11 +67,11 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
 
   async function handleDelete(expId: string) {
     if (!confirm('Smazat tento výdaj?')) return
-    await deleteExpense(expId); await load()
+    await callAction('deleteExpense', expId); await load()
   }
 
   async function handleTogglePaid(exp: Expense) {
-    await toggleExpensePaid(exp.id, !exp.paid); await load()
+    await callAction('toggleExpensePaid', exp.id, !exp.paid); await load()
   }
 
   function startEdit(exp: Expense) {

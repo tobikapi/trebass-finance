@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { EventEquipment } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
-import { createEquipment, updateEquipment, deleteEquipment } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 
@@ -75,8 +75,8 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       expense_id: form.expense_id || null,
     }
     const result = editId
-      ? await updateEquipment(editId, base)
-      : await createEquipment({ event_id: id, ...base })
+      ? await callAction('updateEquipment', editId, base)
+      : await callAction('createEquipment', { event_id: id, ...base })
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
@@ -84,7 +84,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
 
   async function handleDelete(eqId: string) {
     if (!confirm('Smazat tuto položku techniky?')) return
-    await deleteEquipment(eqId); await load()
+    await callAction('deleteEquipment', eqId); await load()
   }
 
   function startEdit(eq: EventEquipment) {

@@ -6,10 +6,7 @@ import {
   CompanyExpense, CompanyIncome,
   COMPANY_CATEGORIES, COMPANY_CATEGORY_COLORS, COMPANY_INCOME_SOURCES,
 } from '@/lib/types'
-import {
-  createCompanyExpense, updateCompanyExpense, deleteCompanyExpense, toggleCompanyExpensePaid,
-  createCompanyIncome, updateCompanyIncome, deleteCompanyIncome,
-} from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 
 const emptyExpForm = {
   category: COMPANY_CATEGORIES[0], item: '', note: '', amount: '', paid: false, date: '',
@@ -155,8 +152,8 @@ export default function FirmaPage() {
       paid: expForm.paid, date: expForm.date || null,
     }
     const result = editExpId
-      ? await updateCompanyExpense(editExpId, payload)
-      : await createCompanyExpense(payload)
+      ? await callAction('updateCompanyExpense', editExpId, payload)
+      : await callAction('createCompanyExpense', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSavingExp(false); return }
     await load()
     setExpForm(emptyExpForm); setShowExpForm(false); setEditExpId(null); setSavingExp(false)
@@ -164,11 +161,11 @@ export default function FirmaPage() {
 
   async function handleExpDelete(id: string) {
     if (!confirm('Smazat tento výdaj?')) return
-    await deleteCompanyExpense(id); await load()
+    await callAction('deleteCompanyExpense', id); await load()
   }
 
   async function handleToggleExpPaid(exp: CompanyExpense) {
-    await toggleCompanyExpensePaid(exp.id, !exp.paid); await load()
+    await callAction('toggleCompanyExpensePaid', exp.id, !exp.paid); await load()
   }
 
   function startEditExp(exp: CompanyExpense) {
@@ -184,8 +181,8 @@ export default function FirmaPage() {
       note: incForm.note || null, date: incForm.date || null,
     }
     const result = editIncId
-      ? await updateCompanyIncome(editIncId, payload)
-      : await createCompanyIncome(payload)
+      ? await callAction('updateCompanyIncome', editIncId, payload)
+      : await callAction('createCompanyIncome', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSavingInc(false); return }
     await load()
     setIncForm(emptyIncForm); setShowIncForm(false); setEditIncId(null); setSavingInc(false)
@@ -193,7 +190,7 @@ export default function FirmaPage() {
 
   async function handleIncDelete(id: string) {
     if (!confirm('Smazat tento příjem?')) return
-    await deleteCompanyIncome(id); await load()
+    await callAction('deleteCompanyIncome', id); await load()
   }
 
   function startEditInc(inc: CompanyIncome) {

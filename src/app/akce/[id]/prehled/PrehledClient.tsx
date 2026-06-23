@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Expense, Income, Event, CATEGORIES, CATEGORY_COLORS } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
-import { updateEventBudgets } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 
@@ -109,7 +109,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
       const n = parseFloat(val)
       if (n > 0) parsed[cat] = n
     }
-    const result = await updateEventBudgets(id, parsed)
+    const result = await callAction('updateEventBudgets', id, parsed)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     setEvent(prev => prev ? { ...prev, budgets: parsed } : prev)
     setBudgetEdit(false)

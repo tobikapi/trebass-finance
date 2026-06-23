@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { createContact, updateContact, deleteContact } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 
 const TYPES = ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security', 'jiné']
 const TYPE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -48,7 +48,7 @@ export default function KontaktyPage() {
       email: form.email || null, phone: form.phone || null, note: form.note || null,
       fee: parseInt(form.fee) || 0,
     }
-    const result = editId ? await updateContact(editId, payload) : await createContact(payload)
+    const result = editId ? await callAction('updateContact', editId, payload) : await callAction('createContact', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
@@ -60,7 +60,7 @@ export default function KontaktyPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('Smazat kontakt?')) return
-    await deleteContact(id); await load()
+    await callAction('deleteContact', id); await load()
   }
 
   const filtered = contacts.filter(c => {

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { LineupArtist } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
-import { createArtist, updateArtist, deleteArtist, toggleArtistPaid, updateEventStages } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 
@@ -106,7 +106,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
     const name = newStage.trim()
     if (!name || stages.includes(name)) return
     const updated = [...stages, name]
-    await updateEventStages(id, updated)
+    await callAction('updateEventStages', id, updated)
     setStages(updated)
     setCollapsedStages(prev => ({ ...prev, [name]: true }))
     setNewStage('')
@@ -114,7 +114,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
 
   async function removeStage(name: string) {
     const updated = stages.filter(s => s !== name)
-    await updateEventStages(id, updated)
+    await callAction('updateEventStages', id, updated)
     setStages(updated)
   }
 
@@ -152,18 +152,18 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
     const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
-    const result = editId ? await updateArtist(editId, payload) : await createArtist(payload)
+    const result = editId ? await callAction('updateArtist', editId, payload) : await callAction('createArtist', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load(); closeForm(); setSaving(false)
   }
 
   async function handleDelete(artId: string) {
     if (!confirm('Smazat tohoto artista?')) return
-    await deleteArtist(artId); await load()
+    await callAction('deleteArtist', artId); await load()
   }
 
   async function handleTogglePaid(art: LineupArtist) {
-    await toggleArtistPaid(art.id, !art.paid); await load()
+    await callAction('toggleArtistPaid', art.id, !art.paid); await load()
   }
 
   const eventDays = getDays(eventDates.date, eventDates.date_end)

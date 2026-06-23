@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus, formatDateRange } from '@/lib/types'
-import { deleteEvent } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 
 export default function AkceClient({ initialEvents }: { initialEvents: Event[] }) {
   const router = useRouter()
@@ -14,7 +14,7 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
 
   async function handleDelete(event: Event) {
     if (!confirm(`Smazat akci "${event.name}"? Smažou se i všechny výdaje, příjmy a lineup.`)) return
-    const result = await deleteEvent(event.id)
+    const result = await callAction('deleteEvent', event.id)
     if (result.error) { alert('Chyba: ' + result.error); return }
     setEvents(prev => prev.filter(e => e.id !== event.id))
   }

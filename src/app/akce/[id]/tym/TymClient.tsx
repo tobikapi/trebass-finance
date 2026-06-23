@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { TeamContribution } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
-import { createContribution, updateContribution, deleteContribution } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
 
 const emptyForm = { name: '', amount: '', note: '' }
@@ -29,14 +29,14 @@ export default function TymClient({ id, initialContributions }: Props) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
     const payload = { event_id: id, name: form.name, amount: parseFloat(form.amount) || 0, note: form.note || null }
-    const result = editId ? await updateContribution(editId, payload) : await createContribution(payload)
+    const result = editId ? await callAction('updateContribution', editId, payload) : await callAction('createContribution', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(contId: string) {
     if (!confirm('Smazat tento příspěvek?')) return
-    await deleteContribution(contId); await load()
+    await callAction('deleteContribution', contId); await load()
   }
 
   function startEdit(c: TeamContribution) {

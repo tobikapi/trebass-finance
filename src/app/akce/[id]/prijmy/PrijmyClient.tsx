@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Income, INCOME_SOURCES } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
-import { createIncome, updateIncome, deleteIncome } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 
@@ -38,14 +38,14 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
     const payload = { event_id: id, source: form.source, amount: parseFloat(form.amount) || 0, note: form.note || null }
-    const result = editId ? await updateIncome(editId, payload) : await createIncome(payload)
+    const result = editId ? await callAction('updateIncome', editId, payload) : await callAction('createIncome', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(incId: string) {
     if (!confirm('Smazat tento příjem?')) return
-    await deleteIncome(incId); await load()
+    await callAction('deleteIncome', incId); await load()
   }
 
   function startEdit(inc: Income) {

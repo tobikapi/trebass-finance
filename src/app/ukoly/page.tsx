@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { createTask, updateTask, updateTaskStatus, deleteTask } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 
 const MEMBERS = ['Tobiáš', 'Jakub', 'Metoděj', 'Artur']
 const STATUSES = [
@@ -57,18 +57,18 @@ export default function UkolyPage() {
       due_date: form.due_date || null,
       event_id: form.event_id || null,
     }
-    const result = editId ? await updateTask(editId, payload) : await createTask(payload)
+    const result = editId ? await callAction('updateTask', editId, payload) : await callAction('createTask', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Smazat tento úkol?')) return
-    await deleteTask(id); await load()
+    await callAction('deleteTask', id); await load()
   }
 
   async function handleStatusChange(task: Task, newStatus: string) {
-    await updateTaskStatus(task.id, newStatus); await load()
+    await callAction('updateTaskStatus', task.id, newStatus); await load()
   }
 
   function startEdit(task: Task) {

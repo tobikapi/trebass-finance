@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import EventLayout from '@/components/EventLayout'
-import { createNote, deleteNote } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 
@@ -38,7 +38,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
     e.preventDefault()
     if (!content.trim()) return
     setSaving(true)
-    const result = await createNote({ event_id: id, author, content: content.trim() })
+    const result = await callAction('createNote', { event_id: id, author, content: content.trim() })
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     setContent('')
     await load()
@@ -47,7 +47,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
 
   async function handleDelete(noteId: string) {
     if (!confirm('Smazat poznámku?')) return
-    await deleteNote(noteId)
+    await callAction('deleteNote', noteId)
     await load()
   }
 

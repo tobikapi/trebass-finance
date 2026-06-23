@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createEvent, updateEvent } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { EventStatus, Event } from '@/lib/types'
 
 interface Props {
@@ -38,8 +38,8 @@ export default function EventForm({ existing }: Props) {
     setLoading(true)
     const payload = { ...form, time_start: showTime ? form.time_start : '', time_end: showTime ? form.time_end : '' }
     const result = existing
-      ? await updateEvent(existing.id, payload)
-      : await createEvent(payload)
+      ? await callAction('updateEvent', existing.id, payload)
+      : await callAction('createEvent', payload)
     if (result.error) { alert('Chyba: ' + result.error); setLoading(false); return }
     if (!existing && 'data' in result && result.data && typeof result.data === 'object' && 'id' in result.data) {
       router.push(`/akce/${result.data.id}/vydaje`)

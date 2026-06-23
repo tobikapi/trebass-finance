@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import EventLayout from '@/components/EventLayout'
-import { deleteDocument } from '@/app/actions'
+import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
 
 interface Document {
@@ -95,7 +95,7 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
 
   async function handleDelete(doc: Document) {
     if (!confirm(`Smazat "${doc.name}"?`)) return
-    await deleteDocument(doc.id, doc.file_path)
+    await callAction('deleteDocument', doc.id, doc.file_path)
     await load()
   }
 
