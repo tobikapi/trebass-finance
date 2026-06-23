@@ -36,12 +36,15 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   const [refreshing, setRefreshing] = useState(false)
 
   async function load() {
+    console.log('DIAG load: start')
     const [{ data }, { data: exp }] = await Promise.all([
       supabase.from('event_equipment').select('*').eq('event_id', id).order('created_at'),
       supabase.from('expenses').select('id, item').eq('event_id', id).eq('category', 'TECHNIKA').order('item'),
     ])
+    console.log('DIAG load: promise.all resolved')
     setEquipment(data || [])
     setExpenseOptions(exp || [])
+    console.log('DIAG load: setState done')
   }
 
   useEffect(() => { load() }, [id])
@@ -65,6 +68,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    console.log('DIAG step1: handleSave start')
     setSaving(true)
     const base = {
       name: form.name,
@@ -74,12 +78,17 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       total_price: parseFloat(form.total_price) || 0,
       expense_id: form.expense_id || null,
     }
+    console.log('DIAG step2: about to callAction')
     const result = editId
       ? await callAction('updateEquipment', editId, base)
       : await callAction('createEquipment', { event_id: id, ...base })
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    console.log('DIAG step3: callAction resolved', JSON.stringify(result))
+    if (result.error) { console.log('DIAG step3b: error path'); alert('Chyba: ' + result.error); setSaving(false); return }
+    console.log('DIAG step4: about to load()')
     await load()
+    console.log('DIAG step5: load() resolved, about to setForm/setSaving')
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
+    console.log('DIAG step6: all setState calls done')
   }
 
   async function handleDelete(eqId: string) {
