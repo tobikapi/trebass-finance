@@ -23,12 +23,10 @@ export default function TymClient({ id, initialContributions }: Props) {
 
   const loadingRef = useRef(false)
   async function load() {
-    console.log('DIAG TYM load: start, loadingRef=' + loadingRef.current)
     if (loadingRef.current) return
     loadingRef.current = true
     try {
       const { data } = await supabase.from('team_contributions').select('*').eq('event_id', id).order('amount', { ascending: false })
-      console.log('DIAG TYM load: query resolved')
       setContributions(data || [])
     } finally {
       loadingRef.current = false
@@ -37,16 +35,11 @@ export default function TymClient({ id, initialContributions }: Props) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
-    console.log('DIAG TYM step1: handleSave start')
     const payload = { event_id: id, name: form.name, amount: parseFloat(form.amount) || 0, note: form.note || null }
     const result = editId ? await callAction('updateContribution', editId, payload) : await callAction('createContribution', payload)
-    console.log('DIAG TYM step2: callAction resolved', JSON.stringify(result))
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
-    console.log('DIAG TYM step3: about to load()')
     await load()
-    console.log('DIAG TYM step4: load() resolved')
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
-    console.log('DIAG TYM step5: setState done')
   }
 
   async function handleDelete(contId: string) {
