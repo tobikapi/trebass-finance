@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
@@ -31,21 +31,35 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
+  const loadingLinkedRef = useRef(false)
   async function loadLinkedEquipment() {
-    const { data } = await supabase.from('event_equipment').select('expense_id').eq('event_id', id)
-    setLinkedExpenseIds(new Set((data || []).map(e => e.expense_id).filter((x): x is string => !!x)))
+    if (loadingLinkedRef.current) return
+    loadingLinkedRef.current = true
+    try {
+      const { data } = await supabase.from('event_equipment').select('expense_id').eq('event_id', id)
+      setLinkedExpenseIds(new Set((data || []).map(e => e.expense_id).filter((x): x is string => !!x)))
+    } finally {
+      loadingLinkedRef.current = false
+    }
   }
 
   useEffect(() => { loadLinkedEquipment() }, [id])
 
+  const loadingRef = useRef(false)
   async function load() {
-    const [{ data: expData }, { data: evData }] = await Promise.all([
-      supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at'),
-      supabase.from('events').select('budgets').eq('id', id).single(),
-    ])
-    await loadLinkedEquipment()
-    setExpenses(expData || [])
-    setBudgets(evData?.budgets || {})
+    if (loadingRef.current) return
+    loadingRef.current = true
+    try {
+      const [{ data: expData }, { data: evData }] = await Promise.all([
+        supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at'),
+        supabase.from('events').select('budgets').eq('id', id).single(),
+      ])
+      await loadLinkedEquipment()
+      setExpenses(expData || [])
+      setBudgets(evData?.budgets || {})
+    } finally {
+      loadingRef.current = false
+    }
   }
 
   const { live } = useRealtime(['expenses', 'event_equipment'], load, id)

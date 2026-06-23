@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { TeamContribution } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
@@ -21,9 +21,16 @@ export default function TymClient({ id, initialContributions }: Props) {
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
+  const loadingRef = useRef(false)
   async function load() {
-    const { data } = await supabase.from('team_contributions').select('*').eq('event_id', id).order('amount', { ascending: false })
-    setContributions(data || [])
+    if (loadingRef.current) return
+    loadingRef.current = true
+    try {
+      const { data } = await supabase.from('team_contributions').select('*').eq('event_id', id).order('amount', { ascending: false })
+      setContributions(data || [])
+    } finally {
+      loadingRef.current = false
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
