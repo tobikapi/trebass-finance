@@ -47,6 +47,7 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
 
   const loadingRef = useRef(false)
   async function load() {
+    console.log('DIAG VYD load: start, loadingRef=' + loadingRef.current)
     if (loadingRef.current) return
     loadingRef.current = true
     try {
@@ -54,7 +55,9 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
         supabase.from('expenses').select('*').eq('event_id', id).order('category').order('created_at'),
         supabase.from('events').select('budgets').eq('id', id).single(),
       ])
+      console.log('DIAG VYD load: promise.all resolved')
       await loadLinkedEquipment()
+      console.log('DIAG VYD load: loadLinkedEquipment resolved')
       setExpenses(expData || [])
       setBudgets(evData?.budgets || {})
     } finally {
@@ -73,10 +76,15 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
       price: parseFloat(form.price) || 0, deposit: parseFloat(form.deposit) || 0,
       paid: form.paid,
     }
+    console.log('DIAG VYD step1: about to callAction')
     const result = editId ? await callAction('updateExpense', editId, payload) : await callAction('createExpense', payload)
+    console.log('DIAG VYD step2: callAction resolved', JSON.stringify(result))
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    console.log('DIAG VYD step3: about to load()')
     await load()
+    console.log('DIAG VYD step4: load() resolved')
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
+    console.log('DIAG VYD step5: setState done')
   }
 
   async function handleDelete(expId: string) {
