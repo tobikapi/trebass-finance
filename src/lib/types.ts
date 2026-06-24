@@ -13,6 +13,7 @@ export interface Event {
   status: EventStatus
   description: string | null
   stages: string[]
+  equipment_locations: string[]
   budgets: Record<string, number>
   created_at: string
 }
@@ -69,6 +70,7 @@ export interface EventEquipment {
   total_price: number
   expense_id: string | null
   category: EquipmentCategory | null
+  location: string | null
   created_at: string
 }
 

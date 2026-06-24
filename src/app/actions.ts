@@ -72,6 +72,13 @@ export async function updateEventStages(id: string, stages: string[]) {
   return { data: true }
 }
 
+export async function updateEventEquipmentLocations(id: string, locations: string[]) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('events').update({ equipment_locations: locations }).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
 export async function updateEventBudgets(id: string, budgets: Record<string, number>) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('events').update({ budgets }).eq('id', id)
@@ -395,7 +402,7 @@ async function recalcExpensePrice(supabase: Awaited<ReturnType<typeof requireAut
 
 export async function createEquipment(payload: {
   event_id: string; name: string; note: string | null; quantity: number; unit_price: number; total_price: number
-  expense_id: string | null; category: string | null
+  expense_id: string | null; category: string | null; location: string | null
 }) {
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('event_equipment').insert([payload]).select().single()
@@ -406,7 +413,7 @@ export async function createEquipment(payload: {
 
 export async function updateEquipment(id: string, payload: {
   name: string; note: string | null; quantity: number; unit_price: number; total_price: number
-  expense_id: string | null; category: string | null
+  expense_id: string | null; category: string | null; location: string | null
 }) {
   const supabase = await requireAuth()
   const { data: prev } = await supabase.from('event_equipment').select('expense_id').eq('id', id).single()
