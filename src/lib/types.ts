@@ -57,6 +57,8 @@ export interface Expense {
   created_at: string
 }
 
+export type EquipmentCategory = 'ZVUK' | 'VIDEO' | 'SVĚTLA' | 'POWER' | 'HARDWARE'
+
 export interface EventEquipment {
   id: string
   event_id: string
@@ -66,7 +68,18 @@ export interface EventEquipment {
   unit_price: number
   total_price: number
   expense_id: string | null
+  category: EquipmentCategory | null
   created_at: string
+}
+
+export const EQUIPMENT_CATEGORIES: EquipmentCategory[] = ['ZVUK', 'VIDEO', 'SVĚTLA', 'POWER', 'HARDWARE']
+
+export const EQUIPMENT_CATEGORY_COLORS: Record<EquipmentCategory, { color: string; bg: string; border: string }> = {
+  ZVUK:     { color: '#38bdf8', bg: '#0a1e2e', border: '#0a3e5c' },
+  VIDEO:    { color: '#a78bfa', bg: '#1a1035', border: '#3d2d6b' },
+  SVĚTLA:   { color: '#fbbf24', bg: '#2d2005', border: '#5c4000' },
+  POWER:    { color: '#fde68a', bg: '#2d2500', border: '#5c4a00' },
+  HARDWARE: { color: '#9ca3af', bg: '#1a1a1a', border: '#2d2d2d' },
 }
 
 export interface Income {

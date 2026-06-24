@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const supabaseHost = 'iwscqafknuhncmyzbklq.supabase.co'
 
@@ -15,6 +16,9 @@ const csp = [
 ].join('; ')
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: path.join(__dirname),
+  },
   async headers() {
     return [
       {
