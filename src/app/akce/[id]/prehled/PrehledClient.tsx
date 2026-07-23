@@ -252,8 +252,10 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <span style={{ fontSize: '13px', fontWeight: '700', color: budget > 0 && data.total > budget ? '#f87171' : cc.color }}>{fmt(data.total)}</span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginLeft: '6px' }}>
-                          {totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0}%
+                        <span style={{ fontSize: '11px', color: budget > 0 && data.total > budget ? '#f87171' : 'var(--text-dim)', marginLeft: '6px' }}>
+                          {budget > 0
+                            ? `${Math.round((data.total / budget) * 100)}% rozpočtu`
+                            : `${totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0}%`}
                         </span>
                       </div>
                     </div>
