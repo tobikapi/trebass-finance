@@ -149,7 +149,7 @@ export async function deleteIncome(id: string) {
 
 // LINEUP
 export async function createArtist(payload: {
-  event_id: string; artist_name: string; fee: number; deposit: number;
+  event_id: string; artist_name: string; fee: number; deposit: number; travel_cost: number;
   paid: boolean; date: string | null; set_time: string | null; stage: string | null; notes: string | null
 }) {
   const supabase = await requireAuth()
@@ -164,7 +164,7 @@ export async function createArtist(payload: {
     item: payload.artist_name,
     note: noteParts.length ? noteParts.join(' · ') : null,
     payment_timing: null,
-    price: payload.fee,
+    price: payload.fee + payload.travel_cost,
     deposit: payload.deposit,
     paid: payload.paid,
     lineup_artist_id: data.id,
@@ -175,7 +175,7 @@ export async function createArtist(payload: {
 }
 
 export async function updateArtist(id: string, payload: {
-  event_id: string; artist_name: string; fee: number; deposit: number;
+  event_id: string; artist_name: string; fee: number; deposit: number; travel_cost: number;
   paid: boolean; date: string | null; set_time: string | null; stage: string | null; notes: string | null
 }) {
   const supabase = await requireAuth()
@@ -187,7 +187,7 @@ export async function updateArtist(id: string, payload: {
   const { error: expError } = await supabase.from('expenses').update({
     item: payload.artist_name,
     note: noteParts.length ? noteParts.join(' · ') : null,
-    price: payload.fee,
+    price: payload.fee + payload.travel_cost,
     deposit: payload.deposit,
     paid: payload.paid,
   }).eq('lineup_artist_id', id)

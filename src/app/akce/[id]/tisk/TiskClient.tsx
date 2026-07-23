@@ -55,10 +55,11 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
   const totalRemaining = expenses.reduce((s, e) => s + (e.paid ? 0 : e.price - e.deposit), 0)
   const totalIncome = income.reduce((s, i) => s + i.amount, 0)
   const balance = totalIncome - totalExpenses
-  const lineupTotal = lineup.reduce((s, a) => s + a.fee, 0)
+  const lineupTotal = lineup.reduce((s, a) => s + a.fee + a.travel_cost, 0)
   const lineupDeposits = lineup.reduce((s, a) => s + a.deposit, 0)
-  const lineupPaid = lineup.reduce((s, a) => s + (a.paid ? a.fee : 0), 0)
-  const lineupRemaining = lineup.reduce((s, a) => s + (a.paid ? 0 : a.fee - a.deposit), 0)
+  const lineupTravel = lineup.reduce((s, a) => s + a.travel_cost, 0)
+  const lineupPaid = lineup.reduce((s, a) => s + (a.paid ? a.fee + a.travel_cost : 0), 0)
+  const lineupRemaining = lineup.reduce((s, a) => s + (a.paid ? 0 : a.fee + a.travel_cost - a.deposit), 0)
 
   const expensesByCategory = CATEGORIES.map(cat => ({
     cat,
@@ -101,12 +102,12 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(incRows), 'Příjmy')
 
     if (lineup.length > 0) {
-      const linRows: (string | number)[][] = [['Artist', 'Stage', 'Datum', 'Set time', 'Honorář (Kč)', 'Záloha (Kč)', 'Zbývá (Kč)', 'Zaplaceno', 'Poznámky']]
+      const linRows: (string | number)[][] = [['Artist', 'Stage', 'Datum', 'Set time', 'Honorář (Kč)', 'Záloha (Kč)', 'Cesťák (Kč)', 'Zbývá (Kč)', 'Zaplaceno', 'Poznámky']]
       for (const a of lineup) {
-        linRows.push([a.artist_name, a.stage || '', a.date || '', a.set_time || '', a.fee, a.deposit, a.paid ? 0 : a.fee - a.deposit, a.paid ? 'ANO' : 'NE', a.notes || ''])
+        linRows.push([a.artist_name, a.stage || '', a.date || '', a.set_time || '', a.fee, a.deposit, a.travel_cost, a.paid ? 0 : a.fee + a.travel_cost - a.deposit, a.paid ? 'ANO' : 'NE', a.notes || ''])
       }
       linRows.push([])
-      linRows.push(['CELKEM', '', '', '', lineupTotal, lineupDeposits, '', '', ''])
+      linRows.push(['CELKEM', '', '', '', lineupTotal - lineupTravel, lineupDeposits, lineupTravel, '', '', ''])
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linRows), 'Lineup')
     }
 
@@ -303,6 +304,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                   <th style={th}>Umělec</th>
                   <th style={th}>Set time</th>
                   <th style={{ ...th, textAlign: 'right' }}>Záloha</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Cesťák</th>
                   <th style={{ ...th, textAlign: 'right' }}>Honorář</th>
                   <th style={{ ...th, textAlign: 'center' }}>Uhrazeno</th>
                   <th style={th}>Poznámka</th>
@@ -314,6 +316,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                     <td style={{ ...td, fontWeight: '600' }}>{a.artist_name}</td>
                     <td style={td}>{a.set_time || '—'}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{a.deposit ? fmt(a.deposit) : '—'}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{a.travel_cost ? fmt(a.travel_cost) : '—'}</td>
                     <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{fmt(a.fee)}</td>
                     <td style={{ ...td, textAlign: 'center', color: a.paid ? '#16a34a' : '#dc2626', fontWeight: '700' }}>{a.paid ? '✓' : '✗'}</td>
                     <td style={{ ...td, color: '#888' }}>{a.notes || '—'}</td>

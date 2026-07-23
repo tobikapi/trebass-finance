@@ -99,6 +99,7 @@ export interface LineupArtist {
   artist_name: string
   fee: number
   deposit: number
+  travel_cost: number
   paid: boolean
   date: string | null
   set_time: string | null

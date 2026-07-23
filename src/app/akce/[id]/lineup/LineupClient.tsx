@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 
 interface Contact { id: string; name: string; type: string; fee: number }
 
-const emptyForm = { artist_name: '', fee: '', deposit: '', paid: false, date: '', set_time: '', stage: '', notes: '' }
+const emptyForm = { artist_name: '', fee: '', deposit: '', travel_cost: '', paid: false, date: '', set_time: '', stage: '', notes: '' }
 
 const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' } as const
 const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
@@ -136,7 +136,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
 
   function startEdit(art: LineupArtist) {
     const stageKey = art.stage && stages.includes(art.stage) ? art.stage : '__unassigned__'
-    setForm({ artist_name: art.artist_name, fee: art.fee.toString(), deposit: art.deposit.toString(), paid: art.paid, date: art.date || '', set_time: art.set_time || '', stage: art.stage || '', notes: art.notes || '' })
+    setForm({ artist_name: art.artist_name, fee: art.fee.toString(), deposit: art.deposit.toString(), travel_cost: art.travel_cost > 0 ? art.travel_cost.toString() : '', paid: art.paid, date: art.date || '', set_time: art.set_time || '', stage: art.stage || '', notes: art.notes || '' })
     setEditId(art.id)
     setActiveStage(stageKey)
     setActiveDate(art.date || '')
@@ -151,7 +151,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
-    const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, paid: form.paid, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
+    const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, travel_cost: parseFloat(form.travel_cost) || 0, paid: form.paid, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
     const result = editId ? await callAction('updateArtist', editId, payload) : await callAction('createArtist', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     await load(); closeForm(); setSaving(false)
@@ -171,6 +171,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
 
   const totalFees = artists.reduce((s, a) => s + a.fee, 0)
   const totalDeposits = artists.reduce((s, a) => s + a.deposit, 0)
+  const totalTravel = artists.reduce((s, a) => s + a.travel_cost, 0)
   const unpaid = artists.filter((a) => !a.paid).length
   const unstagedArtists = artists.filter(a => !a.stage || !stages.includes(a.stage))
 
@@ -223,6 +224,10 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             <label style={labelStyle}>Záloha (Kč)</label>
             <input type="number" value={form.deposit} onChange={e => setForm({ ...form, deposit: e.target.value })} placeholder="0" style={inputStyle} />
           </div>
+          <div>
+            <label style={labelStyle}>Cesťák (Kč)</label>
+            <input type="number" value={form.travel_cost} onChange={e => setForm({ ...form, travel_cost: e.target.value })} placeholder="0" style={inputStyle} />
+          </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={form.paid} onChange={e => setForm({ ...form, paid: e.target.checked })} />
@@ -258,8 +263,8 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
     return (
       <div style={{ borderRadius: '10px', overflow: 'hidden', border: `1px solid ${sc.border}`, marginBottom: '4px' }}>
         <div className="lineup-header" style={{ backgroundColor: sc.bg }}>
-          {(['Artist', 'Set Time', 'Honorář', 'Záloha', 'Zbývá', 'Paid', 'Poznámky', ''] as const).map((h, i) => (
-            <div key={h + i} style={{ fontSize: '11px', fontWeight: '600', color: sc.main, textAlign: i >= 2 && i <= 4 ? 'right' : 'left', opacity: 0.9 }}>{h}</div>
+          {(['Artist', 'Set Time', 'Honorář', 'Záloha', 'Cesťák', 'Zbývá', 'Paid', 'Poznámky', ''] as const).map((h, i) => (
+            <div key={h + i} style={{ fontSize: '11px', fontWeight: '600', color: sc.main, textAlign: i >= 2 && i <= 5 ? 'right' : 'left', opacity: 0.9 }}>{h}</div>
           ))}
         </div>
         {sorted.map(art => (
@@ -270,8 +275,11 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             <div style={{ textAlign: 'right', color: art.deposit > 0 ? '#60a5fa' : 'var(--text-faint)', fontSize: '13px' }}>
               {art.deposit > 0 ? `${art.deposit.toLocaleString('cs-CZ')} Kč` : '—'}
             </div>
-            <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: art.paid || art.fee - art.deposit <= 0 ? '#34d399' : '#f87171' }}>
-              {art.paid ? '0 Kč' : `${(art.fee - art.deposit).toLocaleString('cs-CZ')} Kč`}
+            <div style={{ textAlign: 'right', color: art.travel_cost > 0 ? '#fbbf24' : 'var(--text-faint)', fontSize: '13px' }}>
+              {art.travel_cost > 0 ? `${art.travel_cost.toLocaleString('cs-CZ')} Kč` : '—'}
+            </div>
+            <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: art.paid || art.fee + art.travel_cost - art.deposit <= 0 ? '#34d399' : '#f87171' }}>
+              {art.paid ? '0 Kč' : `${(art.fee + art.travel_cost - art.deposit).toLocaleString('cs-CZ')} Kč`}
             </div>
             <div>
               <button onClick={() => handleTogglePaid(art)} style={{
@@ -299,8 +307,8 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
     const dc = DAY_PALETTE[dayIdx % DAY_PALETTE.length]
     const dayArtists = filteredArtists.filter(a => a.stage === stageName && a.date === dayStr)
     const isDayFormOpen = activeStage === stageName && activeDate === dayStr
-    const dayTotal = dayArtists.reduce((s, a) => s + a.fee, 0)
-    const dayUnpaid = dayArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee - a.deposit), 0)
+    const dayTotal = dayArtists.reduce((s, a) => s + a.fee + a.travel_cost, 0)
+    const dayUnpaid = dayArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee + a.travel_cost - a.deposit), 0)
     return (
       <div key={dayStr} style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -337,6 +345,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             { label: 'Artistů celkem', value: artists.length, color: '#a78bfa', suffix: '' },
             { label: 'Celkové honoráře', value: totalFees.toLocaleString('cs-CZ'), color: '#f87171', suffix: ' Kč' },
             { label: 'Zálohy', value: totalDeposits.toLocaleString('cs-CZ'), color: '#60a5fa', suffix: ' Kč' },
+            { label: 'Cesťáky', value: totalTravel.toLocaleString('cs-CZ'), color: '#fbbf24', suffix: ' Kč' },
             { label: 'Nezaplacených', value: unpaid, color: '#fbbf24', suffix: '' },
           ].map((s) => (
             <div key={s.label} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)' }}>
@@ -400,8 +409,8 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             const sc = STAGE_PALETTE[stageIdx % STAGE_PALETTE.length]
             const stageArtists = filteredArtists.filter(a => a.stage === stageName)
             const isStageFormOpen = !multiDay && activeStage === stageName
-            const stageTotal = stageArtists.reduce((s, a) => s + a.fee, 0)
-            const stageUnpaid = stageArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee - a.deposit), 0)
+            const stageTotal = stageArtists.reduce((s, a) => s + a.fee + a.travel_cost, 0)
+            const stageUnpaid = stageArtists.filter(a => !a.paid).reduce((s, a) => s + (a.fee + a.travel_cost - a.deposit), 0)
             const isCollapsed = !!collapsedStages[stageName]
             return (
               <div key={stageName} style={{ marginBottom: '36px' }}>
