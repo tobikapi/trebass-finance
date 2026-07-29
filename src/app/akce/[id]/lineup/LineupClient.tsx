@@ -6,6 +6,7 @@ import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
+import { useUndo } from '@/lib/undo-context'
 
 interface Contact { id: string; name: string; type: string; fee: number }
 
@@ -64,6 +65,7 @@ interface Props {
 }
 
 export default function LineupClient({ id, initialArtists, initialContacts, initialStages, initialEventDates }: Props) {
+  const { pushUndo } = useUndo()
   const [artists, setArtists] = useState<LineupArtist[]>(initialArtists)
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [stages, setStages] = useState<string[]>(initialStages)
@@ -152,14 +154,31 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
     const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, travel_cost: parseFloat(form.travel_cost) || 0, paid: form.paid, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
+    const prev = editId ? artists.find(a => a.id === editId) : null
     const result = editId ? await callAction('updateArtist', editId, payload) : await callAction('createArtist', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (editId && prev) {
+      const prevPayload = { event_id: id, artist_name: prev.artist_name, fee: prev.fee, deposit: prev.deposit, travel_cost: prev.travel_cost, paid: prev.paid, date: prev.date, set_time: prev.set_time, stage: prev.stage, notes: prev.notes }
+      pushUndo(`úprava artisty „${prev.artist_name}“`, async () => {
+        const res = await callAction('updateArtist', editId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load(); closeForm(); setSaving(false)
   }
 
   async function handleDelete(artId: string) {
     if (!confirm('Smazat tohoto artista?')) return
+    const row = artists.find(a => a.id === artId)
     await callAction('deleteArtist', artId); await load()
+    if (row) {
+      pushUndo(`smazání artisty „${row.artist_name}“`, async () => {
+        const res = await callAction('restoreArtist', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   async function handleTogglePaid(art: LineupArtist) {

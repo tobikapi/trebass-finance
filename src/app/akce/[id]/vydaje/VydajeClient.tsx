@@ -6,6 +6,7 @@ import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
+import { useUndo } from '@/lib/undo-context'
 
 type Budgets = Record<string, number>
 
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function VydajeClient({ id, initialExpenses, initialBudgets }: Props) {
+  const { pushUndo } = useUndo()
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [budgets, setBudgets] = useState<Budgets>(initialBudgets)
   const [linkedExpenseIds, setLinkedExpenseIds] = useState<Set<string>>(new Set())
@@ -73,15 +75,32 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
       price: parseFloat(form.price) || 0, deposit: parseFloat(form.deposit) || 0,
       paid: form.paid,
     }
+    const prev = editId ? expenses.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateExpense', editId, payload) : await callAction('createExpense', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (editId && prev) {
+      const prevPayload = { category: prev.category, item: prev.item, note: prev.note, payment_timing: prev.payment_timing, price: prev.price, deposit: prev.deposit, paid: prev.paid }
+      pushUndo(`úprava výdaje „${prev.item}“`, async () => {
+        const res = await callAction('updateExpense', editId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(expId: string) {
     if (!confirm('Smazat tento výdaj?')) return
+    const row = expenses.find(e => e.id === expId)
     await callAction('deleteExpense', expId); await load()
+    if (row) {
+      pushUndo(`smazání výdaje „${row.item}“`, async () => {
+        const res = await callAction('restoreRow', 'expenses', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   async function handleTogglePaid(exp: Expense) {

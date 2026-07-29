@@ -6,6 +6,7 @@ import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
+import { useUndo } from '@/lib/undo-context'
 
 interface Props {
   id: string
@@ -32,6 +33,7 @@ const labelStyle: CSSProperties = {
 const rowGrid = '1fr 180px 60px 90px 90px 90px'
 
 export default function TechnikaClient({ id, initialEquipment }: Props) {
+  const { pushUndo } = useUndo()
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
   const [expenseOptions, setExpenseOptions] = useState<ExpenseOption[]>([])
   const [locations, setLocations] = useState<string[]>([])
@@ -97,17 +99,34 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       category: form.category || null,
       location: form.location || null,
     }
+    const prev = editId ? equipment.find(x => x.id === editId) : null
     const result = editId
       ? await callAction('updateEquipment', editId, base)
       : await callAction('createEquipment', { event_id: id, ...base })
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (editId && prev) {
+      const prevPayload = { name: prev.name, note: prev.note, quantity: prev.quantity, unit_price: prev.unit_price, total_price: prev.total_price, expense_id: prev.expense_id, category: prev.category, location: prev.location }
+      pushUndo(`úprava techniky „${prev.name}“`, async () => {
+        const res = await callAction('updateEquipment', editId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(eqId: string) {
     if (!confirm('Smazat tuto položku techniky?')) return
+    const row = equipment.find(e => e.id === eqId)
     await callAction('deleteEquipment', eqId); await load()
+    if (row) {
+      pushUndo(`smazání techniky „${row.name}“`, async () => {
+        const res = await callAction('restoreRow', 'event_equipment', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   function startEdit(eq: EventEquipment) {

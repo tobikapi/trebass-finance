@@ -7,6 +7,7 @@ import {
   COMPANY_CATEGORIES, COMPANY_CATEGORY_COLORS, COMPANY_INCOME_SOURCES,
 } from '@/lib/types'
 import { callAction } from '@/lib/call-action'
+import { useUndo } from '@/lib/undo-context'
 
 const emptyExpForm = {
   category: COMPANY_CATEGORIES[0], item: '', note: '', amount: '', paid: false, date: '',
@@ -40,6 +41,7 @@ function fmtDate(d: string) {
 }
 
 export default function FirmaPage() {
+  const { pushUndo } = useUndo()
   const [expenses, setExpenses] = useState<CompanyExpense[]>([])
   const [income, setIncome] = useState<CompanyIncome[]>([])
   const [contributions, setContributions] = useState<ContributionRow[]>([])
@@ -151,17 +153,34 @@ export default function FirmaPage() {
       note: expForm.note || null, amount: parseFloat(expForm.amount) || 0,
       paid: expForm.paid, date: expForm.date || null,
     }
+    const prevExp = editExpId ? expenses.find(x => x.id === editExpId) : null
     const result = editExpId
       ? await callAction('updateCompanyExpense', editExpId, payload)
       : await callAction('createCompanyExpense', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSavingExp(false); return }
+    if (editExpId && prevExp) {
+      const prevPayload = { category: prevExp.category, item: prevExp.item, note: prevExp.note, amount: prevExp.amount, paid: prevExp.paid, date: prevExp.date }
+      pushUndo(`úprava firemního výdaje „${prevExp.item}“`, async () => {
+        const res = await callAction('updateCompanyExpense', editExpId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load()
     setExpForm(emptyExpForm); setShowExpForm(false); setEditExpId(null); setSavingExp(false)
   }
 
   async function handleExpDelete(id: string) {
     if (!confirm('Smazat tento výdaj?')) return
+    const row = expenses.find(e => e.id === id)
     await callAction('deleteCompanyExpense', id); await load()
+    if (row) {
+      pushUndo(`smazání firemního výdaje „${row.item}“`, async () => {
+        const res = await callAction('restoreRow', 'company_expenses', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   async function handleToggleExpPaid(exp: CompanyExpense) {
@@ -180,17 +199,34 @@ export default function FirmaPage() {
       source: incForm.source, name: incForm.name || null, amount: parseFloat(incForm.amount) || 0,
       note: incForm.note || null, date: incForm.date || null,
     }
+    const prevInc = editIncId ? income.find(x => x.id === editIncId) : null
     const result = editIncId
       ? await callAction('updateCompanyIncome', editIncId, payload)
       : await callAction('createCompanyIncome', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSavingInc(false); return }
+    if (editIncId && prevInc) {
+      const prevPayload = { source: prevInc.source, name: prevInc.name, amount: prevInc.amount, note: prevInc.note, date: prevInc.date }
+      pushUndo(`úprava vkladu „${prevInc.name || prevInc.source}“`, async () => {
+        const res = await callAction('updateCompanyIncome', editIncId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load()
     setIncForm(emptyIncForm); setShowIncForm(false); setEditIncId(null); setSavingInc(false)
   }
 
   async function handleIncDelete(id: string) {
     if (!confirm('Smazat tento příjem?')) return
+    const row = income.find(i => i.id === id)
     await callAction('deleteCompanyIncome', id); await load()
+    if (row) {
+      pushUndo(`smazání vkladu „${row.name || row.source}“`, async () => {
+        const res = await callAction('restoreRow', 'company_income', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   function startEditInc(inc: CompanyIncome) {

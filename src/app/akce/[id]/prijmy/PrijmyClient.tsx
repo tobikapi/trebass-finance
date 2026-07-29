@@ -6,6 +6,7 @@ import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
+import { useUndo } from '@/lib/undo-context'
 
 const emptyForm = { source: INCOME_SOURCES[0], amount: '', note: '' }
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function PrijmyClient({ id, initialIncome, initialExpenses }: Props) {
+  const { pushUndo } = useUndo()
   const [income, setIncome] = useState<Income[]>(initialIncome)
   const [expenses, setExpenses] = useState<{ price: number; deposit: number }[]>(initialExpenses)
   const [showForm, setShowForm] = useState(false)
@@ -38,14 +40,31 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
     const payload = { event_id: id, source: form.source, amount: parseFloat(form.amount) || 0, note: form.note || null }
+    const prev = editId ? income.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateIncome', editId, payload) : await callAction('createIncome', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (editId && prev) {
+      const prevPayload = { source: prev.source, amount: prev.amount, note: prev.note }
+      pushUndo(`úprava příjmu „${prev.source}“`, async () => {
+        const res = await callAction('updateIncome', editId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(incId: string) {
     if (!confirm('Smazat tento příjem?')) return
+    const row = income.find(i => i.id === incId)
     await callAction('deleteIncome', incId); await load()
+    if (row) {
+      pushUndo(`smazání příjmu „${row.source}“`, async () => {
+        const res = await callAction('restoreRow', 'income', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   function startEdit(inc: Income) {

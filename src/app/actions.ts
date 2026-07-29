@@ -432,3 +432,46 @@ export async function deleteEquipment(id: string) {
   await recalcExpensePrice(supabase, prev?.expense_id ?? null)
   return { data: true }
 }
+
+// UNDO
+const RESTORABLE_TABLES = [
+  'expenses', 'income', 'contacts', 'notes', 'tasks',
+  'team_contributions', 'company_expenses', 'company_income', 'event_equipment',
+] as const
+type RestorableTable = typeof RESTORABLE_TABLES[number]
+
+export async function restoreRow(table: RestorableTable, row: Record<string, unknown>) {
+  const supabase = await requireAuth()
+  if (!RESTORABLE_TABLES.includes(table)) return { error: 'Neplatná tabulka pro obnovení' }
+  const { error } = await supabase.from(table).insert([row])
+  if (error) return { error: error.message }
+  if (table === 'event_equipment' && row.expense_id) {
+    await recalcExpensePrice(supabase, row.expense_id as string)
+  }
+  return { data: true }
+}
+
+export async function restoreArtist(row: {
+  id: string; event_id: string; artist_name: string; fee: number; deposit: number; travel_cost: number
+  paid: boolean; date: string | null; set_time: string | null; stage: string | null; notes: string | null
+}) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('lineup').insert([row])
+  if (error) return { error: error.message }
+
+  const noteParts = [row.stage, row.set_time].filter(Boolean)
+  const { error: expError } = await supabase.from('expenses').insert([{
+    event_id: row.event_id,
+    category: 'LINEUP',
+    item: row.artist_name,
+    note: noteParts.length ? noteParts.join(' · ') : null,
+    payment_timing: null,
+    price: row.fee + row.travel_cost,
+    deposit: row.deposit,
+    paid: row.paid,
+    lineup_artist_id: row.id,
+  }])
+  if (expError) return { error: expError.message }
+
+  return { data: true }
+}

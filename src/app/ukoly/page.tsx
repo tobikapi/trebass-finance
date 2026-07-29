@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { callAction } from '@/lib/call-action'
+import { useUndo } from '@/lib/undo-context'
 
 const MEMBERS = ['Tobiáš', 'Jakub', 'Metoděj', 'Artur']
 const STATUSES = [
@@ -26,6 +27,7 @@ interface Event { id: string; name: string }
 const emptyForm = { title: '', description: '', assigned_to_members: [] as string[], status: 'todo', priority: 'medium', due_date: '', event_id: '' }
 
 export default function UkolyPage() {
+  const { pushUndo } = useUndo()
   const [tasks, setTasks] = useState<Task[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,18 +59,41 @@ export default function UkolyPage() {
       due_date: form.due_date || null,
       event_id: form.event_id || null,
     }
+    const prev = editId ? tasks.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateTask', editId, payload) : await callAction('createTask', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (editId && prev) {
+      const prevPayload = { title: prev.title, description: prev.description, assigned_to_members: prev.assigned_to_members, status: prev.status, priority: prev.priority, due_date: prev.due_date, event_id: prev.event_id }
+      pushUndo(`úprava úkolu „${prev.title}“`, async () => {
+        const res = await callAction('updateTask', editId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Smazat tento úkol?')) return
+    const row = tasks.find(t => t.id === id)
     await callAction('deleteTask', id); await load()
+    if (row) {
+      pushUndo(`smazání úkolu „${row.title}“`, async () => {
+        const res = await callAction('restoreRow', 'tasks', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   async function handleStatusChange(task: Task, newStatus: string) {
+    const prevStatus = task.status
     await callAction('updateTaskStatus', task.id, newStatus); await load()
+    pushUndo(`změna statusu „${task.title}“`, async () => {
+      const res = await callAction('updateTaskStatus', task.id, prevStatus)
+      if (res.error) throw new Error(res.error)
+      await load()
+    })
   }
 
   function startEdit(task: Task) {

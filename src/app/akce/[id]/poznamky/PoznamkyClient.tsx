@@ -5,6 +5,7 @@ import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
+import { useUndo } from '@/lib/undo-context'
 
 interface Note { id: string; author: string; content: string; created_at: string }
 interface Props {
@@ -19,6 +20,7 @@ const MEMBER_COLORS: Record<string, string> = {
 }
 
 export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Props) {
+  const { pushUndo } = useUndo()
   const [notes, setNotes] = useState<Note[]>(initialNotes)
   const [author, setAuthor] = useState(initialAuthor)
   const [content, setContent] = useState('')
@@ -47,8 +49,16 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
 
   async function handleDelete(noteId: string) {
     if (!confirm('Smazat poznámku?')) return
+    const row = notes.find(n => n.id === noteId)
     await callAction('deleteNote', noteId)
     await load()
+    if (row) {
+      pushUndo(`smazání poznámky od ${row.author}`, async () => {
+        const res = await callAction('restoreRow', 'notes', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   function formatTime(ts: string) {

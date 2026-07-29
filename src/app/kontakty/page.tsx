@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { callAction } from '@/lib/call-action'
+import { useUndo } from '@/lib/undo-context'
 
 const TYPES = ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security', 'jiné']
 const TYPE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -24,6 +25,7 @@ interface Contact {
 const emptyForm = { name: '', type: 'DJ', email: '', phone: '', note: '', fee: '0' }
 
 export default function KontaktyPage() {
+  const { pushUndo } = useUndo()
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -48,8 +50,17 @@ export default function KontaktyPage() {
       email: form.email || null, phone: form.phone || null, note: form.note || null,
       fee: parseInt(form.fee) || 0,
     }
+    const prev = editId ? contacts.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateContact', editId, payload) : await callAction('createContact', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (editId && prev) {
+      const prevPayload = { name: prev.name, type: prev.type, fee: prev.fee, email: prev.email, phone: prev.phone, note: prev.note }
+      pushUndo(`úprava kontaktu „${prev.name}“`, async () => {
+        const res = await callAction('updateContact', editId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
@@ -60,7 +71,15 @@ export default function KontaktyPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('Smazat kontakt?')) return
+    const row = contacts.find(c => c.id === id)
     await callAction('deleteContact', id); await load()
+    if (row) {
+      pushUndo(`smazání kontaktu „${row.name}“`, async () => {
+        const res = await callAction('restoreRow', 'contacts', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   const filtered = contacts.filter(c => {

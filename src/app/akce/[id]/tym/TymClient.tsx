@@ -5,6 +5,7 @@ import { TeamContribution } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
+import { useUndo } from '@/lib/undo-context'
 
 const emptyForm = { name: '', amount: '', note: '' }
 
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function TymClient({ id, initialContributions }: Props) {
+  const { pushUndo } = useUndo()
   const [contributions, setContributions] = useState<TeamContribution[]>(initialContributions)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -36,15 +38,32 @@ export default function TymClient({ id, initialContributions }: Props) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
     const payload = { event_id: id, name: form.name, amount: parseFloat(form.amount) || 0, note: form.note || null }
+    const prev = editId ? contributions.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateContribution', editId, payload) : await callAction('createContribution', payload)
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (editId && prev) {
+      const prevPayload = { name: prev.name, amount: prev.amount, note: prev.note }
+      pushUndo(`úprava příspěvku „${prev.name}“`, async () => {
+        const res = await callAction('updateContribution', editId, prevPayload)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }
 
   async function handleDelete(contId: string) {
     if (!confirm('Smazat tento příspěvek?')) return
+    const row = contributions.find(c => c.id === contId)
     await callAction('deleteContribution', contId); await load()
+    if (row) {
+      pushUndo(`smazání příspěvku „${row.name}“`, async () => {
+        const res = await callAction('restoreRow', 'team_contributions', row)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
   }
 
   function startEdit(c: TeamContribution) {
