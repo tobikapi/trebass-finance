@@ -121,6 +121,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
   }
 
   async function removeStage(name: string) {
+    if (!confirm(`Smazat stage „${name}“?`)) return
     const prevStages = stages
     const updated = stages.filter(s => s !== name)
     await callAction('updateEventStages', id, updated)

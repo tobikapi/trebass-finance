@@ -190,6 +190,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   }
 
   async function removeLocation(name: string) {
+    if (!confirm(`Smazat místo „${name}“?`)) return
     const prevLocations = locations
     const updated = locations.filter(l => l !== name)
     await callAction('updateEventEquipmentLocations', id, updated)
