@@ -33,6 +33,7 @@ export default function SplashScreen() {
           src="/photos/photo-6.jpg"
           alt=""
           fill
+          sizes="100vw"
           style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
           priority
         />

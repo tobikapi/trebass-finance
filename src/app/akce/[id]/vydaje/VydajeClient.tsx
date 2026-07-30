@@ -85,6 +85,13 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
         if (res.error) throw new Error(res.error)
         await load()
       })
+    } else if (!editId && result.data) {
+      const newId = (result.data as Expense).id
+      pushUndo(`přidání výdaje „${payload.item}“`, async () => {
+        const res = await callAction('deleteExpense', newId)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
     }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
@@ -104,7 +111,13 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
   }
 
   async function handleTogglePaid(exp: Expense) {
-    await callAction('toggleExpensePaid', exp.id, !exp.paid); await load()
+    const prevPaid = exp.paid
+    await callAction('toggleExpensePaid', exp.id, !prevPaid); await load()
+    pushUndo(`změna platby „${exp.item}“`, async () => {
+      const res = await callAction('toggleExpensePaid', exp.id, prevPaid)
+      if (res.error) throw new Error(res.error)
+      await load()
+    })
   }
 
   function startEdit(exp: Expense) {

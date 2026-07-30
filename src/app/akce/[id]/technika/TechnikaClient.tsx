@@ -111,6 +111,13 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
         if (res.error) throw new Error(res.error)
         await load()
       })
+    } else if (!editId && result.data) {
+      const newId = (result.data as EventEquipment).id
+      pushUndo(`přidání techniky „${base.name}“`, async () => {
+        const res = await callAction('deleteEquipment', newId)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
     }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
@@ -149,11 +156,20 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     e.preventDefault()
     if (!vendorName.trim()) return
     setSavingVendor(true)
+    const vendorLabel = vendorName.trim()
     const result = await callAction('createExpense', {
-      event_id: id, category: 'TECHNIKA', item: vendorName.trim(),
+      event_id: id, category: 'TECHNIKA', item: vendorLabel,
       note: null, payment_timing: null, price: 0, deposit: 0, paid: false,
     })
     if (result.error) { alert('Chyba: ' + result.error); setSavingVendor(false); return }
+    if (result.data) {
+      const newId = (result.data as { id: string }).id
+      pushUndo(`přidání pronajímatele „${vendorLabel}“`, async () => {
+        const res = await callAction('deleteExpense', newId)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     await load()
     setVendorName(''); setShowVendorForm(false); setSavingVendor(false)
   }
@@ -161,16 +177,28 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   async function addLocation() {
     const name = newLocation.trim()
     if (!name || locations.includes(name)) return
+    const prevLocations = locations
     const updated = [...locations, name]
     await callAction('updateEventEquipmentLocations', id, updated)
     setLocations(updated)
     setNewLocation('')
+    pushUndo(`přidání místa „${name}“`, async () => {
+      const res = await callAction('updateEventEquipmentLocations', id, prevLocations)
+      if (res.error) throw new Error(res.error)
+      await load()
+    })
   }
 
   async function removeLocation(name: string) {
+    const prevLocations = locations
     const updated = locations.filter(l => l !== name)
     await callAction('updateEventEquipmentLocations', id, updated)
     setLocations(updated)
+    pushUndo(`odebrání místa „${name}“`, async () => {
+      const res = await callAction('updateEventEquipmentLocations', id, prevLocations)
+      if (res.error) throw new Error(res.error)
+      await load()
+    })
   }
 
   const totalPrice = equipment.reduce((s, e) => s + e.total_price, 0)

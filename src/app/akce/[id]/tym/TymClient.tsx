@@ -48,6 +48,13 @@ export default function TymClient({ id, initialContributions }: Props) {
         if (res.error) throw new Error(res.error)
         await load()
       })
+    } else if (!editId && result.data) {
+      const newId = (result.data as TeamContribution).id
+      pushUndo(`přidání příspěvku „${payload.name}“`, async () => {
+        const res = await callAction('deleteContribution', newId)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
     }
     await load()
     setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)

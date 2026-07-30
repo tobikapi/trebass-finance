@@ -50,6 +50,13 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
         if (res.error) throw new Error(res.error)
         await load()
       })
+    } else if (!editId && result.data) {
+      const newId = (result.data as Income).id
+      pushUndo(`přidání příjmu „${payload.source}“`, async () => {
+        const res = await callAction('deleteIncome', newId)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
     }
     await load(); setForm(emptyForm); setShowForm(false); setEditId(null); setSaving(false)
   }

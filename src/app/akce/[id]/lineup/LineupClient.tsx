@@ -107,17 +107,29 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
   async function addStage() {
     const name = newStage.trim()
     if (!name || stages.includes(name)) return
+    const prevStages = stages
     const updated = [...stages, name]
     await callAction('updateEventStages', id, updated)
     setStages(updated)
     setCollapsedStages(prev => ({ ...prev, [name]: true }))
     setNewStage('')
+    pushUndo(`přidání stage „${name}“`, async () => {
+      const res = await callAction('updateEventStages', id, prevStages)
+      if (res.error) throw new Error(res.error)
+      await load()
+    })
   }
 
   async function removeStage(name: string) {
+    const prevStages = stages
     const updated = stages.filter(s => s !== name)
     await callAction('updateEventStages', id, updated)
     setStages(updated)
+    pushUndo(`odebrání stage „${name}“`, async () => {
+      const res = await callAction('updateEventStages', id, prevStages)
+      if (res.error) throw new Error(res.error)
+      await load()
+    })
   }
 
   const { live } = useRealtime(['lineup'], load, id)
@@ -164,6 +176,13 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
         if (res.error) throw new Error(res.error)
         await load()
       })
+    } else if (!editId && result.data) {
+      const newId = (result.data as LineupArtist).id
+      pushUndo(`přidání artisty „${payload.artist_name}“`, async () => {
+        const res = await callAction('deleteArtist', newId)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
     }
     await load(); closeForm(); setSaving(false)
   }
@@ -182,7 +201,13 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
   }
 
   async function handleTogglePaid(art: LineupArtist) {
-    await callAction('toggleArtistPaid', art.id, !art.paid); await load()
+    const prevPaid = art.paid
+    await callAction('toggleArtistPaid', art.id, !prevPaid); await load()
+    pushUndo(`změna platby „${art.artist_name}“`, async () => {
+      const res = await callAction('toggleArtistPaid', art.id, prevPaid)
+      if (res.error) throw new Error(res.error)
+      await load()
+    })
   }
 
   const eventDays = getDays(eventDates.date, eventDates.date_end)

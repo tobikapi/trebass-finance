@@ -42,6 +42,14 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
     setSaving(true)
     const result = await callAction('createNote', { event_id: id, author, content: content.trim() })
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.data) {
+      const newId = (result.data as Note).id
+      pushUndo(`přidání poznámky od ${author}`, async () => {
+        const res = await callAction('deleteNote', newId)
+        if (res.error) throw new Error(res.error)
+        await load()
+      })
+    }
     setContent('')
     await load()
     setSaving(false)

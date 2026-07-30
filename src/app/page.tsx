@@ -457,7 +457,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
           {[1,2,3,4,5,6,7,8].map((n) => (
             <div key={n} style={{ position: 'relative', flexShrink: 0, width: '180px', height: '110px', borderRadius: '8px', overflow: 'hidden' }}>
-              <Image src={`/photos/photo-${n}.jpg`} alt="" fill style={{ objectFit: 'cover', filter: 'brightness(0.8) saturate(0.9)' }} />
+              <Image src={`/photos/photo-${n}.jpg`} alt="" fill sizes="180px" style={{ objectFit: 'cover', filter: 'brightness(0.8) saturate(0.9)' }} />
             </div>
           ))}
         </div>
