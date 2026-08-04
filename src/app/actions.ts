@@ -114,6 +114,20 @@ export async function deleteExpense(id: string) {
   return { data: true }
 }
 
+export async function renameExpenseItem(id: string, item: string) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('expenses').update({ item }).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function unassignEquipmentByExpense(expenseId: string) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('event_equipment').update({ expense_id: null }).eq('expense_id', expenseId)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
 export async function toggleExpensePaid(id: string, paid: boolean) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('expenses').update({ paid }).eq('id', id)

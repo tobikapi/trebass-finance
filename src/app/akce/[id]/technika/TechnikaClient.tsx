@@ -13,10 +13,24 @@ interface Props {
   initialEquipment: EventEquipment[]
 }
 
-interface ExpenseOption { id: string; item: string }
+interface ExpenseOption { id: string; item: string; category: string; note: string | null; payment_timing: string | null; price: number; deposit: number; paid: boolean }
 
 const UNASSIGNED = '__unassigned__'
 const NO_LOCATION = '__no_location__'
+
+const LOCATION_COLORS = [
+  { color: '#38bdf8', bg: '#0a1e2e', border: '#0a3e5c' },
+  { color: '#f472b6', bg: '#2d0a1e', border: '#5c0a3e' },
+  { color: '#fbbf24', bg: '#2d2005', border: '#5c4000' },
+  { color: '#4ade80', bg: '#052e16', border: '#14532d' },
+  { color: '#a78bfa', bg: '#1a1035', border: '#3d2d6b' },
+  { color: '#fb923c', bg: '#2d1505', border: '#5c2d00' },
+  { color: '#22d3ee', bg: '#052a2e', border: '#0a4a52' },
+  { color: '#f87171', bg: '#2d0a0a', border: '#5c1414' },
+]
+function locationColor(index: number) {
+  return LOCATION_COLORS[index % LOCATION_COLORS.length]
+}
 
 const emptyForm = { name: '', note: '', quantity: '1', unit_price: '', total_price: '', expense_id: '', category: '', location: '' }
 
@@ -48,6 +62,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   const [savingVendor, setSavingVendor] = useState(false)
   const [newLocation, setNewLocation] = useState('')
   const [showSummary, setShowSummary] = useState(false)
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
+  const [editVendorId, setEditVendorId] = useState<string | null>(null)
+  const [editVendorName, setEditVendorName] = useState('')
+  const [savingVendorEdit, setSavingVendorEdit] = useState(false)
 
   const loadingRef = useRef(false)
   async function load() {
@@ -56,7 +74,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     try {
       const [{ data }, { data: exp }, { data: ev }] = await Promise.all([
         supabase.from('event_equipment').select('*').eq('event_id', id).order('created_at'),
-        supabase.from('expenses').select('id, item').eq('event_id', id).eq('category', 'TECHNIKA').order('item'),
+        supabase.from('expenses').select('*').eq('event_id', id).eq('category', 'TECHNIKA').order('item'),
         supabase.from('events').select('equipment_locations').eq('id', id).single(),
       ])
       setEquipment(data || [])
@@ -174,6 +192,54 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     setVendorName(''); setShowVendorForm(false); setSavingVendor(false)
   }
 
+  function startEditVendor(vendor: ExpenseOption) {
+    setEditVendorId(vendor.id)
+    setEditVendorName(vendor.item)
+  }
+
+  async function saveVendorEdit(vendor: ExpenseOption) {
+    const newName = editVendorName.trim()
+    if (!newName || newName === vendor.item) { setEditVendorId(null); return }
+    setSavingVendorEdit(true)
+    const prevName = vendor.item
+    const res = await callAction('renameExpenseItem', vendor.id, newName)
+    if (res.error) { alert('Chyba: ' + res.error); setSavingVendorEdit(false); return }
+    await load()
+    setEditVendorId(null); setSavingVendorEdit(false)
+    pushUndo(`přejmenování pronajímatele „${prevName}“`, async () => {
+      const r = await callAction('renameExpenseItem', vendor.id, prevName)
+      if (r.error) throw new Error(r.error)
+      await load()
+    })
+  }
+
+  async function handleDeleteVendor(vendor: ExpenseOption) {
+    const linkedItems = equipment.filter(e => e.expense_id === vendor.id)
+    const msg = linkedItems.length > 0
+      ? `Smazat pronajímatele „${vendor.item}“? ${linkedItems.length} položek techniky zůstane zachováno a přesune se do „Bez pronajímatele“.`
+      : `Smazat pronajímatele „${vendor.item}“?`
+    if (!confirm(msg)) return
+    if (linkedItems.length > 0) {
+      const res = await callAction('unassignEquipmentByExpense', vendor.id)
+      if (res.error) { alert('Chyba: ' + res.error); return }
+    }
+    const res = await callAction('deleteExpense', vendor.id)
+    if (res.error) { alert('Chyba: ' + res.error); return }
+    await load()
+    pushUndo(`smazání pronajímatele „${vendor.item}“`, async () => {
+      const r1 = await callAction('restoreRow', 'expenses', vendor)
+      if (r1.error) throw new Error(r1.error)
+      for (const item of linkedItems) {
+        const r2 = await callAction('updateEquipment', item.id, {
+          name: item.name, note: item.note, quantity: item.quantity, unit_price: item.unit_price,
+          total_price: item.total_price, expense_id: vendor.id, category: item.category, location: item.location,
+        })
+        if (r2.error) throw new Error(r2.error)
+      }
+      await load()
+    })
+  }
+
   async function addLocation() {
     const name = newLocation.trim()
     if (!name || locations.includes(name)) return
@@ -202,22 +268,29 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     })
   }
 
-  const totalPrice = equipment.reduce((s, e) => s + e.total_price, 0)
+  const visibleEquipment = selectedLocation ? equipment.filter(e => e.location === selectedLocation) : equipment
+  const totalPrice = visibleEquipment.reduce((s, e) => s + e.total_price, 0)
 
   const bubbles: { key: string; label: string; items: EventEquipment[] }[] = [
-    ...expenseOptions.map(opt => ({ key: opt.id, label: opt.item, items: equipment.filter(e => e.expense_id === opt.id) })),
-    { key: UNASSIGNED, label: 'Bez pronajímatele', items: equipment.filter(e => !e.expense_id || !expenseOptions.some(o => o.id === e.expense_id)) },
+    ...expenseOptions.map(opt => ({ key: opt.id, label: opt.item, items: visibleEquipment.filter(e => e.expense_id === opt.id) })),
+    { key: UNASSIGNED, label: 'Bez pronajímatele', items: visibleEquipment.filter(e => !e.expense_id || !expenseOptions.some(o => o.id === e.expense_id)) },
   ]
 
-  const summary = Object.values(
-    equipment.reduce((acc, e) => {
-      const key = e.name.trim().toLowerCase()
-      if (!acc[key]) acc[key] = { name: e.name.trim(), quantity: 0, total_price: 0 }
-      acc[key].quantity += e.quantity
-      acc[key].total_price += e.total_price
-      return acc
-    }, {} as Record<string, { name: string; quantity: number; total_price: number }>)
-  ).sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+  function aggregateByName(items: EventEquipment[]) {
+    return Object.values(
+      items.reduce((acc, e) => {
+        const key = e.name.trim().toLowerCase()
+        if (!acc[key]) acc[key] = { name: e.name.trim(), quantity: 0, total_price: 0 }
+        acc[key].quantity += e.quantity
+        acc[key].total_price += e.total_price
+        return acc
+      }, {} as Record<string, { name: string; quantity: number; total_price: number }>)
+    ).sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+  }
+
+  const summaryByVendor = bubbles
+    .map(b => ({ key: b.key, label: b.label, rows: aggregateByName(b.items), total: b.items.reduce((s, e) => s + e.total_price, 0) }))
+    .filter(b => b.rows.length > 0)
 
   function renderForm(bubbleKey: string) {
     return (
@@ -342,13 +415,23 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
 
       {/* Místa */}
       <div style={{ marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>Místa:</span>
-        {locations.map(l => (
-          <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '5px', backgroundColor: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.35)', fontSize: '12px', color: '#38bdf8', fontWeight: '600' }}>
-            {l}
-            <button onClick={() => removeLocation(l)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#38bdf8', fontSize: '14px', lineHeight: 1, padding: 0, opacity: 0.6 }}>×</button>
-          </span>
-        ))}
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>Místa {selectedLocation ? '(klikni pro zrušení filtru):' : '(klikni pro filtr):'}</span>
+        {locations.map((l, i) => {
+          const c = locationColor(i)
+          const active = selectedLocation === l
+          return (
+            <span key={l}
+              onClick={() => setSelectedLocation(active ? null : l)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '5px', cursor: 'pointer',
+                backgroundColor: active ? c.color : c.bg, border: `1px solid ${c.color}`,
+                fontSize: '12px', color: active ? '#0c0c0c' : c.color, fontWeight: '700',
+              }}>
+              {l}
+              <button onClick={(e) => { e.stopPropagation(); removeLocation(l) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '14px', lineHeight: 1, padding: 0, opacity: 0.6 }}>×</button>
+            </span>
+          )
+        })}
         <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
           <input
             value={newLocation} onChange={e => setNewLocation(e.target.value)}
@@ -364,28 +447,31 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
 
       {/* Souhrn */}
       {showSummary && (
-        <div style={{ marginBottom: '20px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-card)' }}>
-          <div style={{ padding: '10px 16px', backgroundColor: 'var(--bg-card-alt)', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-            Σ Souhrn položek (přes všechny pronajímatele a místa)
-          </div>
-          {summary.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', backgroundColor: 'var(--bg-card)' }}>Žádná technika.</div>
-          ) : (
-            <div>
+        <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {summaryByVendor.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
+              {selectedLocation ? `Žádná technika na místě „${selectedLocation}“.` : 'Žádná technika.'}
+            </div>
+          ) : summaryByVendor.map(v => (
+            <div key={v.key} style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-card)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: 'var(--bg-card-alt)' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{v.key === UNASSIGNED ? '📦' : '🔧'} {v.label}</span>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{v.total.toLocaleString('cs-CZ')} Kč</span>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', padding: '8px 16px', backgroundColor: 'var(--bg-card-alt)', borderTop: '1px solid var(--border-card)', borderBottom: '1px solid var(--border-card)' }}>
                 {['Název', 'Celkem ks', 'Celkem Kč'].map((h, i) => (
                   <div key={i} style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
                 ))}
               </div>
-              {summary.map((s, i) => (
-                <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', padding: '8px 16px', borderBottom: i < summary.length - 1 ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
+              {v.rows.map((s, i) => (
+                <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', padding: '8px 16px', borderBottom: i < v.rows.length - 1 ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
                   <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{s.name}</div>
                   <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary)' }}>{s.quantity}</div>
                   <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{s.total_price.toLocaleString('cs-CZ')} Kč</div>
                 </div>
               ))}
             </div>
-          )}
+          ))}
         </div>
       )}
 
@@ -409,22 +495,54 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
           ...locations.map(loc => ({ key: loc, label: loc, rows: bubble.items.filter(e => e.location === loc) })),
           { key: NO_LOCATION, label: 'Bez místa', rows: bubble.items.filter(e => !e.location || !locations.includes(e.location)) },
         ]
+        const vendor = expenseOptions.find(o => o.id === bubble.key)
+        const isEditingVendor = editVendorId === bubble.key
         return (
           <div key={bubble.key} style={{ marginBottom: '16px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-card)' }}>
             <div
-              onClick={() => setCollapsed(c => ({ ...c, [bubble.key]: !c[bubble.key] }))}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: 'var(--bg-card-alt)', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              onClick={() => !isEditingVendor && setCollapsed(c => ({ ...c, [bubble.key]: !c[bubble.key] }))}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: 'var(--bg-card-alt)', cursor: isEditingVendor ? 'default' : 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{isCollapsed ? '▸' : '▾'}</span>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{bubble.key === UNASSIGNED ? '📦' : '🔧'} {bubble.label}</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({bubble.items.length})</span>
+                {isEditingVendor ? (
+                  <input
+                    autoFocus value={editVendorName} onChange={e => setEditVendorName(e.target.value)}
+                    onClick={e => e.stopPropagation()}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveVendorEdit(vendor!) } if (e.key === 'Escape') setEditVendorId(null) }}
+                    style={{ ...inputStyle, width: '220px', padding: '4px 8px', fontSize: '13px' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{bubble.key === UNASSIGNED ? '📦' : '🔧'} {bubble.label}</span>
+                )}
+                {!isEditingVendor && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({bubble.items.length})</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{bubbleTotal.toLocaleString('cs-CZ')} Kč</span>
-                <button onClick={(e) => { e.stopPropagation(); openAddForm(bubble.key) }}
-                  style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#0369a1', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                  + Přidat techniku
-                </button>
+                {isEditingVendor ? (
+                  <>
+                    <button onClick={(e) => { e.stopPropagation(); saveVendorEdit(vendor!) }} disabled={savingVendorEdit}
+                      style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#0369a1', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                      {savingVendorEdit ? '...' : 'Uložit'}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setEditVendorId(null) }}
+                      style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer' }}>
+                      Zrušit
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{bubbleTotal.toLocaleString('cs-CZ')} Kč</span>
+                    {vendor && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); startEditVendor(vendor) }} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteVendor(vendor) }} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                      </>
+                    )}
+                    <button onClick={(e) => { e.stopPropagation(); openAddForm(bubble.key) }}
+                      style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#0369a1', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                      + Přidat techniku
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -439,14 +557,18 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                 renderItemsTable(bubble.items)
               ) : (
                 <div>
-                  {byLocation.filter(loc => loc.rows.length > 0).map(loc => (
+                  {byLocation.filter(loc => loc.rows.length > 0).map(loc => {
+                    const locIdx = locations.indexOf(loc.key)
+                    const c = locIdx >= 0 ? locationColor(locIdx) : { color: 'var(--text-secondary)', bg: 'transparent', border: 'transparent' }
+                    return (
                     <div key={loc.key} style={{ padding: '10px 16px 0' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: c.color, backgroundColor: c.bg, border: `1px solid ${c.border}`, borderRadius: '5px', padding: '2px 8px', marginBottom: '4px' }}>
                         📍 {loc.label} <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({loc.rows.length})</span>
                       </div>
                       {renderItemsTable(loc.rows)}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )
             )}

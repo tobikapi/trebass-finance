@@ -15,14 +15,17 @@ export default async function TiskPage({ params }: Props) {
     { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
   )
 
-  const [{ data: ev }, { data: ex }, { data: inc }, { data: lin }, { data: tm }, { data: nt }] = await Promise.all([
+  const [{ data: ev }, { data: ex }, { data: inc }, { data: lin }, { data: tm }, { data: nt }, { data: eq }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single(),
     supabase.from('expenses').select('*').eq('event_id', id).order('category'),
     supabase.from('income').select('*').eq('event_id', id),
     supabase.from('lineup').select('*').eq('event_id', id).order('set_time'),
     supabase.from('team_contributions').select('*').eq('event_id', id),
     supabase.from('notes').select('*').eq('event_id', id).order('created_at', { ascending: false }),
+    supabase.from('event_equipment').select('*').eq('event_id', id).order('created_at'),
   ])
+
+  const vendors = (ex || []).filter(e => e.category === 'TECHNIKA')
 
   return (
     <TiskClient
@@ -33,6 +36,8 @@ export default async function TiskPage({ params }: Props) {
       lineup={lin || []}
       team={tm || []}
       notes={nt || []}
+      equipment={eq || []}
+      vendors={vendors}
     />
   )
 }

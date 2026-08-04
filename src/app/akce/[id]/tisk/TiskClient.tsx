@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Event, Expense, Income, LineupArtist, TeamContribution, CATEGORIES, formatDateRange } from '@/lib/types'
+import { Event, Expense, Income, LineupArtist, TeamContribution, EventEquipment, CATEGORIES, formatDateRange } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
 interface Note { id: string; author: string; content: string; created_at: string }
@@ -14,6 +15,15 @@ interface Props {
   lineup: LineupArtist[]
   team: TeamContribution[]
   notes: Note[]
+  equipment: EventEquipment[]
+  vendors: Expense[]
+}
+
+const UNASSIGNED_VENDOR = '__unassigned__'
+
+type SectionKey = 'vydaje' | 'prijmy' | 'lineup' | 'tym' | 'technika' | 'poznamky'
+const SECTION_LABELS: Record<SectionKey, string> = {
+  vydaje: 'Výdaje', prijmy: 'Příjmy', lineup: 'Lineup', tym: 'Tým', technika: 'Technika', poznamky: 'Poznámky',
 }
 
 const MEMBER_COLORS: Record<string, string> = {
@@ -44,10 +54,32 @@ function TotalRow({ items }: { label: string; items: { label: string; value: str
   )
 }
 
-export default function TiskClient({ event, expenses, income, lineup, team, notes }: Props) {
+export default function TiskClient({ event, expenses, income, lineup, team, notes, equipment, vendors }: Props) {
   const router = useRouter()
 
+  const [sections, setSections] = useState<Record<SectionKey, boolean>>({
+    vydaje: true, prijmy: true, lineup: true, tym: true, technika: true, poznamky: true,
+  })
+  const vendorOptions = [
+    ...vendors.map(v => ({ id: v.id, label: v.item })),
+    { id: UNASSIGNED_VENDOR, label: 'Bez pronajímatele' },
+  ]
+  const [selectedVendors, setSelectedVendors] = useState<string[]>(vendorOptions.map(v => v.id))
+
+  function toggleSection(key: SectionKey) {
+    setSections(s => ({ ...s, [key]: !s[key] }))
+  }
+  function toggleVendor(vId: string) {
+    setSelectedVendors(v => v.includes(vId) ? v.filter(x => x !== vId) : [...v, vId])
+  }
+
   if (!event) return <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-muted)' }}>Akce nenalezena.</div>
+
+  const filteredEquipment = equipment.filter(e => selectedVendors.includes(e.expense_id || UNASSIGNED_VENDOR))
+  const equipmentByVendor = vendorOptions
+    .map(v => ({ ...v, items: filteredEquipment.filter(e => (e.expense_id || UNASSIGNED_VENDOR) === v.id) }))
+    .filter(v => v.items.length > 0)
+  const totalEquipment = filteredEquipment.reduce((s, e) => s + e.total_price, 0)
 
   const totalExpenses = expenses.reduce((s, e) => s + e.price, 0)
   const totalPaid = expenses.reduce((s, e) => s + (e.paid ? e.price : 0), 0)
@@ -87,21 +119,25 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
     ]
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Shrnutí')
 
-    const expRows: (string | number)[][] = [['Kategorie', 'Položka', 'Poznámka', 'Platba', 'Cena (Kč)', 'Záloha (Kč)', 'Zbývá (Kč)', 'Zaplaceno']]
-    for (const e of expenses) {
-      expRows.push([e.category, e.item, e.note || '', e.payment_timing || '', e.price, e.deposit, e.paid ? 0 : e.price - e.deposit, e.paid ? 'ANO' : 'NE'])
+    if (sections.vydaje) {
+      const expRows: (string | number)[][] = [['Kategorie', 'Položka', 'Poznámka', 'Platba', 'Cena (Kč)', 'Záloha (Kč)', 'Zbývá (Kč)', 'Zaplaceno']]
+      for (const e of expenses) {
+        expRows.push([e.category, e.item, e.note || '', e.payment_timing || '', e.price, e.deposit, e.paid ? 0 : e.price - e.deposit, e.paid ? 'ANO' : 'NE'])
+      }
+      expRows.push([])
+      expRows.push(['', '', '', 'CELKEM', totalExpenses, totalDeposits, '', ''])
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(expRows), 'Výdaje')
     }
-    expRows.push([])
-    expRows.push(['', '', '', 'CELKEM', totalExpenses, totalDeposits, '', ''])
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(expRows), 'Výdaje')
 
-    const incRows: (string | number)[][] = [['Zdroj', 'Částka (Kč)', 'Poznámka']]
-    for (const i of income) incRows.push([i.source, i.amount, i.note || ''])
-    incRows.push([])
-    incRows.push(['CELKEM', totalIncome, ''])
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(incRows), 'Příjmy')
+    if (sections.prijmy) {
+      const incRows: (string | number)[][] = [['Zdroj', 'Částka (Kč)', 'Poznámka']]
+      for (const i of income) incRows.push([i.source, i.amount, i.note || ''])
+      incRows.push([])
+      incRows.push(['CELKEM', totalIncome, ''])
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(incRows), 'Příjmy')
+    }
 
-    if (lineup.length > 0) {
+    if (sections.lineup && lineup.length > 0) {
       const linRows: (string | number)[][] = [['Artist', 'Stage', 'Datum', 'Set time', 'Honorář (Kč)', 'Záloha (Kč)', 'Cesťák (Kč)', 'Zbývá (Kč)', 'Zaplaceno', 'Poznámky']]
       for (const a of lineup) {
         linRows.push([a.artist_name, a.stage || '', a.date || '', a.set_time || '', a.fee, a.deposit, a.travel_cost, a.paid ? 0 : a.fee + a.travel_cost - a.deposit, a.paid ? 'ANO' : 'NE', a.notes || ''])
@@ -111,7 +147,19 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linRows), 'Lineup')
     }
 
-    if (notes.length > 0) {
+    if (sections.technika && equipmentByVendor.length > 0) {
+      const eqRows: (string | number)[][] = [['Pronajímatel', 'Název', 'Poznámka', 'Místo', 'Počet', 'Cena/ks (Kč)', 'Celkem (Kč)']]
+      for (const v of equipmentByVendor) {
+        for (const e of v.items) {
+          eqRows.push([v.label, e.name, e.note || '', e.location || '', e.quantity, e.unit_price, e.total_price])
+        }
+      }
+      eqRows.push([])
+      eqRows.push(['', '', '', '', '', 'CELKEM', totalEquipment])
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eqRows), 'Technika')
+    }
+
+    if (sections.poznamky && notes.length > 0) {
       const noteRows: string[][] = [['Autor', 'Datum', 'Obsah']]
       for (const n of notes) {
         noteRows.push([n.author, new Date(n.created_at).toLocaleDateString('cs-CZ'), n.content])
@@ -156,6 +204,33 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         <span style={{ fontSize: '12px', color: 'var(--text-dim)', marginLeft: '4px' }}>
           Pro PDF: v dialogu tisku zvol „Uložit jako PDF&rdquo;
         </span>
+      </div>
+
+      {/* Co exportovat */}
+      <div className="no-print" style={{
+        display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '32px',
+        padding: '16px 20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px',
+      }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>Co exportovat:</span>
+          {(Object.keys(SECTION_LABELS) as SectionKey[]).map(key => (
+            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={sections[key]} onChange={() => toggleSection(key)} />
+              {SECTION_LABELS[key]}
+            </label>
+          ))}
+        </div>
+        {sections.technika && vendorOptions.length > 0 && (
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>Technika — pronajímatel:</span>
+            {vendorOptions.map(v => (
+              <label key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={selectedVendors.includes(v.id)} onChange={() => toggleVendor(v.id)} />
+                {v.label}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ===== TISKNUTELNÝ OBSAH ===== */}
@@ -223,7 +298,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         </div>
 
         {/* Výdaje */}
-        {expensesByCategory.length > 0 && (
+        {sections.vydaje && expensesByCategory.length > 0 && (
           <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
             <SectionHeader color="#e05555" icon="💸" title="Výdaje" />
             {expensesByCategory.map(({ cat, items }) => {
@@ -269,7 +344,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         )}
 
         {/* Příjmy */}
-        {income.length > 0 && (
+        {sections.prijmy && income.length > 0 && (
           <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
             <SectionHeader color="#16a34a" icon="💰" title="Příjmy" />
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -295,7 +370,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         )}
 
         {/* Lineup */}
-        {lineup.length > 0 && (
+        {sections.lineup && lineup.length > 0 && (
           <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
             <SectionHeader color="#7c3aed" icon="🎧" title="Lineup" />
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -334,7 +409,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         )}
 
         {/* Tým */}
-        {team.length > 0 && (
+        {sections.tym && team.length > 0 && (
           <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
             <SectionHeader color="#0891b2" icon="👥" title="Tým — příspěvky" />
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -359,8 +434,49 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
           </section>
         )}
 
+        {/* Technika */}
+        {sections.technika && equipmentByVendor.length > 0 && (
+          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+            <SectionHeader color="#0369a1" icon="🔧" title="Technika" />
+            {equipmentByVendor.map(v => {
+              const vTotal = v.items.reduce((s, e) => s + e.total_price, 0)
+              return (
+                <div key={v.id} style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '700', color: '#0369a1', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0', borderBottom: '1px dashed #bae6fd' }}>
+                    <span>{v.label}</span>
+                    <span>{fmt(vTotal)}</span>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f9fafb' }}>
+                        <th style={th}>Název</th>
+                        <th style={th}>Místo</th>
+                        <th style={{ ...th, textAlign: 'right' }}>Počet</th>
+                        <th style={{ ...th, textAlign: 'right' }}>Cena/ks</th>
+                        <th style={{ ...th, textAlign: 'right' }}>Celkem</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {v.items.map((e, i) => (
+                        <tr key={e.id} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          <td style={td}>{e.name}</td>
+                          <td style={{ ...td, color: '#888' }}>{e.location || '—'}</td>
+                          <td style={{ ...td, textAlign: 'right' }}>{e.quantity}</td>
+                          <td style={{ ...td, textAlign: 'right' }}>{e.unit_price ? fmt(e.unit_price) : '—'}</td>
+                          <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{e.total_price ? fmt(e.total_price) : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })}
+            <TotalRow label="Celkem technika" items={[{ label: 'Celkem', value: fmt(totalEquipment) }]} />
+          </section>
+        )}
+
         {/* Poznámky */}
-        {notes.length > 0 && (
+        {sections.poznamky && notes.length > 0 && (
           <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
             <SectionHeader color="#d97706" icon="📝" title="Poznámky" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
