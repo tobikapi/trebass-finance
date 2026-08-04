@@ -129,10 +129,13 @@ export default function UkolyClient({ initialTasks, initialEvents }: Props) {
     return true
   })
 
+  const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 }
+  const byPriority = (list: Task[]) => [...list].sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority])
+
   const grouped = {
-    todo: filtered.filter((t) => t.status === 'todo'),
-    in_progress: filtered.filter((t) => t.status === 'in_progress'),
-    done: filtered.filter((t) => t.status === 'done'),
+    todo: byPriority(filtered.filter((t) => t.status === 'todo')),
+    in_progress: byPriority(filtered.filter((t) => t.status === 'in_progress')),
+    done: byPriority(filtered.filter((t) => t.status === 'done')),
   }
 
   const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
