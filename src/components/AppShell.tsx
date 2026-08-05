@@ -12,7 +12,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {/* Background foto s overlayem */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+      <div className="no-print" style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: "url('/photos/photo-7.jpg')",

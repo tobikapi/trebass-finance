@@ -315,6 +315,7 @@ button:not(:disabled):active { transform: scale(0.96); }
 @media print {
   .no-print { display: none !important; }
   header { display: none !important; }
-  body { background: #fff !important; color: #111 !important; }
+  html, body { min-height: 0 !important; height: auto !important; margin: 0 !important; background: #fff !important; color: #111 !important; }
+  .page-main { padding: 0 !important; margin: 0 !important; max-width: none !important; }
   .print-page { color: #111; }
 }

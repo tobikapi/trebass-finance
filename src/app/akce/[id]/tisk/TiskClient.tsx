@@ -65,6 +65,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
     { id: UNASSIGNED_VENDOR, label: 'Bez pronajímatele' },
   ]
   const [selectedVendors, setSelectedVendors] = useState<string[]>(vendorOptions.map(v => v.id))
+  const [showAmounts, setShowAmounts] = useState(true)
 
   function toggleSection(key: SectionKey) {
     setSections(s => ({ ...s, [key]: !s[key] }))
@@ -153,40 +154,52 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
     }
 
     if (sections.vydaje) {
-      const expRows: (string | number)[][] = [['Kategorie', 'Položka', 'Poznámka', 'Platba', 'Cena (Kč)', 'Záloha (Kč)', 'Zbývá (Kč)', 'Zaplaceno']]
+      const header = ['Kategorie', 'Položka', 'Poznámka', 'Platba', ...(showAmounts ? ['Cena (Kč)', 'Záloha (Kč)', 'Zbývá (Kč)'] : []), 'Zaplaceno']
+      const expRows: (string | number)[][] = [header]
       for (const e of expenses) {
-        expRows.push([e.category, e.item, e.note || '', e.payment_timing || '', e.price, e.deposit, e.paid ? 0 : e.price - e.deposit, e.paid ? 'ANO' : 'NE'])
+        expRows.push([e.category, e.item, e.note || '', e.payment_timing || '', ...(showAmounts ? [e.price, e.deposit, e.paid ? 0 : e.price - e.deposit] : []), e.paid ? 'ANO' : 'NE'])
       }
-      expRows.push([])
-      expRows.push(['', '', '', 'CELKEM', totalExpenses, totalDeposits, '', ''])
+      if (showAmounts) {
+        expRows.push([])
+        expRows.push(['', '', '', 'CELKEM', totalExpenses, totalDeposits, '', ''])
+      }
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(expRows), 'Výdaje')
     }
 
     if (sections.prijmy) {
-      const incRows: (string | number)[][] = [['Zdroj', 'Částka (Kč)', 'Poznámka']]
-      for (const i of income) incRows.push([i.source, i.amount, i.note || ''])
-      incRows.push([])
-      incRows.push(['CELKEM', totalIncome, ''])
+      const header = ['Zdroj', 'Poznámka', ...(showAmounts ? ['Částka (Kč)'] : [])]
+      const incRows: (string | number)[][] = [header]
+      for (const i of income) incRows.push([i.source, i.note || '', ...(showAmounts ? [i.amount] : [])])
+      if (showAmounts) {
+        incRows.push([])
+        incRows.push(['CELKEM', '', totalIncome])
+      }
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(incRows), 'Příjmy')
     }
 
     if (sections.lineup && lineup.length > 0) {
-      const linRows: (string | number)[][] = [['Artist', 'Stage', 'Datum', 'Set time', 'Honorář (Kč)', 'Záloha (Kč)', 'Cesťák (Kč)', 'Zbývá (Kč)', 'Zaplaceno', 'Poznámky']]
+      const header = ['Artist', 'Stage', 'Datum', 'Set time', ...(showAmounts ? ['Honorář (Kč)', 'Záloha (Kč)', 'Cesťák (Kč)', 'Zbývá (Kč)'] : []), 'Zaplaceno', 'Poznámky']
+      const linRows: (string | number)[][] = [header]
       for (const a of lineup) {
-        linRows.push([a.artist_name, a.stage || '', a.date || '', a.set_time || '', a.fee, a.deposit, a.travel_cost, a.paid ? 0 : a.fee + a.travel_cost - a.deposit, a.paid ? 'ANO' : 'NE', a.notes || ''])
+        linRows.push([a.artist_name, a.stage || '', a.date || '', a.set_time || '', ...(showAmounts ? [a.fee, a.deposit, a.travel_cost, a.paid ? 0 : a.fee + a.travel_cost - a.deposit] : []), a.paid ? 'ANO' : 'NE', a.notes || ''])
       }
-      linRows.push([])
-      linRows.push(['CELKEM', '', '', '', lineupTotal - lineupTravel, lineupDeposits, lineupTravel, '', '', ''])
+      if (showAmounts) {
+        linRows.push([])
+        linRows.push(['CELKEM', '', '', '', lineupTotal - lineupTravel, lineupDeposits, lineupTravel, '', '', ''])
+      }
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linRows), 'Lineup')
     }
 
     if (sections.technika && equipmentSummary.length > 0) {
-      const eqRows: (string | number)[][] = [['Název', 'Celkem ks', 'Celkem (Kč)']]
+      const header = ['Název', 'Celkem ks', ...(showAmounts ? ['Celkem (Kč)'] : [])]
+      const eqRows: (string | number)[][] = [header]
       for (const e of equipmentSummary) {
-        eqRows.push([e.name, e.quantity, e.total_price])
+        eqRows.push([e.name, e.quantity, ...(showAmounts ? [e.total_price] : [])])
       }
-      eqRows.push([])
-      eqRows.push(['CELKEM', '', totalEquipment])
+      if (showAmounts) {
+        eqRows.push([])
+        eqRows.push(['CELKEM', '', totalEquipment])
+      }
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eqRows), 'Technika')
     }
 
@@ -250,6 +263,12 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
               {SECTION_LABELS[key]}
             </label>
           ))}
+        </div>
+        <div style={{ paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showAmounts} onChange={() => setShowAmounts(v => !v)} />
+            Zobrazit finanční částky u položek (Výdaje, Příjmy, Lineup, Tým, Technika)
+          </label>
         </div>
         {sections.technika && vendorOptions.length > 0 && (
           <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
@@ -384,15 +403,15 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                 <div key={cat} style={{ marginBottom: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '700', color: '#e05555', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0', borderBottom: '1px dashed #f9d0d0' }}>
                     <span>{cat}</span>
-                    <span>{fmt(catTotal)}</span>
+                    {showAmounts && <span>{fmt(catTotal)}</span>}
                   </div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f9fafb' }}>
                         <th style={th}>Položka</th>
                         <th style={th}>Poznámka</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Záloha</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Cena</th>
+                        {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Záloha</th>}
+                        {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Cena</th>}
                         <th style={{ ...th, textAlign: 'center' }}>Uhrazeno</th>
                       </tr>
                     </thead>
@@ -401,8 +420,8 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                         <tr key={e.id} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                           <td style={td}>{e.item}</td>
                           <td style={{ ...td, color: '#888' }}>{e.note || '—'}</td>
-                          <td style={{ ...td, textAlign: 'right' }}>{e.deposit ? fmt(e.deposit) : '—'}</td>
-                          <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{fmt(e.price)}</td>
+                          {showAmounts && <td style={{ ...td, textAlign: 'right' }}>{e.deposit ? fmt(e.deposit) : '—'}</td>}
+                          {showAmounts && <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{fmt(e.price)}</td>}
                           <td style={{ ...td, textAlign: 'center', color: e.paid ? '#16a34a' : '#dc2626', fontWeight: '700' }}>{e.paid ? '✓' : '✗'}</td>
                         </tr>
                       ))}
@@ -411,12 +430,14 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                 </div>
               )
             })}
-            <TotalRow label="Celkem výdaje" items={[
-              { label: 'Celkem', value: fmt(totalExpenses) },
-              { label: 'Zálohy', value: fmt(totalDeposits) },
-              { label: 'Uhrazeno', value: fmt(totalPaid) },
-              { label: 'Zbývá', value: fmt(totalRemaining), highlight: totalRemaining > 0 },
-            ]} />
+            {showAmounts && (
+              <TotalRow label="Celkem výdaje" items={[
+                { label: 'Celkem', value: fmt(totalExpenses) },
+                { label: 'Zálohy', value: fmt(totalDeposits) },
+                { label: 'Uhrazeno', value: fmt(totalPaid) },
+                { label: 'Zbývá', value: fmt(totalRemaining), highlight: totalRemaining > 0 },
+              ]} />
+            )}
           </section>
         )}
 
@@ -429,7 +450,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                 <tr style={{ backgroundColor: '#f9fafb' }}>
                   <th style={th}>Zdroj</th>
                   <th style={th}>Poznámka</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Částka</th>
+                  {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Částka</th>}
                 </tr>
               </thead>
               <tbody>
@@ -437,12 +458,12 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                   <tr key={i.id} style={{ backgroundColor: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ ...td, fontWeight: '500' }}>{i.source}</td>
                     <td style={{ ...td, color: '#888' }}>{i.note || '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: '600', color: '#16a34a' }}>{fmt(i.amount)}</td>
+                    {showAmounts && <td style={{ ...td, textAlign: 'right', fontWeight: '600', color: '#16a34a' }}>{fmt(i.amount)}</td>}
                   </tr>
                 ))}
               </tbody>
             </table>
-            <TotalRow label="Celkem příjmy" items={[{ label: 'Celkem', value: fmt(totalIncome) }]} />
+            {showAmounts && <TotalRow label="Celkem příjmy" items={[{ label: 'Celkem', value: fmt(totalIncome) }]} />}
           </section>
         )}
 
@@ -455,9 +476,9 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                 <tr style={{ backgroundColor: '#f9fafb' }}>
                   <th style={th}>Umělec</th>
                   <th style={th}>Set time</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Záloha</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Cesťák</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Honorář</th>
+                  {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Záloha</th>}
+                  {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Cesťák</th>}
+                  {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Honorář</th>}
                   <th style={{ ...th, textAlign: 'center' }}>Uhrazeno</th>
                   <th style={th}>Poznámka</th>
                 </tr>
@@ -467,21 +488,23 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                   <tr key={a.id} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ ...td, fontWeight: '600' }}>{a.artist_name}</td>
                     <td style={td}>{a.set_time || '—'}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{a.deposit ? fmt(a.deposit) : '—'}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{a.travel_cost ? fmt(a.travel_cost) : '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{fmt(a.fee)}</td>
+                    {showAmounts && <td style={{ ...td, textAlign: 'right' }}>{a.deposit ? fmt(a.deposit) : '—'}</td>}
+                    {showAmounts && <td style={{ ...td, textAlign: 'right' }}>{a.travel_cost ? fmt(a.travel_cost) : '—'}</td>}
+                    {showAmounts && <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{fmt(a.fee)}</td>}
                     <td style={{ ...td, textAlign: 'center', color: a.paid ? '#16a34a' : '#dc2626', fontWeight: '700' }}>{a.paid ? '✓' : '✗'}</td>
                     <td style={{ ...td, color: '#888' }}>{a.notes || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <TotalRow label="Celkem lineup" items={[
-              { label: 'Celkem', value: fmt(lineupTotal) },
-              { label: 'Zálohy', value: fmt(lineupDeposits) },
-              { label: 'Uhrazeno', value: fmt(lineupPaid) },
-              { label: 'Zbývá', value: fmt(lineupRemaining), highlight: lineupRemaining > 0 },
-            ]} />
+            {showAmounts && (
+              <TotalRow label="Celkem lineup" items={[
+                { label: 'Celkem', value: fmt(lineupTotal) },
+                { label: 'Zálohy', value: fmt(lineupDeposits) },
+                { label: 'Uhrazeno', value: fmt(lineupPaid) },
+                { label: 'Zbývá', value: fmt(lineupRemaining), highlight: lineupRemaining > 0 },
+              ]} />
+            )}
           </section>
         )}
 
@@ -493,7 +516,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
               <thead>
                 <tr style={{ backgroundColor: '#f9fafb' }}>
                   <th style={th}>Člen</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Částka</th>
+                  {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Částka</th>}
                   <th style={th}>Poznámka</th>
                 </tr>
               </thead>
@@ -501,13 +524,13 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                 {team.map((t, i) => (
                   <tr key={t.id} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ ...td, fontWeight: '600', color: MEMBER_COLORS[t.name] || '#111' }}>{t.name}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{fmt(t.amount)}</td>
+                    {showAmounts && <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{fmt(t.amount)}</td>}
                     <td style={{ ...td, color: '#888' }}>{t.note || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <TotalRow label="Celkem tým" items={[{ label: 'Celkem', value: fmt(team.reduce((s, t) => s + t.amount, 0)) }]} />
+            {showAmounts && <TotalRow label="Celkem tým" items={[{ label: 'Celkem', value: fmt(team.reduce((s, t) => s + t.amount, 0)) }]} />}
           </section>
         )}
 
@@ -520,7 +543,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                 <tr style={{ backgroundColor: '#f9fafb' }}>
                   <th style={th}>Název</th>
                   <th style={{ ...th, textAlign: 'right' }}>Celkem ks</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Celkem</th>
+                  {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Celkem</th>}
                 </tr>
               </thead>
               <tbody>
@@ -528,12 +551,12 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
                   <tr key={e.name} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={td}>{e.name}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{e.quantity}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{e.total_price ? fmt(e.total_price) : '—'}</td>
+                    {showAmounts && <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{e.total_price ? fmt(e.total_price) : '—'}</td>}
                   </tr>
                 ))}
               </tbody>
             </table>
-            <TotalRow label="Celkem technika" items={[{ label: 'Celkem', value: fmt(totalEquipment) }]} />
+            {showAmounts && <TotalRow label="Celkem technika" items={[{ label: 'Celkem', value: fmt(totalEquipment) }]} />}
           </section>
         )}
 
