@@ -279,8 +279,9 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   function aggregateByName(items: EventEquipment[]) {
     return Object.values(
       items.reduce((acc, e) => {
-        const key = e.name.trim().toLowerCase()
-        if (!acc[key]) acc[key] = { name: e.name.trim(), quantity: 0, total_price: 0 }
+        const normalized = e.name.replace(/\s+/g, ' ').trim()
+        const key = normalized.toLowerCase()
+        if (!acc[key]) acc[key] = { name: normalized, quantity: 0, total_price: 0 }
         acc[key].quantity += e.quantity
         acc[key].total_price += e.total_price
         return acc

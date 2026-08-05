@@ -21,9 +21,9 @@ interface Props {
 
 const UNASSIGNED_VENDOR = '__unassigned__'
 
-type SectionKey = 'vydaje' | 'prijmy' | 'lineup' | 'tym' | 'technika' | 'poznamky'
+type SectionKey = 'bilance' | 'rozpocty' | 'vydaje' | 'prijmy' | 'lineup' | 'tym' | 'technika' | 'poznamky'
 const SECTION_LABELS: Record<SectionKey, string> = {
-  vydaje: 'Výdaje', prijmy: 'Příjmy', lineup: 'Lineup', tym: 'Tým', technika: 'Technika', poznamky: 'Poznámky',
+  bilance: 'Bilance (finanční přehled)', rozpocty: 'Rozpočty (náklady a příjmy)', vydaje: 'Výdaje', prijmy: 'Příjmy', lineup: 'Lineup', tym: 'Tým', technika: 'Technika', poznamky: 'Poznámky',
 }
 
 const MEMBER_COLORS: Record<string, string> = {
@@ -58,7 +58,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
   const router = useRouter()
 
   const [sections, setSections] = useState<Record<SectionKey, boolean>>({
-    vydaje: true, prijmy: true, lineup: true, tym: true, technika: true, poznamky: true,
+    bilance: false, vydaje: false, prijmy: false, lineup: false, tym: false, technika: false, poznamky: false, rozpocty: false,
   })
   const vendorOptions = [
     ...vendors.map(v => ({ id: v.id, label: v.item })),
@@ -75,10 +75,21 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
   if (!event) return <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-muted)' }}>Akce nenalezena.</div>
 
+  function aggregateEquipmentByName(items: EventEquipment[]) {
+    return Object.values(
+      items.reduce((acc, e) => {
+        const normalized = e.name.replace(/\s+/g, ' ').trim()
+        const key = normalized.toLowerCase()
+        if (!acc[key]) acc[key] = { name: normalized, quantity: 0, total_price: 0 }
+        acc[key].quantity += e.quantity
+        acc[key].total_price += e.total_price
+        return acc
+      }, {} as Record<string, { name: string; quantity: number; total_price: number }>)
+    ).sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+  }
+
   const filteredEquipment = equipment.filter(e => selectedVendors.includes(e.expense_id || UNASSIGNED_VENDOR))
-  const equipmentByVendor = vendorOptions
-    .map(v => ({ ...v, items: filteredEquipment.filter(e => (e.expense_id || UNASSIGNED_VENDOR) === v.id) }))
-    .filter(v => v.items.length > 0)
+  const equipmentSummary = aggregateEquipmentByName(filteredEquipment)
   const totalEquipment = filteredEquipment.reduce((s, e) => s + e.total_price, 0)
 
   const totalExpenses = expenses.reduce((s, e) => s + e.price, 0)
@@ -98,6 +109,12 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
     items: expenses.filter(e => e.category === cat),
   })).filter(g => g.items.length > 0)
 
+  const budgets = event?.budgets || {}
+  const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0)
+  const budgetRows = CATEGORIES
+    .map(cat => ({ cat, spent: expenses.filter(e => e.category === cat).reduce((s, e) => s + e.price, 0), budget: budgets[cat] || 0 }))
+    .filter(r => r.budget > 0 || r.spent > 0)
+
   function fmt(n: number) { return n.toLocaleString('cs-CZ') + ' Kč' }
   function fmtDate(ts: string) {
     const d = new Date(ts)
@@ -107,17 +124,33 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
   function exportExcel() {
     const wb = XLSX.utils.book_new()
 
-    const summary = [
+    const summary: (string | number)[][] = [
       ['Akce', event!.name],
       ['Datum', formatDateRange(event!.date, event!.date_end, event!.time_start, event!.time_end)],
       ['Místo', event!.location || ''],
-      [],
-      ['Celkové příjmy (Kč)', totalIncome],
-      ['Celkové výdaje (Kč)', totalExpenses],
-      ['Bilance (Kč)', balance],
-      ['Uhrazeno výdajů (Kč)', totalPaid],
     ]
+    if (sections.bilance) {
+      summary.push(
+        [],
+        ['Celkové příjmy (Kč)', totalIncome],
+        ['Celkové výdaje (Kč)', totalExpenses],
+        ['Bilance (Kč)', balance],
+        ['Uhrazeno výdajů (Kč)', totalPaid],
+      )
+    }
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Shrnutí')
+
+    if (sections.rozpocty) {
+      const budRows: (string | number)[][] = [['Kategorie', 'Rozpočet (Kč)', 'Náklady (Kč)', 'Zbývá / Překročeno (Kč)', '% rozpočtu']]
+      for (const r of budgetRows) {
+        budRows.push([r.cat, r.budget, r.spent, r.budget > 0 ? r.budget - r.spent : '', r.budget > 0 ? Math.round((r.spent / r.budget) * 100) : ''])
+      }
+      budRows.push([])
+      budRows.push(['Celkový rozpočet (Kč)', totalBudget])
+      budRows.push(['Celkové náklady (Kč)', totalExpenses])
+      budRows.push(['Celkové příjmy (Kč)', totalIncome])
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(budRows), 'Rozpočty')
+    }
 
     if (sections.vydaje) {
       const expRows: (string | number)[][] = [['Kategorie', 'Položka', 'Poznámka', 'Platba', 'Cena (Kč)', 'Záloha (Kč)', 'Zbývá (Kč)', 'Zaplaceno']]
@@ -147,15 +180,13 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linRows), 'Lineup')
     }
 
-    if (sections.technika && equipmentByVendor.length > 0) {
-      const eqRows: (string | number)[][] = [['Pronajímatel', 'Název', 'Poznámka', 'Místo', 'Počet', 'Cena/ks (Kč)', 'Celkem (Kč)']]
-      for (const v of equipmentByVendor) {
-        for (const e of v.items) {
-          eqRows.push([v.label, e.name, e.note || '', e.location || '', e.quantity, e.unit_price, e.total_price])
-        }
+    if (sections.technika && equipmentSummary.length > 0) {
+      const eqRows: (string | number)[][] = [['Název', 'Celkem ks', 'Celkem (Kč)']]
+      for (const e of equipmentSummary) {
+        eqRows.push([e.name, e.quantity, e.total_price])
       }
       eqRows.push([])
-      eqRows.push(['', '', '', '', '', 'CELKEM', totalEquipment])
+      eqRows.push(['CELKEM', '', totalEquipment])
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eqRows), 'Technika')
     }
 
@@ -240,9 +271,8 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         <div style={{ marginBottom: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #e05555', paddingBottom: '16px', marginBottom: '0' }}>
             <div>
-              <div style={{ fontSize: '9px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#e05555', marginBottom: '4px', fontWeight: '700' }}>
-                TŘEBASS FINANCE
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="Třebass" style={{ height: '28px', width: 'auto', marginBottom: '8px', display: 'block', filter: 'invert(1)' }} />
               <div style={{ fontSize: '26px', fontWeight: '800', color: '#111', lineHeight: 1.1 }}>{event.name}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginTop: '6px', fontSize: '12px', color: '#666' }}>
                 {event.date && <span>📅 {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}</span>}
@@ -261,6 +291,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         </div>
 
         {/* Finanční shrnutí */}
+        {sections.bilance && (
         <div style={{ marginBottom: '28px' }}>
           <div style={{
             display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
@@ -296,6 +327,52 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
             ))}
           </div>
         </div>
+        )}
+
+        {/* Rozpočty */}
+        {sections.rozpocty && (
+          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+            <SectionHeader color="#7c3aed" icon="🎯" title="Rozpočty" />
+            {budgetRows.length > 0 && (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', marginBottom: '14px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f9fafb' }}>
+                    <th style={th}>Kategorie</th>
+                    <th style={{ ...th, textAlign: 'right' }}>Rozpočet</th>
+                    <th style={{ ...th, textAlign: 'right' }}>Náklady</th>
+                    <th style={{ ...th, textAlign: 'right' }}>Zbývá / Překročeno</th>
+                    <th style={{ ...th, textAlign: 'right' }}>% rozpočtu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {budgetRows.map((r, i) => (
+                    <tr key={r.cat} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ ...td, fontWeight: '600' }}>{r.cat}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{r.budget > 0 ? fmt(r.budget) : '—'}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{fmt(r.spent)}</td>
+                      <td style={{ ...td, textAlign: 'right', fontWeight: '600', color: r.budget > 0 && r.spent > r.budget ? '#dc2626' : '#16a34a' }}>
+                        {r.budget > 0 ? fmt(r.budget - r.spent) : '—'}
+                      </td>
+                      <td style={{ ...td, textAlign: 'right' }}>{r.budget > 0 ? `${Math.round((r.spent / r.budget) * 100)}%` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {[
+                { label: 'Celkový rozpočet', value: totalBudget, color: '#7c3aed' },
+                { label: 'Celkové náklady', value: totalExpenses, color: totalBudget > 0 && totalExpenses > totalBudget ? '#dc2626' : '#555' },
+                { label: 'Celkové příjmy', value: totalIncome, color: '#16a34a' },
+              ].map(c => (
+                <div key={c.label} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>{c.label}</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: c.color }}>{fmt(c.value)}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Výdaje */}
         {sections.vydaje && expensesByCategory.length > 0 && (
@@ -435,42 +512,27 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         )}
 
         {/* Technika */}
-        {sections.technika && equipmentByVendor.length > 0 && (
+        {sections.technika && equipmentSummary.length > 0 && (
           <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
-            <SectionHeader color="#0369a1" icon="🔧" title="Technika" />
-            {equipmentByVendor.map(v => {
-              const vTotal = v.items.reduce((s, e) => s + e.total_price, 0)
-              return (
-                <div key={v.id} style={{ marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '700', color: '#0369a1', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0', borderBottom: '1px dashed #bae6fd' }}>
-                    <span>{v.label}</span>
-                    <span>{fmt(vTotal)}</span>
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#f9fafb' }}>
-                        <th style={th}>Název</th>
-                        <th style={th}>Místo</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Počet</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Cena/ks</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Celkem</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {v.items.map((e, i) => (
-                        <tr key={e.id} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                          <td style={td}>{e.name}</td>
-                          <td style={{ ...td, color: '#888' }}>{e.location || '—'}</td>
-                          <td style={{ ...td, textAlign: 'right' }}>{e.quantity}</td>
-                          <td style={{ ...td, textAlign: 'right' }}>{e.unit_price ? fmt(e.unit_price) : '—'}</td>
-                          <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{e.total_price ? fmt(e.total_price) : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )
-            })}
+            <SectionHeader color="#0369a1" icon="🔧" title="Technika — celkový souhrn" />
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f9fafb' }}>
+                  <th style={th}>Název</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Celkem ks</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Celkem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {equipmentSummary.map((e, i) => (
+                  <tr key={e.name} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    <td style={td}>{e.name}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{e.quantity}</td>
+                    <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{e.total_price ? fmt(e.total_price) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             <TotalRow label="Celkem technika" items={[{ label: 'Celkem', value: fmt(totalEquipment) }]} />
           </section>
         )}
