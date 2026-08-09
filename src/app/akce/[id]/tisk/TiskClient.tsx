@@ -20,6 +20,10 @@ interface Props {
 }
 
 const UNASSIGNED_VENDOR = '__unassigned__'
+const NO_LOCATION = '__no_location__'
+
+interface EqLeaf { name: string; quantity: number; total_price: number; total_kw: number }
+interface EqNode { key: string; label: string; totalPrice: number; totalKw: number; rows?: EqLeaf[]; children?: EqNode[] }
 
 type SectionKey = 'bilance' | 'rozpocty' | 'vydaje' | 'prijmy' | 'lineup' | 'tym' | 'technika' | 'poznamky'
 const SECTION_LABELS: Record<SectionKey, string> = {
@@ -66,6 +70,9 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
   ]
   const [selectedVendors, setSelectedVendors] = useState<string[]>(vendorOptions.map(v => v.id))
   const [showAmounts, setShowAmounts] = useState(true)
+  const [showPower, setShowPower] = useState(false)
+  const [splitByLocation, setSplitByLocation] = useState(false)
+  const [splitByVendor, setSplitByVendor] = useState(false)
 
   function toggleSection(key: SectionKey) {
     setSections(s => ({ ...s, [key]: !s[key] }))
@@ -76,22 +83,68 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
   if (!event) return <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-muted)' }}>Akce nenalezena.</div>
 
-  function aggregateEquipmentByName(items: EventEquipment[]) {
+  function aggregateEquipmentByName(items: EventEquipment[]): EqLeaf[] {
     return Object.values(
       items.reduce((acc, e) => {
         const normalized = e.name.replace(/\s+/g, ' ').trim()
         const key = normalized.toLowerCase()
-        if (!acc[key]) acc[key] = { name: normalized, quantity: 0, total_price: 0 }
+        if (!acc[key]) acc[key] = { name: normalized, quantity: 0, total_price: 0, total_kw: 0 }
         acc[key].quantity += e.quantity
         acc[key].total_price += e.total_price
+        acc[key].total_kw += (e.power_kw || 0) * e.quantity
         return acc
-      }, {} as Record<string, { name: string; quantity: number; total_price: number }>)
+      }, {} as Record<string, EqLeaf>)
     ).sort((a, b) => a.name.localeCompare(b.name, 'cs'))
   }
 
+  function fmtKw(n: number) { return n.toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' kW' }
+
+  const eventLocations = event?.equipment_locations || []
+  const locKeyOf = (loc: string | null) => (loc && eventLocations.includes(loc)) ? loc : NO_LOCATION
+
+  function nodeTotals(items: EventEquipment[]) {
+    return {
+      totalPrice: items.reduce((s, e) => s + e.total_price, 0),
+      totalKw: items.reduce((s, e) => s + (e.power_kw || 0) * e.quantity, 0),
+    }
+  }
+
+  function byLocationNodes(items: EventEquipment[]): EqNode[] {
+    const keys = [...eventLocations, NO_LOCATION]
+    return keys
+      .map(k => {
+        const subItems = items.filter(e => locKeyOf(e.location) === k)
+        return { key: k, label: k === NO_LOCATION ? 'Bez místa' : k, ...nodeTotals(subItems), rows: aggregateEquipmentByName(subItems) }
+      })
+      .filter(n => n.rows.length > 0)
+  }
+
   const filteredEquipment = equipment.filter(e => selectedVendors.includes(e.expense_id || UNASSIGNED_VENDOR))
-  const equipmentSummary = aggregateEquipmentByName(filteredEquipment)
   const totalEquipment = filteredEquipment.reduce((s, e) => s + e.total_price, 0)
+  const totalEquipmentKw = filteredEquipment.reduce((s, e) => s + (e.power_kw || 0) * e.quantity, 0)
+
+  const equipmentTree: EqNode[] = (() => {
+    if (!splitByVendor && !splitByLocation) {
+      return [{ key: 'all', label: 'Celkový souhrn', ...nodeTotals(filteredEquipment), rows: aggregateEquipmentByName(filteredEquipment) }]
+    }
+    if (splitByLocation && !splitByVendor) {
+      return byLocationNodes(filteredEquipment)
+    }
+    if (splitByVendor && !splitByLocation) {
+      return vendorOptions
+        .map(v => {
+          const items = filteredEquipment.filter(e => (e.expense_id || UNASSIGNED_VENDOR) === v.id)
+          return { key: v.id, label: v.label, ...nodeTotals(items), rows: aggregateEquipmentByName(items) }
+        })
+        .filter(n => n.rows.length > 0)
+    }
+    return vendorOptions
+      .map(v => {
+        const items = filteredEquipment.filter(e => (e.expense_id || UNASSIGNED_VENDOR) === v.id)
+        return { key: v.id, label: v.label, ...nodeTotals(items), children: byLocationNodes(items) }
+      })
+      .filter(n => n.children && n.children.length > 0)
+  })()
 
   const totalExpenses = expenses.reduce((s, e) => s + e.price, 0)
   const totalPaid = expenses.reduce((s, e) => s + (e.paid ? e.price : 0), 0)
@@ -120,6 +173,31 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
   function fmtDate(ts: string) {
     const d = new Date(ts)
     return d.toLocaleDateString('cs-CZ') + ' ' + d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function renderEqTable(rows: EqLeaf[], keyPrefix: string) {
+    return (
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f9fafb' }}>
+            <th style={th}>Název</th>
+            <th style={{ ...th, textAlign: 'right' }}>Celkem ks</th>
+            {showPower && <th style={{ ...th, textAlign: 'right' }}>Celkem kW</th>}
+            {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Celkem</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={keyPrefix + r.name} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+              <td style={td}>{r.name}</td>
+              <td style={{ ...td, textAlign: 'right' }}>{r.quantity}</td>
+              {showPower && <td style={{ ...td, textAlign: 'right' }}>{r.total_kw ? fmtKw(r.total_kw) : '—'}</td>}
+              {showAmounts && <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{r.total_price ? fmt(r.total_price) : '—'}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
   }
 
   function exportExcel() {
@@ -190,15 +268,47 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linRows), 'Lineup')
     }
 
-    if (sections.technika && equipmentSummary.length > 0) {
-      const header = ['Název', 'Celkem ks', ...(showAmounts ? ['Celkem (Kč)'] : [])]
+    if (sections.technika && equipmentTree.length > 0) {
+      const header = [
+        ...(splitByVendor ? ['Pronajímatel'] : []),
+        ...(splitByLocation ? ['Místo'] : []),
+        'Název', 'Celkem ks',
+        ...(showPower ? ['Celkem kW'] : []),
+        ...(showAmounts ? ['Celkem (Kč)'] : []),
+      ]
       const eqRows: (string | number)[][] = [header]
-      for (const e of equipmentSummary) {
-        eqRows.push([e.name, e.quantity, ...(showAmounts ? [e.total_price] : [])])
+      for (const node of equipmentTree) {
+        if (node.rows) {
+          for (const r of node.rows) {
+            eqRows.push([
+              ...(splitByVendor ? [node.label] : []),
+              ...(splitByLocation ? [node.label] : []),
+              r.name, r.quantity,
+              ...(showPower ? [Math.round(r.total_kw * 100) / 100] : []),
+              ...(showAmounts ? [r.total_price] : []),
+            ])
+          }
+        } else if (node.children) {
+          for (const child of node.children) {
+            for (const r of child.rows || []) {
+              eqRows.push([
+                node.label, child.label, r.name, r.quantity,
+                ...(showPower ? [Math.round(r.total_kw * 100) / 100] : []),
+                ...(showAmounts ? [r.total_price] : []),
+              ])
+            }
+          }
+        }
       }
-      if (showAmounts) {
+      if (showAmounts || showPower) {
         eqRows.push([])
-        eqRows.push(['CELKEM', '', totalEquipment])
+        const totalRow: (string | number)[] = [
+          ...(splitByVendor ? [''] : []), ...(splitByLocation ? [''] : []),
+          'CELKEM', '',
+        ]
+        if (showPower) totalRow.push(Math.round(totalEquipmentKw * 100) / 100)
+        if (showAmounts) totalRow.push(totalEquipment)
+        eqRows.push(totalRow)
       }
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eqRows), 'Technika')
     }
@@ -270,6 +380,23 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
             Zobrazit finanční částky u položek (Výdaje, Příjmy, Lineup, Tým, Technika)
           </label>
         </div>
+        {sections.technika && (
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>Technika:</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={showPower} onChange={() => setShowPower(v => !v)} />
+              Zobrazit odběr (kW)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={splitByLocation} onChange={() => setSplitByLocation(v => !v)} />
+              Rozdělit podle míst
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={splitByVendor} onChange={() => setSplitByVendor(v => !v)} />
+              Rozdělit podle pronajímatelů
+            </label>
+          </div>
+        )}
         {sections.technika && vendorOptions.length > 0 && (
           <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>Technika — pronajímatel:</span>
@@ -535,28 +662,43 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         )}
 
         {/* Technika */}
-        {sections.technika && equipmentSummary.length > 0 && (
+        {sections.technika && equipmentTree.length > 0 && (
           <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
-            <SectionHeader color="#0369a1" icon="🔧" title="Technika — celkový souhrn" />
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f9fafb' }}>
-                  <th style={th}>Název</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Celkem ks</th>
-                  {showAmounts && <th style={{ ...th, textAlign: 'right' }}>Celkem</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {equipmentSummary.map((e, i) => (
-                  <tr key={e.name} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                    <td style={td}>{e.name}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{e.quantity}</td>
-                    {showAmounts && <td style={{ ...td, textAlign: 'right', fontWeight: '600' }}>{e.total_price ? fmt(e.total_price) : '—'}</td>}
-                  </tr>
+            <SectionHeader color="#0369a1" icon="🔧" title={splitByVendor || splitByLocation ? 'Technika' : 'Technika — celkový souhrn'} />
+            {equipmentTree.map(node => (
+              <div key={node.key} style={{ marginBottom: '16px' }}>
+                {(splitByVendor || splitByLocation) && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '700', color: '#0369a1', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0', borderBottom: '1px dashed #bae6fd' }}>
+                    <span>{node.label}</span>
+                    <span>
+                      {showPower && fmtKw(node.totalKw)}
+                      {showPower && showAmounts && ' · '}
+                      {showAmounts && fmt(node.totalPrice)}
+                    </span>
+                  </div>
+                )}
+                {node.rows && renderEqTable(node.rows, node.key)}
+                {node.children && node.children.map(child => (
+                  <div key={child.key} style={{ marginLeft: '12px', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', fontWeight: '700', color: '#0891b2', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <span>📍 {child.label}</span>
+                      <span>
+                        {showPower && fmtKw(child.totalKw)}
+                        {showPower && showAmounts && ' · '}
+                        {showAmounts && fmt(child.totalPrice)}
+                      </span>
+                    </div>
+                    {renderEqTable(child.rows || [], child.key)}
+                  </div>
                 ))}
-              </tbody>
-            </table>
-            {showAmounts && <TotalRow label="Celkem technika" items={[{ label: 'Celkem', value: fmt(totalEquipment) }]} />}
+              </div>
+            ))}
+            {(showAmounts || showPower) && (
+              <TotalRow label="Celkem technika" items={[
+                ...(showPower ? [{ label: 'Odběr', value: fmtKw(totalEquipmentKw) }] : []),
+                ...(showAmounts ? [{ label: 'Celkem', value: fmt(totalEquipment) }] : []),
+              ]} />
+            )}
           </section>
         )}
 

@@ -174,10 +174,14 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     setCollapsed(c => ({ ...c, [bubbleKey]: false }))
   }
 
-  function openAddForm(bubbleKey: string) {
-    setForm({ ...emptyForm, expense_id: bubbleKey === UNASSIGNED ? '' : bubbleKey })
+  function openAddForm(bubbleKey: string, location?: string) {
+    setForm({
+      ...emptyForm,
+      expense_id: bubbleKey === UNASSIGNED ? '' : bubbleKey,
+      location: location && location !== NO_LOCATION ? location : '',
+    })
     setEditId(null)
-    setShowForm(bubbleKey)
+    setShowForm(location ? `${bubbleKey}::${location}` : bubbleKey)
   }
 
   async function handleCreateVendor(e: React.FormEvent) {
@@ -627,11 +631,19 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                   {byLocation.filter(loc => loc.rows.length > 0).map(loc => {
                     const locIdx = locations.indexOf(loc.key)
                     const c = locIdx >= 0 ? locationColor(locIdx) : { color: 'var(--text-secondary)', bg: 'transparent', border: 'transparent' }
+                    const locFormKey = `${bubble.key}::${loc.key}`
                     return (
                     <div key={loc.key} style={{ padding: '10px 16px 0' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: c.color, backgroundColor: c.bg, border: `1px solid ${c.border}`, borderRadius: '5px', padding: '2px 8px', marginBottom: '4px' }}>
-                        📍 {loc.label} <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({loc.rows.length})</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: c.color, backgroundColor: c.bg, border: `1px solid ${c.border}`, borderRadius: '5px', padding: '2px 8px' }}>
+                          📍 {loc.label} <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({loc.rows.length})</span>
+                        </div>
+                        <button onClick={() => openAddForm(bubble.key, loc.key)}
+                          style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', backgroundColor: '#0369a1', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                          + Přidat
+                        </button>
                       </div>
+                      {showForm === locFormKey && !editId && <div>{renderForm()}</div>}
                       {renderItemsTable(loc.rows)}
                     </div>
                     )
