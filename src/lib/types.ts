@@ -71,6 +71,7 @@ export interface EventEquipment {
   expense_id: string | null
   category: EquipmentCategory | null
   location: string | null
+  power_kw: number
   created_at: string
 }
 

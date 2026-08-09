@@ -168,3 +168,22 @@ end $$;
 -- (pokud ještě není nastaveno)
 -- ALTER TABLE expenses ADD CONSTRAINT fk_lineup_artist
 --   FOREIGN KEY (lineup_artist_id) REFERENCES lineup(id) ON DELETE CASCADE;
+
+-- event_equipment (přidáno mimo tento soubor 9.6.2026, doplněno zpětně pro dokumentaci)
+create table if not exists event_equipment (
+  id uuid default gen_random_uuid() primary key,
+  event_id uuid references events(id) on delete cascade,
+  name text not null,
+  note text,
+  quantity numeric default 1,
+  unit_price numeric default 0,
+  total_price numeric default 0,
+  expense_id uuid references expenses(id) on delete set null,
+  category text,
+  location text,
+  power_kw numeric default 0,
+  created_at timestamp with time zone default now()
+);
+
+-- Elektřina kalkulačka (5.8.2026): odběr v kW na položku techniky
+alter table event_equipment add column if not exists power_kw numeric default 0;

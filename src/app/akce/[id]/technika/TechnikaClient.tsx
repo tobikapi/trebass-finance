@@ -32,7 +32,7 @@ function locationColor(index: number) {
   return LOCATION_COLORS[index % LOCATION_COLORS.length]
 }
 
-const emptyForm = { name: '', note: '', quantity: '1', unit_price: '', total_price: '', expense_id: '', category: '', location: '' }
+const emptyForm = { name: '', note: '', quantity: '1', unit_price: '', total_price: '', expense_id: '', category: '', location: '', power_kw: '' }
 
 const inputStyle: CSSProperties = {
   backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)',
@@ -116,6 +116,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       expense_id: form.expense_id || null,
       category: form.category || null,
       location: form.location || null,
+      power_kw: parseFloat(form.power_kw) || 0,
     }
     const prev = editId ? equipment.find(x => x.id === editId) : null
     const result = editId
@@ -123,7 +124,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       : await callAction('createEquipment', { event_id: id, ...base })
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
-      const prevPayload = { name: prev.name, note: prev.note, quantity: prev.quantity, unit_price: prev.unit_price, total_price: prev.total_price, expense_id: prev.expense_id, category: prev.category, location: prev.location }
+      const prevPayload = { name: prev.name, note: prev.note, quantity: prev.quantity, unit_price: prev.unit_price, total_price: prev.total_price, expense_id: prev.expense_id, category: prev.category, location: prev.location, power_kw: prev.power_kw }
       pushUndo(`úprava techniky „${prev.name}“`, async () => {
         const res = await callAction('updateEquipment', editId, prevPayload)
         if (res.error) throw new Error(res.error)
@@ -159,6 +160,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       name: eq.name, note: eq.note || '', quantity: eq.quantity.toString(),
       unit_price: eq.unit_price.toString(), total_price: eq.total_price.toString(),
       expense_id: eq.expense_id || '', category: eq.category || '', location: eq.location || '',
+      power_kw: eq.power_kw ? eq.power_kw.toString() : '',
     })
     setEditId(eq.id)
     setShowForm(eq.expense_id && expenseOptions.some(o => o.id === eq.expense_id) ? eq.expense_id : UNASSIGNED)
@@ -233,6 +235,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
         const r2 = await callAction('updateEquipment', item.id, {
           name: item.name, note: item.note, quantity: item.quantity, unit_price: item.unit_price,
           total_price: item.total_price, expense_id: vendor.id, category: item.category, location: item.location,
+          power_kw: item.power_kw,
         })
         if (r2.error) throw new Error(r2.error)
       }
@@ -334,6 +337,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
               {locations.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
+          <div>
+            <label style={labelStyle}>Odběr/ks (kW)</label>
+            <input type="number" step="0.01" value={form.power_kw} onChange={e => setForm({ ...form, power_kw: e.target.value })} placeholder="0" style={inputStyle} />
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button type="submit" disabled={saving} style={{ padding: '7px 18px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: '#0369a1', color: '#fff', border: 'none', cursor: 'pointer' }}>
@@ -362,11 +369,18 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
             <div key={eq.id} style={{ display: 'grid', gridTemplateColumns: rowGrid, padding: '10px 16px', alignItems: 'center', borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
               <div>
                 <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px' }}>{eq.name}</div>
-                {catColors && (
-                  <span style={{ fontSize: '10px', color: catColors.color, backgroundColor: catColors.bg, padding: '1px 6px', borderRadius: '4px', border: `1px solid ${catColors.border}` }}>
-                    {eq.category}
-                  </span>
-                )}
+                <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                  {catColors && (
+                    <span style={{ fontSize: '10px', color: catColors.color, backgroundColor: catColors.bg, padding: '1px 6px', borderRadius: '4px', border: `1px solid ${catColors.border}` }}>
+                      {eq.category}
+                    </span>
+                  )}
+                  {eq.power_kw > 0 && (
+                    <span style={{ fontSize: '10px', color: '#fbbf24', backgroundColor: '#2d2005', padding: '1px 6px', borderRadius: '4px', border: '1px solid #5c4000' }}>
+                      ⚡ {eq.power_kw} kW/ks
+                    </span>
+                  )}
+                </div>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.note || '—'}</div>
               <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.quantity}</div>
