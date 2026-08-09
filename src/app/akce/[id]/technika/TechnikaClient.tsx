@@ -47,6 +47,10 @@ const labelStyle: CSSProperties = {
 
 const rowGrid = '1fr 180px 60px 90px 90px 90px'
 
+function fmtWithVat(n: number) {
+  return (n * 1.21).toLocaleString('cs-CZ', { maximumFractionDigits: 0 }) + ' Kč'
+}
+
 export default function TechnikaClient({ id, initialEquipment }: Props) {
   const { pushUndo } = useUndo()
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
@@ -513,7 +517,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
             <div key={v.key} style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-card)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: 'var(--bg-card-alt)' }}>
                 <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{v.key === UNASSIGNED ? '📦' : '🔧'} {v.label}</span>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{v.total.toLocaleString('cs-CZ')} Kč</span>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{v.total.toLocaleString('cs-CZ')} Kč</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{fmtWithVat(v.total)} s DPH</div>
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', padding: '8px 16px', backgroundColor: 'var(--bg-card-alt)', borderTop: '1px solid var(--border-card)', borderBottom: '1px solid var(--border-card)' }}>
                 {['Název', 'Celkem ks', 'Celkem Kč'].map((h, i) => (
@@ -587,7 +594,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                   </>
                 ) : (
                   <>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{bubbleTotal.toLocaleString('cs-CZ')} Kč</span>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{bubbleTotal.toLocaleString('cs-CZ')} Kč</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{fmtWithVat(bubbleTotal)} s DPH</div>
+                    </div>
                     {vendor && (
                       <>
                         <button onClick={(e) => { e.stopPropagation(); startEditVendor(vendor) }} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
