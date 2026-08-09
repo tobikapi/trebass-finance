@@ -413,6 +413,12 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
       {/* ===== TISKNUTELNÝ OBSAH ===== */}
       <div className="print-page">
 
+        {/* Titulní strana — Main konstrukce plot */}
+        <div style={{ pageBreakAfter: 'always', breakAfter: 'page' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/main-konstrukce-plot.png" alt="Main konstrukce plot" style={{ width: '100%', height: 'auto', display: 'block' }} />
+        </div>
+
         {/* Header */}
         <div style={{ marginBottom: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #e05555', paddingBottom: '16px', marginBottom: '0' }}>
