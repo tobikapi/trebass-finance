@@ -14,11 +14,10 @@ export default async function ElektrinaPage({ params }: Props) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.replace(/\s/g, ''),
     { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
   )
-  const { data: equipment } = await supabase
-    .from('event_equipment')
-    .select('*')
-    .eq('event_id', id)
-    .order('created_at')
+  const [{ data: equipment }, { data: ev }] = await Promise.all([
+    supabase.from('event_equipment').select('*').eq('event_id', id).order('created_at'),
+    supabase.from('events').select('equipment_locations').eq('id', id).single(),
+  ])
 
-  return <ElektrinaClient id={id} initialEquipment={equipment || []} />
+  return <ElektrinaClient id={id} initialEquipment={equipment || []} initialLocations={ev?.equipment_locations || []} />
 }
