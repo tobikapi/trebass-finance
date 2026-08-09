@@ -413,12 +413,6 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
       {/* ===== TISKNUTELNÝ OBSAH ===== */}
       <div className="print-page">
 
-        {/* Titulní strana — Main konstrukce plot */}
-        <div style={{ pageBreakAfter: 'always', breakAfter: 'page' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/main-konstrukce-plot.png" alt="Main konstrukce plot" style={{ width: '100%', height: 'auto', display: 'block' }} />
-        </div>
-
         {/* Header */}
         <div style={{ marginBottom: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #e05555', paddingBottom: '16px', marginBottom: '0' }}>
@@ -483,7 +477,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Rozpočty */}
         {sections.rozpocty && (
-          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+          <section style={{ marginBottom: '28px' }}>
             <SectionHeader color="#7c3aed" icon="🎯" title="Rozpočty" />
             {budgetRows.length > 0 && (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', marginBottom: '14px' }}>
@@ -528,12 +522,12 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Výdaje */}
         {sections.vydaje && expensesByCategory.length > 0 && (
-          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+          <section style={{ marginBottom: '28px' }}>
             <SectionHeader color="#e05555" icon="💸" title="Výdaje" />
             {expensesByCategory.map(({ cat, items }) => {
               const catTotal = items.reduce((s, e) => s + e.price, 0)
               return (
-                <div key={cat} style={{ marginBottom: '16px' }}>
+                <div key={cat} style={{ marginBottom: '16px', pageBreakInside: 'avoid' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '700', color: '#e05555', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0', borderBottom: '1px dashed #f9d0d0' }}>
                     <span>{cat}</span>
                     {showAmounts && <span>{fmt(catTotal)}</span>}
@@ -576,7 +570,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Příjmy */}
         {sections.prijmy && income.length > 0 && (
-          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+          <section style={{ marginBottom: '28px' }}>
             <SectionHeader color="#16a34a" icon="💰" title="Příjmy" />
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
@@ -602,7 +596,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Lineup */}
         {sections.lineup && lineup.length > 0 && (
-          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+          <section style={{ marginBottom: '28px' }}>
             <SectionHeader color="#7c3aed" icon="🎧" title="Lineup" />
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
@@ -643,7 +637,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Tým */}
         {sections.tym && team.length > 0 && (
-          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+          <section style={{ marginBottom: '28px' }}>
             <SectionHeader color="#0891b2" icon="👥" title="Tým — příspěvky" />
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
@@ -669,10 +663,10 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Technika */}
         {sections.technika && equipmentTree.length > 0 && (
-          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+          <section style={{ marginBottom: '28px' }}>
             <SectionHeader color="#0369a1" icon="🔧" title={splitByVendor || splitByLocation ? 'Technika' : 'Technika — celkový souhrn'} />
             {equipmentTree.map(node => (
-              <div key={node.key} style={{ marginBottom: '16px' }}>
+              <div key={node.key} style={{ marginBottom: '16px', pageBreakInside: node.rows ? 'avoid' : undefined }}>
                 {(splitByVendor || splitByLocation) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '700', color: '#0369a1', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0', borderBottom: '1px dashed #bae6fd' }}>
                     <span>{node.label}</span>
@@ -710,7 +704,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Poznámky */}
         {sections.poznamky && notes.length > 0 && (
-          <section style={{ marginBottom: '28px', pageBreakInside: 'avoid' }}>
+          <section style={{ marginBottom: '28px' }}>
             <SectionHeader color="#d97706" icon="📝" title="Poznámky" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {notes.map(note => (
