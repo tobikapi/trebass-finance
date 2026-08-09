@@ -79,7 +79,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     loadingRef.current = true
     try {
       const [{ data }, { data: exp }, { data: ev }] = await Promise.all([
-        supabase.from('event_equipment').select('*').eq('event_id', id).order('created_at'),
+        supabase.from('event_equipment').select('*').eq('event_id', id).eq('elektrina_extra', false).order('created_at'),
         supabase.from('expenses').select('*').eq('event_id', id).eq('category', 'TECHNIKA').order('item'),
         supabase.from('events').select('equipment_locations').eq('id', id).single(),
       ])

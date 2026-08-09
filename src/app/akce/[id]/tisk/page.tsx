@@ -22,7 +22,7 @@ export default async function TiskPage({ params }: Props) {
     supabase.from('lineup').select('*').eq('event_id', id).order('set_time'),
     supabase.from('team_contributions').select('*').eq('event_id', id),
     supabase.from('notes').select('*').eq('event_id', id).order('created_at', { ascending: false }),
-    supabase.from('event_equipment').select('*').eq('event_id', id).order('created_at'),
+    supabase.from('event_equipment').select('*').eq('event_id', id).eq('elektrina_extra', false).order('created_at'),
   ])
 
   const vendors = (ex || []).filter(e => e.category === 'TECHNIKA')

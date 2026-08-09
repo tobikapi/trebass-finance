@@ -18,6 +18,7 @@ export default async function TechnikaPage({ params }: Props) {
     .from('event_equipment')
     .select('*')
     .eq('event_id', id)
+    .eq('elektrina_extra', false)
     .order('created_at')
 
   return <TechnikaClient id={id} initialEquipment={equipment || []} />

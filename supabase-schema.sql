@@ -182,8 +182,13 @@ create table if not exists event_equipment (
   category text,
   location text,
   power_kw numeric default 0,
+  elektrina_extra boolean not null default false,
   created_at timestamp with time zone default now()
 );
 
 -- Elektřina kalkulačka (5.8.2026): odběr v kW na položku techniky
 alter table event_equipment add column if not exists power_kw numeric default 0;
+
+-- Elektřina: položky mimo Techniku, např. food truck (9.8.2026)
+-- elektrina_extra = true -> položka se nezobrazuje na Technice ani v jejím exportu, jen na Elektřině
+alter table event_equipment add column if not exists elektrina_extra boolean not null default false;

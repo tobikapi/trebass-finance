@@ -416,7 +416,7 @@ async function recalcExpensePrice(supabase: Awaited<ReturnType<typeof requireAut
 
 export async function createEquipment(payload: {
   event_id: string; name: string; note: string | null; quantity: number; unit_price: number; total_price: number
-  expense_id: string | null; category: string | null; location: string | null; power_kw: number
+  expense_id: string | null; category: string | null; location: string | null; power_kw: number; elektrina_extra?: boolean
 }) {
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('event_equipment').insert([payload]).select().single()
@@ -427,7 +427,7 @@ export async function createEquipment(payload: {
 
 export async function updateEquipment(id: string, payload: {
   name: string; note: string | null; quantity: number; unit_price: number; total_price: number
-  expense_id: string | null; category: string | null; location: string | null; power_kw: number
+  expense_id: string | null; category: string | null; location: string | null; power_kw: number; elektrina_extra?: boolean
 }) {
   const supabase = await requireAuth()
   const { data: prev } = await supabase.from('event_equipment').select('expense_id').eq('id', id).single()

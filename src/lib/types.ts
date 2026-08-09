@@ -72,6 +72,7 @@ export interface EventEquipment {
   category: EquipmentCategory | null
   location: string | null
   power_kw: number
+  elektrina_extra: boolean
   created_at: string
 }
 
