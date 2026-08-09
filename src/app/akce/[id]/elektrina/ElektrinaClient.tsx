@@ -20,6 +20,7 @@ function fmtKw(n: number) {
 export default function ElektrinaClient({ id, initialEquipment }: Props) {
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
   const [refreshing, setRefreshing] = useState(false)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   const loadingRef = useRef(false)
   async function load() {
@@ -79,25 +80,36 @@ export default function ElektrinaClient({ id, initialEquipment }: Props) {
           {groups.map(g => {
             const catColors = g.key !== NO_CATEGORY ? EQUIPMENT_CATEGORY_COLORS[g.key as EquipmentCategory] : null
             const groupTotal = g.items.reduce((s, e) => s + itemTotalKw(e), 0)
+            const isCollapsed = !!collapsed[g.key]
             return (
               <div key={g.key} style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-card)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: catColors?.bg || 'var(--bg-card-alt)' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '700', color: catColors?.color || 'var(--text-primary)' }}>{g.label}</span>
+                <div
+                  onClick={() => setCollapsed(c => ({ ...c, [g.key]: !c[g.key] }))}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: catColors?.bg || 'var(--bg-card-alt)', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '11px', color: catColors?.color || 'var(--text-dim)' }}>{isCollapsed ? '▸' : '▾'}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: catColors?.color || 'var(--text-primary)' }}>{g.label}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({g.items.length})</span>
+                  </div>
                   <span style={{ fontSize: '13px', fontWeight: '700', color: '#fbbf24' }}>⚡ {fmtKw(groupTotal)}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px 110px', padding: '8px 16px', backgroundColor: 'var(--bg-card-alt)', borderTop: '1px solid var(--border-card)', borderBottom: '1px solid var(--border-card)' }}>
-                  {['Název', 'Počet', 'kW/ks', 'Celkem kW'].map((h, i) => (
-                    <div key={i} style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
-                  ))}
-                </div>
-                {g.items.map((eq, i) => (
-                  <div key={eq.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px 110px', padding: '8px 16px', alignItems: 'center', borderBottom: i < g.items.length - 1 ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{eq.name}</div>
-                    <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary)' }}>{eq.quantity}</div>
-                    <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary)' }}>{eq.power_kw > 0 ? `${eq.power_kw} kW` : '—'}</div>
-                    <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '600', color: eq.power_kw > 0 ? 'var(--text-primary)' : 'var(--text-faint)' }}>{eq.power_kw > 0 ? fmtKw(itemTotalKw(eq)) : '—'}</div>
-                  </div>
-                ))}
+                {!isCollapsed && (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px 110px', padding: '8px 16px', backgroundColor: 'var(--bg-card-alt)', borderTop: '1px solid var(--border-card)', borderBottom: '1px solid var(--border-card)' }}>
+                      {['Název', 'Počet', 'kW/ks', 'Celkem kW'].map((h, i) => (
+                        <div key={i} style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
+                      ))}
+                    </div>
+                    {g.items.map((eq, i) => (
+                      <div key={eq.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px 110px', padding: '8px 16px', alignItems: 'center', borderBottom: i < g.items.length - 1 ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{eq.name}</div>
+                        <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary)' }}>{eq.quantity}</div>
+                        <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary)' }}>{eq.power_kw > 0 ? `${eq.power_kw} kW` : '—'}</div>
+                        <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '600', color: eq.power_kw > 0 ? 'var(--text-primary)' : 'var(--text-faint)' }}>{eq.power_kw > 0 ? fmtKw(itemTotalKw(eq)) : '—'}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )
           })}

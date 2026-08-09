@@ -17,6 +17,7 @@ interface ExpenseOption { id: string; item: string; category: string; note: stri
 
 const UNASSIGNED = '__unassigned__'
 const NO_LOCATION = '__no_location__'
+const NO_CATEGORY = '__no_category__'
 
 const LOCATION_COLORS = [
   { color: '#38bdf8', bg: '#0a1e2e', border: '#0a3e5c' },
@@ -63,6 +64,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   const [newLocation, setNewLocation] = useState('')
   const [showSummary, setShowSummary] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [editVendorId, setEditVendorId] = useState<string | null>(null)
   const [editVendorName, setEditVendorName] = useState('')
   const [savingVendorEdit, setSavingVendorEdit] = useState(false)
@@ -163,7 +165,9 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       power_kw: eq.power_kw ? eq.power_kw.toString() : '',
     })
     setEditId(eq.id)
-    setShowForm(eq.expense_id && expenseOptions.some(o => o.id === eq.expense_id) ? eq.expense_id : UNASSIGNED)
+    const bubbleKey = eq.expense_id && expenseOptions.some(o => o.id === eq.expense_id) ? eq.expense_id : UNASSIGNED
+    setShowForm(bubbleKey)
+    setCollapsed(c => ({ ...c, [bubbleKey]: false }))
   }
 
   function openAddForm(bubbleKey: string) {
@@ -271,7 +275,9 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     })
   }
 
-  const visibleEquipment = selectedLocation ? equipment.filter(e => e.location === selectedLocation) : equipment
+  const visibleEquipment = equipment
+    .filter(e => !selectedLocation || e.location === selectedLocation)
+    .filter(e => !selectedCategory || (selectedCategory === NO_CATEGORY ? !e.category : e.category === selectedCategory))
   const totalPrice = visibleEquipment.reduce((s, e) => s + e.total_price, 0)
 
   const bubbles: { key: string; label: string; items: EventEquipment[] }[] = [
@@ -296,7 +302,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     .map(b => ({ key: b.key, label: b.label, rows: aggregateByName(b.items), total: b.items.reduce((s, e) => s + e.total_price, 0) }))
     .filter(b => b.rows.length > 0)
 
-  function renderForm(bubbleKey: string) {
+  function renderForm() {
     return (
       <form onSubmit={handleSave} style={{ marginTop: '10px', marginBottom: '10px', padding: '18px 20px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid #0369a1' }}>
         <div style={{ fontSize: '13px', fontWeight: '600', color: '#38bdf8', marginBottom: '14px' }}>
@@ -366,30 +372,33 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
         {items.map((eq, i) => {
           const catColors = eq.category ? EQUIPMENT_CATEGORY_COLORS[eq.category] : null
           return (
-            <div key={eq.id} style={{ display: 'grid', gridTemplateColumns: rowGrid, padding: '10px 16px', alignItems: 'center', borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
-              <div>
-                <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px' }}>{eq.name}</div>
-                <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
-                  {catColors && (
-                    <span style={{ fontSize: '10px', color: catColors.color, backgroundColor: catColors.bg, padding: '1px 6px', borderRadius: '4px', border: `1px solid ${catColors.border}` }}>
-                      {eq.category}
-                    </span>
-                  )}
-                  {eq.power_kw > 0 && (
-                    <span style={{ fontSize: '10px', color: '#fbbf24', backgroundColor: '#2d2005', padding: '1px 6px', borderRadius: '4px', border: '1px solid #5c4000' }}>
-                      ⚡ {eq.power_kw} kW/ks
-                    </span>
-                  )}
+            <div key={eq.id}>
+              <div style={{ display: 'grid', gridTemplateColumns: rowGrid, padding: '10px 16px', alignItems: 'center', borderBottom: i < items.length - 1 || editId === eq.id ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
+                <div>
+                  <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px' }}>{eq.name}</div>
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                    {catColors && (
+                      <span style={{ fontSize: '10px', color: catColors.color, backgroundColor: catColors.bg, padding: '1px 6px', borderRadius: '4px', border: `1px solid ${catColors.border}` }}>
+                        {eq.category}
+                      </span>
+                    )}
+                    {eq.power_kw > 0 && (
+                      <span style={{ fontSize: '10px', color: '#fbbf24', backgroundColor: '#2d2005', padding: '1px 6px', borderRadius: '4px', border: '1px solid #5c4000' }}>
+                        ⚡ {eq.power_kw} kW/ks
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.note || '—'}</div>
+                <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.quantity}</div>
+                <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.unit_price > 0 ? `${eq.unit_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>
+                <div style={{ textAlign: 'right', fontWeight: '600', color: eq.total_price > 0 ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: '13px' }}>{eq.total_price > 0 ? `${eq.total_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button onClick={() => startEdit(eq)} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
+                  <button onClick={() => handleDelete(eq.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
                 </div>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.note || '—'}</div>
-              <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.quantity}</div>
-              <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.unit_price > 0 ? `${eq.unit_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>
-              <div style={{ textAlign: 'right', fontWeight: '600', color: eq.total_price > 0 ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: '13px' }}>{eq.total_price > 0 ? `${eq.total_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button onClick={() => startEdit(eq)} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                <button onClick={() => handleDelete(eq.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
-              </div>
+              {editId === eq.id && <div style={{ padding: '0 12px' }}>{renderForm()}</div>}
             </div>
           )
         })}
@@ -460,12 +469,45 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
         </div>
       </div>
 
+      {/* Kategorie */}
+      <div style={{ marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>Kategorie {selectedCategory ? '(klikni pro zrušení filtru):' : '(klikni pro filtr):'}</span>
+        {EQUIPMENT_CATEGORIES.map(cat => {
+          const c = EQUIPMENT_CATEGORY_COLORS[cat]
+          const active = selectedCategory === cat
+          return (
+            <span key={cat}
+              onClick={() => setSelectedCategory(active ? null : cat)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: '5px', cursor: 'pointer',
+                backgroundColor: active ? c.color : c.bg, border: `1px solid ${c.color}`,
+                fontSize: '12px', color: active ? '#0c0c0c' : c.color, fontWeight: '700',
+              }}>
+              {cat}
+            </span>
+          )
+        })}
+        <span
+          onClick={() => setSelectedCategory(selectedCategory === NO_CATEGORY ? null : NO_CATEGORY)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: '5px', cursor: 'pointer',
+            backgroundColor: selectedCategory === NO_CATEGORY ? 'var(--text-muted)' : 'var(--bg-card-dark)',
+            border: '1px solid var(--border-subtle)',
+            fontSize: '12px', color: selectedCategory === NO_CATEGORY ? '#0c0c0c' : 'var(--text-muted)', fontWeight: '700',
+          }}>
+          Bez kategorie
+        </span>
+      </div>
+
       {/* Souhrn */}
       {showSummary && (
         <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {summaryByVendor.length === 0 ? (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
-              {selectedLocation ? `Žádná technika na místě „${selectedLocation}“.` : 'Žádná technika.'}
+              {selectedLocation && selectedCategory ? `Žádná technika na místě „${selectedLocation}“ v kategorii „${selectedCategory === NO_CATEGORY ? 'Bez kategorie' : selectedCategory}“.`
+                : selectedLocation ? `Žádná technika na místě „${selectedLocation}“.`
+                : selectedCategory ? `Žádná technika v kategorii „${selectedCategory === NO_CATEGORY ? 'Bez kategorie' : selectedCategory}“.`
+                : 'Žádná technika.'}
             </div>
           ) : summaryByVendor.map(v => (
             <div key={v.key} style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-card)' }}>
@@ -561,7 +603,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
               </div>
             </div>
 
-            {showForm === bubble.key && <div style={{ padding: '0 12px' }}>{renderForm(bubble.key)}</div>}
+            {showForm === bubble.key && !editId && <div style={{ padding: '0 12px' }}>{renderForm()}</div>}
 
             {!isCollapsed && (
               bubble.items.length === 0 ? (
