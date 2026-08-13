@@ -87,9 +87,10 @@ function timeAgo(dateStr: string) {
   return `před ${days} dny`
 }
 
-function countdown(dateStr: string) {
+function countdown(dateStr: string, timeStart?: string | null) {
   const [y, m, d] = dateStr.split('-').map(Number)
-  const diff = new Date(y, m - 1, d).getTime() - Date.now()
+  const [hh, mm] = (timeStart || '00:00').split(':').map(Number)
+  const diff = new Date(y, m - 1, d, hh || 0, mm || 0).getTime() - Date.now()
   if (diff <= 0) return null
   const days = Math.floor(diff / 86400000)
   if (days === 0) return 'dnes'
@@ -183,7 +184,7 @@ export default function Dashboard() {
   // Nadcházející akce
   const upcomingEvents = useMemo(() =>
     allEvents
-      .filter(e => e.status === 'pripravuje_se' && e.date && countdown(e.date) !== null)
+      .filter(e => e.status === 'pripravuje_se' && e.date && countdown(e.date, e.time_start) !== null)
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
       .slice(0, 4),
   [allEvents])
@@ -278,7 +279,7 @@ export default function Dashboard() {
           <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', letterSpacing: '0.08em', margin: '0 0 10px 0', textTransform: 'uppercase' }}>Nadcházející akce</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
             {upcomingEvents.map(ev => {
-              const cd = ev.date ? countdown(ev.date) : null
+              const cd = ev.date ? countdown(ev.date, ev.time_start) : null
               const sum = eventSummary[ev.id]
               return (
                 <Link key={ev.id} href={`/akce/${ev.id}/prehled`} style={{ textDecoration: 'none' }}>

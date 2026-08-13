@@ -34,12 +34,12 @@ export default function Navigation() {
   const avatarColor = MEMBER_COLORS[userName] || '#e05555'
   const initials = userName.slice(0, 2).toUpperCase()
 
-  const [nextEvent, setNextEvent] = useState<{ name: string; date: string } | null>(null)
+  const [nextEvent, setNextEvent] = useState<{ name: string; date: string; time_start: string | null } | null>(null)
   const [cdParts, setCdParts] = useState<{ d: number; h: number; m: number; s: number } | null>(null)
   const [refetchKey, setRefetchKey] = useState(0)
 
   useEffect(() => {
-    supabase.from('events').select('name, date')
+    supabase.from('events').select('name, date, time_start')
       .eq('status', 'pripravuje_se').not('date', 'is', null)
       .order('date', { ascending: true }).limit(1).single()
       .then(({ data }) => setNextEvent(data ?? null))
@@ -49,7 +49,8 @@ export default function Navigation() {
     if (!nextEvent?.date) return
     function tick() {
       const [y, mo, day] = nextEvent!.date.split('-').map(Number)
-      const diff = new Date(y, mo - 1, day).getTime() - Date.now()
+      const [hh, mm] = (nextEvent!.time_start || '00:00').split(':').map(Number)
+      const diff = new Date(y, mo - 1, day, hh || 0, mm || 0).getTime() - Date.now()
       if (diff <= 0) {
         setNextEvent(null); setCdParts(null); setRefetchKey(k => k + 1); return
       }
