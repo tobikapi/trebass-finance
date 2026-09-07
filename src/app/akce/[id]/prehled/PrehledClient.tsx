@@ -54,6 +54,13 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
   const [budgetEdit, setBudgetEdit] = useState(false)
   const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [descEdit, setDescEdit] = useState(false)
+  const [descInput, setDescInput] = useState('')
+  const [savingDesc, setSavingDesc] = useState(false)
+  const [marginEdit, setMarginEdit] = useState(false)
+  const [marginInput, setMarginInput] = useState('')
+  const [savingMargin, setSavingMargin] = useState(false)
+  const [savingMarginToIncome, setSavingMarginToIncome] = useState(false)
 
   async function load() {
     const [{ data: exp }, { data: inc }, { data: ev }] = await Promise.all([
@@ -82,6 +89,11 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
     byCategory[e.category].count++
   }
   const categoryRows = Object.entries(byCategory).sort((a, b) => b[1].total - a[1].total)
+
+  const techCost = byCategory['TECHNIKA']?.total || 0
+  const marginPercent = event?.margin_percent || 0
+  const clientPrice = techCost * (1 + marginPercent / 100)
+  const profit = clientPrice - techCost
 
   const bySource: Record<string, number> = {}
   for (const i of income) {
@@ -116,8 +128,143 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
     setSaving(false)
   }
 
+  function openDescEdit() {
+    setDescInput(event?.description || '')
+    setDescEdit(true)
+  }
+
+  async function saveDescription() {
+    setSavingDesc(true)
+    const value = descInput.trim()
+    const result = await callAction('updateEventDescription', id, value)
+    if (result.error) { alert('Chyba: ' + result.error); setSavingDesc(false); return }
+    setEvent(prev => prev ? { ...prev, description: value || null } : prev)
+    setDescEdit(false)
+    setSavingDesc(false)
+  }
+
+  function openMarginEdit() {
+    setMarginInput(marginPercent ? String(marginPercent) : '')
+    setMarginEdit(true)
+  }
+
+  async function saveMargin() {
+    setSavingMargin(true)
+    const n = parseFloat(marginInput) || 0
+    const result = await callAction('updateEventMargin', id, n)
+    if (result.error) { alert('Chyba: ' + result.error); setSavingMargin(false); return }
+    setEvent(prev => prev ? { ...prev, margin_percent: n } : prev)
+    setMarginEdit(false)
+    setSavingMargin(false)
+  }
+
+  async function toggleMarginToIncome(enabled: boolean) {
+    setSavingMarginToIncome(true)
+    const result = await callAction('updateEventMarginToIncome', id, enabled)
+    if (result.error) { alert('Chyba: ' + result.error); setSavingMarginToIncome(false); return }
+    setEvent(prev => prev ? { ...prev, margin_to_income: enabled } : prev)
+    await load()
+    setSavingMarginToIncome(false)
+  }
+
   return (
     <EventLayout eventId={id}>
+      {/* Poznámky k akci (obecné info) */}
+      <div style={{ marginBottom: '24px', padding: '18px 20px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: descEdit || event?.description ? '10px' : 0 }}>
+          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>📝 Poznámky k akci</span>
+          {!descEdit && (
+            <button onClick={openDescEdit}
+              style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
+              {event?.description ? 'Upravit' : '+ Přidat'}
+            </button>
+          )}
+        </div>
+        {descEdit ? (
+          <div>
+            <textarea
+              value={descInput} onChange={e => setDescInput(e.target.value)} rows={3}
+              placeholder="Kontext akce, dress code, důležité info pro tým..."
+              style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '13px', resize: 'vertical', marginBottom: '10px' }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={saveDescription} disabled={savingDesc}
+                style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#e05555', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                {savingDesc ? 'Ukládám...' : 'Uložit'}
+              </button>
+              <button onClick={() => setDescEdit(false)}
+                style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer' }}>
+                Zrušit
+              </button>
+            </div>
+          </div>
+        ) : event?.description ? (
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{event.description}</p>
+        ) : (
+          <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0, fontStyle: 'italic' }}>Zatím žádné obecné info k akci (kontext, dress code...).</p>
+        )}
+      </div>
+
+      {/* Marže z pronájmu techniky */}
+      <div style={{ marginBottom: '24px', padding: '18px 20px', borderRadius: '12px', backgroundColor: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <span style={{ fontSize: '13px', fontWeight: '700', color: '#a78bfa' }}>💹 Marže z pronájmu techniky</span>
+          {!marginEdit && (
+            <button onClick={openMarginEdit}
+              style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', backgroundColor: '#1e1035', color: '#a78bfa', border: '1px solid #3d2d6b', cursor: 'pointer' }}>
+              Nastavit marži
+            </button>
+          )}
+        </div>
+        {marginEdit ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <input
+              type="number" value={marginInput} onChange={e => setMarginInput(e.target.value)} placeholder="0" autoFocus
+              style={{ width: '100px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', outline: 'none' }}
+            />
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>%</span>
+            <button onClick={saveMargin} disabled={savingMargin}
+              style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer' }}>
+              {savingMargin ? 'Ukládám...' : 'Uložit'}
+            </button>
+            <button onClick={() => setMarginEdit(false)}
+              style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer' }}>
+              Zrušit
+            </button>
+          </div>
+        ) : marginPercent > 0 ? (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Náklady na techniku</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>{fmt(techCost)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Marže</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#a78bfa' }}>{marginPercent}%</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cena pro klienta</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>{fmt(clientPrice)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Zisk</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#34d399' }}>+{fmt(profit)}</div>
+              </div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px', fontSize: '12px', color: 'var(--text-secondary)', cursor: savingMarginToIncome ? 'default' : 'pointer' }}>
+              <input type="checkbox" checked={!!event?.margin_to_income} disabled={savingMarginToIncome}
+                onChange={e => toggleMarginToIncome(e.target.checked)} />
+              Zapisovat cenu pro klienta do Příjmů
+            </label>
+          </div>
+        ) : (
+          <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0, fontStyle: 'italic' }}>
+            Marže není nastavená. Nastav procento, které si účtuješ navíc nad náklady na techniku ({fmt(techCost)}).
+          </p>
+        )}
+      </div>
+
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '32px' }}>
         <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)' }}>

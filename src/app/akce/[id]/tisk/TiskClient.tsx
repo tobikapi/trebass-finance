@@ -27,7 +27,7 @@ interface EqNode { key: string; label: string; totalPrice: number; totalKw: numb
 
 type SectionKey = 'bilance' | 'rozpocty' | 'vydaje' | 'prijmy' | 'lineup' | 'tym' | 'technika' | 'poznamky'
 const SECTION_LABELS: Record<SectionKey, string> = {
-  bilance: 'Bilance (finanční přehled)', rozpocty: 'Rozpočty (náklady a příjmy)', vydaje: 'Výdaje', prijmy: 'Příjmy', lineup: 'Lineup', tym: 'Tým', technika: 'Technika', poznamky: 'Poznámky',
+  bilance: 'Bilance (finanční přehled)', rozpocty: 'Rozpočty (náklady a příjmy)', vydaje: 'Výdaje', prijmy: 'Příjmy', lineup: 'Lineup', tym: 'Tým', technika: 'Technika', poznamky: 'Chat',
 }
 
 const MEMBER_COLORS: Record<string, string> = {
@@ -119,7 +119,16 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
       .filter(n => n.rows.length > 0)
   }
 
-  const filteredEquipment = equipment.filter(e => selectedVendors.includes(e.expense_id || UNASSIGNED_VENDOR))
+  const vendorMap = new Map(vendors.map(v => [v.id, v]))
+  const discountedEquipment = equipment.map(e => {
+    const vendor = e.expense_id ? vendorMap.get(e.expense_id) : undefined
+    const discount = vendor?.discount_percent || 0
+    const multiplier = (1 - discount / 100) * (vendor?.with_vat ? 1.21 : 1)
+    return multiplier !== 1
+      ? { ...e, unit_price: e.unit_price * multiplier, total_price: e.total_price * multiplier }
+      : e
+  })
+  const filteredEquipment = discountedEquipment.filter(e => selectedVendors.includes(e.expense_id || UNASSIGNED_VENDOR))
   const totalEquipment = filteredEquipment.reduce((s, e) => s + e.total_price, 0)
   const totalEquipmentKw = filteredEquipment.reduce((s, e) => s + (e.power_kw || 0) * e.quantity, 0)
 
@@ -702,10 +711,10 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
           </section>
         )}
 
-        {/* Poznámky */}
+        {/* Chat */}
         {sections.poznamky && notes.length > 0 && (
           <section style={{ marginBottom: '28px' }}>
-            <SectionHeader color="#d97706" icon="📝" title="Poznámky" />
+            <SectionHeader color="#d97706" icon="💬" title="Chat" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {notes.map(note => (
                 <div key={note.id} style={{ border: '1px solid #e5e7eb', borderRadius: '7px', padding: '10px 14px', backgroundColor: '#fafafa' }}>

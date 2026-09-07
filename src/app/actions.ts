@@ -86,10 +86,62 @@ export async function updateEventBudgets(id: string, budgets: Record<string, num
   return { data: true }
 }
 
+export async function updateEventDescription(id: string, description: string) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('events').update({ description: description || null }).eq('id', id)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function updateEventMargin(id: string, margin_percent: number) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('events').update({ margin_percent }).eq('id', id)
+  if (error) return { error: error.message }
+  await syncMarginIncome(supabase, id)
+  return { data: true }
+}
+
+export async function updateEventMarginToIncome(id: string, enabled: boolean) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('events').update({ margin_to_income: enabled }).eq('id', id)
+  if (error) return { error: error.message }
+  await syncMarginIncome(supabase, id)
+  return { data: true }
+}
+
+// Drží řádek v `income` v souladu s náklady na techniku (expenses.price kde category='TECHNIKA')
+// a nastavenou marží. Pokud je margin_to_income vypnuté, odpovídající příjem smaže.
+async function syncMarginIncome(supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string) {
+  const { data: event } = await supabase.from('events')
+    .select('margin_percent, margin_to_income, margin_income_id').eq('id', eventId).single()
+  if (!event) return
+
+  if (!event.margin_to_income) {
+    if (event.margin_income_id) {
+      await supabase.from('income').delete().eq('id', event.margin_income_id)
+      await supabase.from('events').update({ margin_income_id: null }).eq('id', eventId)
+    }
+    return
+  }
+
+  const { data: techExpenses } = await supabase.from('expenses').select('price').eq('event_id', eventId).eq('category', 'TECHNIKA')
+  const techCost = (techExpenses || []).reduce((s, e) => s + e.price, 0)
+  const clientPrice = techCost * (1 + (event.margin_percent || 0) / 100)
+  const note = 'Automaticky generováno z marže techniky'
+
+  if (event.margin_income_id) {
+    const { data: updated } = await supabase.from('income').update({ amount: clientPrice }).eq('id', event.margin_income_id).select().single()
+    if (updated) return
+  }
+  const { data: inc } = await supabase.from('income')
+    .insert([{ event_id: eventId, source: 'TECHNIKA (marže)', amount: clientPrice, note }]).select().single()
+  if (inc) await supabase.from('events').update({ margin_income_id: inc.id }).eq('id', eventId)
+}
+
 // EXPENSES
 export async function createExpense(payload: {
   event_id: string; category: string; item: string; note: string | null;
-  payment_timing: string | null; price: number; deposit: number; paid: boolean
+  payment_timing: string | null; price: number; deposit: number; paid: boolean; discount_percent?: number; with_vat?: boolean
 }) {
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('expenses').insert([payload]).select().single()
@@ -118,6 +170,22 @@ export async function renameExpenseItem(id: string, item: string) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('expenses').update({ item }).eq('id', id)
   if (error) return { error: error.message }
+  return { data: true }
+}
+
+export async function updateVendorDiscount(id: string, discount_percent: number) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('expenses').update({ discount_percent }).eq('id', id)
+  if (error) return { error: error.message }
+  await recalcExpensePrice(supabase, id)
+  return { data: true }
+}
+
+export async function updateVendorVat(id: string, with_vat: boolean) {
+  const supabase = await requireAuth()
+  const { error } = await supabase.from('expenses').update({ with_vat }).eq('id', id)
+  if (error) return { error: error.message }
+  await recalcExpensePrice(supabase, id)
   return { data: true }
 }
 
@@ -409,9 +477,15 @@ export async function deleteCompanyIncome(id: string) {
 // EQUIPMENT (TECHNIKA)
 async function recalcExpensePrice(supabase: Awaited<ReturnType<typeof requireAuth>>, expenseId: string | null) {
   if (!expenseId) return
-  const { data } = await supabase.from('event_equipment').select('total_price').eq('expense_id', expenseId)
+  const [{ data }, { data: exp }] = await Promise.all([
+    supabase.from('event_equipment').select('total_price').eq('expense_id', expenseId),
+    supabase.from('expenses').select('discount_percent, with_vat, event_id').eq('id', expenseId).single(),
+  ])
   const sum = (data || []).reduce((s, e) => s + e.total_price, 0)
-  await supabase.from('expenses').update({ price: sum }).eq('id', expenseId)
+  const discount = exp?.discount_percent || 0
+  const vatMultiplier = exp?.with_vat ? 1.21 : 1
+  await supabase.from('expenses').update({ price: sum * (1 - discount / 100) * vatMultiplier }).eq('id', expenseId)
+  if (exp?.event_id) await syncMarginIncome(supabase, exp.event_id)
 }
 
 export async function createEquipment(payload: {

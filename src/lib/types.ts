@@ -15,6 +15,9 @@ export interface Event {
   stages: string[]
   equipment_locations: string[]
   budgets: Record<string, number>
+  margin_percent: number
+  margin_to_income: boolean
+  margin_income_id: string | null
   created_at: string
 }
 
@@ -55,6 +58,8 @@ export interface Expense {
   price: number
   deposit: number
   paid: boolean
+  discount_percent: number
+  with_vat: boolean
   created_at: string
 }
 

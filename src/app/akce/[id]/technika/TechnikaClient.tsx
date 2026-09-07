@@ -13,7 +13,11 @@ interface Props {
   initialEquipment: EventEquipment[]
 }
 
-interface ExpenseOption { id: string; item: string; category: string; note: string | null; payment_timing: string | null; price: number; deposit: number; paid: boolean }
+interface ExpenseOption { id: string; item: string; category: string; note: string | null; payment_timing: string | null; price: number; deposit: number; paid: boolean; discount_percent: number; with_vat: boolean }
+
+function netMultiplier(discountPercent: number, withVat: boolean) {
+  return (1 - discountPercent / 100) * (withVat ? 1.21 : 1)
+}
 
 const UNASSIGNED = '__unassigned__'
 const NO_LOCATION = '__no_location__'
@@ -64,6 +68,8 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [showVendorForm, setShowVendorForm] = useState(false)
   const [vendorName, setVendorName] = useState('')
+  const [vendorDiscount, setVendorDiscount] = useState('')
+  const [vendorVat, setVendorVat] = useState(false)
   const [savingVendor, setSavingVendor] = useState(false)
   const [newLocation, setNewLocation] = useState('')
   const [showSummary, setShowSummary] = useState(false)
@@ -71,6 +77,8 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [editVendorId, setEditVendorId] = useState<string | null>(null)
   const [editVendorName, setEditVendorName] = useState('')
+  const [editVendorDiscount, setEditVendorDiscount] = useState('')
+  const [editVendorVat, setEditVendorVat] = useState(false)
   const [savingVendorEdit, setSavingVendorEdit] = useState(false)
 
   const loadingRef = useRef(false)
@@ -189,9 +197,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     if (!vendorName.trim()) return
     setSavingVendor(true)
     const vendorLabel = vendorName.trim()
+    const discount = parseFloat(vendorDiscount) || 0
     const result = await callAction('createExpense', {
       event_id: id, category: 'TECHNIKA', item: vendorLabel,
-      note: null, payment_timing: null, price: 0, deposit: 0, paid: false,
+      note: null, payment_timing: null, price: 0, deposit: 0, paid: false, discount_percent: discount, with_vat: vendorVat,
     })
     if (result.error) { alert('Chyba: ' + result.error); setSavingVendor(false); return }
     if (result.data) {
@@ -203,28 +212,59 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       })
     }
     await load()
-    setVendorName(''); setShowVendorForm(false); setSavingVendor(false)
+    setVendorName(''); setVendorDiscount(''); setVendorVat(false); setShowVendorForm(false); setSavingVendor(false)
   }
 
   function startEditVendor(vendor: ExpenseOption) {
     setEditVendorId(vendor.id)
     setEditVendorName(vendor.item)
+    setEditVendorDiscount(vendor.discount_percent ? String(vendor.discount_percent) : '')
+    setEditVendorVat(!!vendor.with_vat)
   }
 
   async function saveVendorEdit(vendor: ExpenseOption) {
-    const newName = editVendorName.trim()
-    if (!newName || newName === vendor.item) { setEditVendorId(null); return }
-    setSavingVendorEdit(true)
+    const newName = editVendorName.trim() || vendor.item
+    const newDiscount = parseFloat(editVendorDiscount) || 0
+    const newVat = editVendorVat
     const prevName = vendor.item
-    const res = await callAction('renameExpenseItem', vendor.id, newName)
-    if (res.error) { alert('Chyba: ' + res.error); setSavingVendorEdit(false); return }
+    const prevDiscount = vendor.discount_percent || 0
+    const prevVat = !!vendor.with_vat
+    setSavingVendorEdit(true)
+    if (newName !== prevName) {
+      const res = await callAction('renameExpenseItem', vendor.id, newName)
+      if (res.error) { alert('Chyba: ' + res.error); setSavingVendorEdit(false); return }
+    }
+    if (newDiscount !== prevDiscount) {
+      const res = await callAction('updateVendorDiscount', vendor.id, newDiscount)
+      if (res.error) { alert('Chyba: ' + res.error); setSavingVendorEdit(false); return }
+    }
+    if (newVat !== prevVat) {
+      const res = await callAction('updateVendorVat', vendor.id, newVat)
+      if (res.error) { alert('Chyba: ' + res.error); setSavingVendorEdit(false); return }
+    }
     await load()
     setEditVendorId(null); setSavingVendorEdit(false)
-    pushUndo(`přejmenování pronajímatele „${prevName}“`, async () => {
-      const r = await callAction('renameExpenseItem', vendor.id, prevName)
-      if (r.error) throw new Error(r.error)
-      await load()
-    })
+    if (newName !== prevName) {
+      pushUndo(`přejmenování pronajímatele „${prevName}“`, async () => {
+        const r = await callAction('renameExpenseItem', vendor.id, prevName)
+        if (r.error) throw new Error(r.error)
+        await load()
+      })
+    }
+    if (newDiscount !== prevDiscount) {
+      pushUndo(`změna slevy u pronajímatele „${newName}“`, async () => {
+        const r = await callAction('updateVendorDiscount', vendor.id, prevDiscount)
+        if (r.error) throw new Error(r.error)
+        await load()
+      })
+    }
+    if (newVat !== prevVat) {
+      pushUndo(`změna DPH u pronajímatele „${newName}“`, async () => {
+        const r = await callAction('updateVendorVat', vendor.id, prevVat)
+        if (r.error) throw new Error(r.error)
+        await load()
+      })
+    }
   }
 
   async function handleDeleteVendor(vendor: ExpenseOption) {
@@ -286,7 +326,11 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   const visibleEquipment = equipment
     .filter(e => !selectedLocation || e.location === selectedLocation)
     .filter(e => !selectedCategory || (selectedCategory === NO_CATEGORY ? !e.category : e.category === selectedCategory))
-  const totalPrice = visibleEquipment.reduce((s, e) => s + e.total_price, 0)
+  function netPrice(e: EventEquipment) {
+    const vendor = expenseOptions.find(o => o.id === e.expense_id)
+    return e.total_price * netMultiplier(vendor?.discount_percent || 0, !!vendor?.with_vat)
+  }
+  const totalPrice = visibleEquipment.reduce((s, e) => s + netPrice(e), 0)
 
   const bubbles: { key: string; label: string; items: EventEquipment[] }[] = [
     ...expenseOptions.map(opt => ({ key: opt.id, label: opt.item, items: visibleEquipment.filter(e => e.expense_id === opt.id) })),
@@ -307,7 +351,13 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   }
 
   const summaryByVendor = bubbles
-    .map(b => ({ key: b.key, label: b.label, rows: aggregateByName(b.items), total: b.items.reduce((s, e) => s + e.total_price, 0) }))
+    .map(b => {
+      const rawTotal = b.items.reduce((s, e) => s + e.total_price, 0)
+      const opt = expenseOptions.find(o => o.id === b.key)
+      const discount = opt?.discount_percent || 0
+      const withVat = !!opt?.with_vat
+      return { key: b.key, label: b.label, rows: aggregateByName(b.items), total: rawTotal, discount, withVat, netTotal: rawTotal * netMultiplier(discount, withVat) }
+    })
     .filter(b => b.rows.length > 0)
 
   function renderForm() {
@@ -368,8 +418,15 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     )
   }
 
-  function renderItemsTable(items: EventEquipment[]) {
+  function renderItemsTable(items: EventEquipment[], discountPercent: number = 0, withVat: boolean = false) {
     if (items.length === 0) return null
+    const showNet = discountPercent > 0 || withVat
+    const netTag = (
+      <>
+        {discountPercent > 0 && <span> (-{discountPercent}%)</span>}
+        {withVat && <span> +DPH</span>}
+      </>
+    )
     return (
       <div>
         <div style={{ display: 'grid', gridTemplateColumns: rowGrid, padding: '8px 16px', backgroundColor: 'var(--bg-card-alt)', borderTop: '1px solid var(--border-card)', borderBottom: '1px solid var(--border-card)' }}>
@@ -379,6 +436,8 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
         </div>
         {items.map((eq, i) => {
           const catColors = eq.category ? EQUIPMENT_CATEGORY_COLORS[eq.category] : null
+          const netUnit = eq.unit_price * netMultiplier(discountPercent, withVat)
+          const netTotal = eq.total_price * netMultiplier(discountPercent, withVat)
           return (
             <div key={eq.id}>
               <div style={{ display: 'grid', gridTemplateColumns: rowGrid, padding: '10px 16px', alignItems: 'center', borderBottom: i < items.length - 1 || editId === eq.id ? '1px solid var(--border-subtle)' : 'none', backgroundColor: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-alt)' }}>
@@ -399,8 +458,18 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.note || '—'}</div>
                 <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.quantity}</div>
-                <div style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>{eq.unit_price > 0 ? `${eq.unit_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>
-                <div style={{ textAlign: 'right', fontWeight: '600', color: eq.total_price > 0 ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: '13px' }}>{eq.total_price > 0 ? `${eq.total_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>
+                <div style={{ textAlign: 'right', fontSize: '13px' }}>
+                  <div style={{ color: 'var(--text-secondary)' }}>{eq.unit_price > 0 ? `${eq.unit_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>
+                  {showNet && eq.unit_price > 0 && (
+                    <div style={{ fontSize: '11px', color: '#34d399' }}>{netUnit.toLocaleString('cs-CZ', { maximumFractionDigits: 0 })} Kč{netTag}</div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', fontSize: '13px' }}>
+                  <div style={{ fontWeight: '600', color: eq.total_price > 0 ? 'var(--text-primary)' : 'var(--text-faint)' }}>{eq.total_price > 0 ? `${eq.total_price.toLocaleString('cs-CZ')} Kč` : '—'}</div>
+                  {showNet && eq.total_price > 0 && (
+                    <div style={{ fontSize: '11px', color: '#34d399' }}>{netTotal.toLocaleString('cs-CZ', { maximumFractionDigits: 0 })} Kč{netTag}</div>
+                  )}
+                </div>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                   <button onClick={() => startEdit(eq)} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
                   <button onClick={() => handleDelete(eq.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
@@ -438,7 +507,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
             style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', backgroundColor: showSummary ? '#0369a1' : 'var(--bg-card)', color: showSummary ? '#fff' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
             Σ Souhrn
           </button>
-          <button onClick={() => { setVendorName(''); setShowVendorForm(v => !v) }}
+          <button onClick={() => { setVendorName(''); setVendorDiscount(''); setShowVendorForm(v => !v) }}
             style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
             + Nový pronajímatel
           </button>
@@ -520,10 +589,26 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
           ) : summaryByVendor.map(v => (
             <div key={v.key} style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-card)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: 'var(--bg-card-alt)' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{v.key === UNASSIGNED ? '📦' : '🔧'} {v.label}</span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                  {v.key === UNASSIGNED ? '📦' : '🔧'} {v.label}
+                  {v.withVat && <span style={{ fontSize: '10px', color: '#fbbf24', marginLeft: '6px' }}>s DPH</span>}
+                </span>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{v.total.toLocaleString('cs-CZ')} Kč</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{fmtWithVat(v.total)} s DPH</div>
+                  {(v.discount > 0 || v.withVat) ? (
+                    <>
+                      <div style={{ fontSize: '10px', color: 'var(--text-dim)', textDecoration: 'line-through' }}>{v.total.toLocaleString('cs-CZ')} Kč</div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#34d399' }}>
+                        {v.netTotal.toLocaleString('cs-CZ')} Kč
+                        {v.discount > 0 && <span style={{ fontSize: '10px', fontWeight: '600' }}> (-{v.discount}%)</span>}
+                        {v.withVat && <span style={{ fontSize: '10px', fontWeight: '600' }}> +DPH</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{v.total.toLocaleString('cs-CZ')} Kč</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{fmtWithVat(v.total)} s DPH</div>
+                    </>
+                  )}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', padding: '8px 16px', backgroundColor: 'var(--bg-card-alt)', borderTop: '1px solid var(--border-card)', borderBottom: '1px solid var(--border-card)' }}>
@@ -546,6 +631,11 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       {showVendorForm && (
         <form onSubmit={handleCreateVendor} style={{ display: 'flex', gap: '8px', marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
           <input autoFocus value={vendorName} onChange={e => setVendorName(e.target.value)} placeholder="Název pronajímatele, např. AudioLighty s.r.o." style={{ ...inputStyle, flex: 1 }} />
+          <input type="number" value={vendorDiscount} onChange={e => setVendorDiscount(e.target.value)} placeholder="Sleva %" title="Sleva v %" style={{ ...inputStyle, width: '100px', flex: 'none' }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0, cursor: 'pointer' }}>
+            <input type="checkbox" checked={vendorVat} onChange={e => setVendorVat(e.target.checked)} />
+            S DPH
+          </label>
           <button type="submit" disabled={savingVendor} style={{ padding: '7px 18px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: '#0369a1', color: '#fff', border: 'none', cursor: 'pointer' }}>
             {savingVendor ? 'Ukládám...' : 'Vytvořit'}
           </button>
@@ -559,6 +649,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       {bubbles.map(bubble => {
         const isCollapsed = !!collapsed[bubble.key]
         const bubbleTotal = bubble.items.reduce((s, e) => s + e.total_price, 0)
+        const bubbleVendorOpt = expenseOptions.find(o => o.id === bubble.key)
+        const bubbleDiscount = bubbleVendorOpt?.discount_percent || 0
+        const bubbleVat = !!bubbleVendorOpt?.with_vat
+        const bubbleNetTotal = bubbleTotal * netMultiplier(bubbleDiscount, bubbleVat)
         const byLocation = locations.length === 0 ? null : [
           ...locations.map(loc => ({ key: loc, label: loc, rows: bubble.items.filter(e => e.location === loc) })),
           { key: NO_LOCATION, label: 'Bez místa', rows: bubble.items.filter(e => !e.location || !locations.includes(e.location)) },
@@ -573,14 +667,30 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{isCollapsed ? '▸' : '▾'}</span>
                 {isEditingVendor ? (
-                  <input
-                    autoFocus value={editVendorName} onChange={e => setEditVendorName(e.target.value)}
-                    onClick={e => e.stopPropagation()}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveVendorEdit(vendor!) } if (e.key === 'Escape') setEditVendorId(null) }}
-                    style={{ ...inputStyle, width: '220px', padding: '4px 8px', fontSize: '13px' }}
-                  />
+                  <>
+                    <input
+                      autoFocus value={editVendorName} onChange={e => setEditVendorName(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveVendorEdit(vendor!) } if (e.key === 'Escape') setEditVendorId(null) }}
+                      style={{ ...inputStyle, width: '220px', padding: '4px 8px', fontSize: '13px' }}
+                    />
+                    <input
+                      type="number" value={editVendorDiscount} onChange={e => setEditVendorDiscount(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveVendorEdit(vendor!) } if (e.key === 'Escape') setEditVendorId(null) }}
+                      placeholder="Sleva %" title="Sleva v %"
+                      style={{ ...inputStyle, width: '80px', padding: '4px 8px', fontSize: '13px' }}
+                    />
+                    <label onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editVendorVat} onChange={e => setEditVendorVat(e.target.checked)} />
+                      S DPH
+                    </label>
+                  </>
                 ) : (
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{bubble.key === UNASSIGNED ? '📦' : '🔧'} {bubble.label}</span>
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {bubble.key === UNASSIGNED ? '📦' : '🔧'} {bubble.label}
+                    {vendor?.with_vat && <span style={{ fontSize: '10px', color: '#fbbf24', marginLeft: '6px' }}>s DPH</span>}
+                  </span>
                 )}
                 {!isEditingVendor && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({bubble.items.length})</span>}
               </div>
@@ -599,8 +709,21 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                 ) : (
                   <>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{bubbleTotal.toLocaleString('cs-CZ')} Kč</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{fmtWithVat(bubbleTotal)} s DPH</div>
+                      {(bubbleDiscount > 0 || bubbleVat) ? (
+                        <>
+                          <div style={{ fontSize: '11px', color: 'var(--text-dim)', textDecoration: 'line-through' }}>{bubbleTotal.toLocaleString('cs-CZ')} Kč</div>
+                          <div style={{ fontSize: '13px', fontWeight: '700', color: '#34d399' }}>
+                            {bubbleNetTotal.toLocaleString('cs-CZ')} Kč
+                            {bubbleDiscount > 0 && <span style={{ fontSize: '10px', fontWeight: '600' }}> (-{bubbleDiscount}%)</span>}
+                            {bubbleVat && <span style={{ fontSize: '10px', fontWeight: '600' }}> +DPH</span>}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{bubbleTotal.toLocaleString('cs-CZ')} Kč</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{fmtWithVat(bubbleTotal)} s DPH</div>
+                        </>
+                      )}
                     </div>
                     {vendor && (
                       <>
@@ -625,7 +748,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                   Zatím žádná technika v této bublině.
                 </div>
               ) : !byLocation ? (
-                renderItemsTable(bubble.items)
+                renderItemsTable(bubble.items, bubbleDiscount, bubbleVat)
               ) : (
                 <div>
                   {byLocation.filter(loc => loc.rows.length > 0).map(loc => {
@@ -644,7 +767,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                         </button>
                       </div>
                       {showForm === locFormKey && !editId && <div>{renderForm()}</div>}
-                      {renderItemsTable(loc.rows)}
+                      {renderItemsTable(loc.rows, bubbleDiscount, bubbleVat)}
                     </div>
                     )
                   })}

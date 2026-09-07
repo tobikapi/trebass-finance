@@ -19,7 +19,7 @@ const TABS = (id: string) => [
   { href: `/akce/${id}/technika`, label: '🔧 Technika' },
   { href: `/akce/${id}/elektrina`,label: '⚡ Elektřina' },
   { href: `/akce/${id}/tym`,      label: '👥 Tým'      },
-  { href: `/akce/${id}/poznamky`, label: '📝 Poznámky' },
+  { href: `/akce/${id}/poznamky`, label: '💬 Chat' },
   { href: `/akce/${id}/soubory`,  label: '📎 Soubory'  },
 ]
 

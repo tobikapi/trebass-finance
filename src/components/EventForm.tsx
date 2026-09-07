@@ -127,8 +127,8 @@ export default function EventForm({ existing }: Props) {
       </div>
 
       <div>
-        <label style={labelStyle}>Poznámka</label>
-        <textarea value={form.description} onChange={f('description')} placeholder="Volitelný popis akce..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+        <label style={labelStyle}>Obecné info (kontext, dress code...)</label>
+        <textarea value={form.description} onChange={f('description')} placeholder="Např. dress code, kontext akce, důležité info pro tým..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
       </div>
 
       <div style={{ display: 'flex', gap: '12px', paddingTop: '4px' }}>

@@ -44,7 +44,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
     if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
     if (result.data) {
       const newId = (result.data as Note).id
-      pushUndo(`přidání poznámky od ${author}`, async () => {
+      pushUndo(`přidání zprávy od ${author}`, async () => {
         const res = await callAction('deleteNote', newId)
         if (res.error) throw new Error(res.error)
         await load()
@@ -56,12 +56,12 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
   }
 
   async function handleDelete(noteId: string) {
-    if (!confirm('Smazat poznámku?')) return
+    if (!confirm('Smazat zprávu?')) return
     const row = notes.find(n => n.id === noteId)
     await callAction('deleteNote', noteId)
     await load()
     if (row) {
-      pushUndo(`smazání poznámky od ${row.author}`, async () => {
+      pushUndo(`smazání zprávy od ${row.author}`, async () => {
         const res = await callAction('restoreRow', 'notes', row)
         if (res.error) throw new Error(res.error)
         await load()
@@ -99,7 +99,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
         </div>
         <textarea
           value={content} onChange={e => setContent(e.target.value)}
-          placeholder="Napiš poznámku pro tým..." rows={3}
+          placeholder="Napiš zprávu do chatu..." rows={3}
           style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px', resize: 'vertical', marginBottom: '12px' }}
         />
         <button type="submit" disabled={saving || !content.trim()} style={{
@@ -107,13 +107,13 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
           borderRadius: '8px', fontSize: '13px', fontWeight: '600',
           border: 'none', cursor: 'pointer', opacity: saving || !content.trim() ? 0.5 : 1,
         }}>
-          {saving ? 'Odesílám...' : '+ Přidat poznámku'}
+          {saving ? 'Odesílám...' : '+ Odeslat'}
         </button>
       </form>
 
       {notes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--bg-card-alt)', border: '1px dashed var(--border-subtle)', borderRadius: '12px', color: 'var(--text-dim)' }}>
-          Zatím žádné poznámky. Buď první!
+          Zatím žádné zprávy. Buď první!
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

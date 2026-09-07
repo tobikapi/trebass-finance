@@ -192,3 +192,19 @@ alter table event_equipment add column if not exists power_kw numeric default 0;
 -- Elektřina: položky mimo Techniku, např. food truck (9.8.2026)
 -- elektrina_extra = true -> položka se nezobrazuje na Technice ani v jejím exportu, jen na Elektřině
 alter table event_equipment add column if not exists elektrina_extra boolean not null default false;
+
+-- Sleva u pronajímatele techniky v % (25.8.2026): expenses řádek s category='TECHNIKA' reprezentuje
+-- pronajímatele — discount_percent se aplikuje na součet cen jeho položek při přepočtu expenses.price
+alter table expenses add column if not exists discount_percent numeric default 0;
+
+-- Marže při přeprodeji techniky klientovi v % (25.8.2026), viz Přehled akce
+alter table events add column if not exists margin_percent numeric default 0;
+
+-- DPH u pronajímatele techniky (26.8.2026): pokud true, cena položek se do expenses.price
+-- počítá včetně 21 % DPH (navíc k případné slevě)
+alter table expenses add column if not exists with_vat boolean not null default false;
+
+-- Marže -> automatický zápis "cena pro klienta" do příjmů (26.8.2026)
+-- margin_income_id ukazuje na řádek v income, který se drží v sync s náklady na techniku a marží
+alter table events add column if not exists margin_to_income boolean not null default false;
+alter table events add column if not exists margin_income_id uuid references income(id) on delete set null;
