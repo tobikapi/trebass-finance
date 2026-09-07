@@ -130,12 +130,22 @@ async function syncMarginIncome(supabase: Awaited<ReturnType<typeof requireAuth>
   const note = 'Automaticky generováno z marže techniky'
 
   if (event.margin_income_id) {
-    const { data: updated } = await supabase.from('income').update({ amount: clientPrice }).eq('id', event.margin_income_id).select().single()
-    if (updated) return
+    // Rozlišit „řádek už neexistuje" (legitimní důvod založit nový) od „operace selhala"
+    // (přechodná chyba — nový řádek by znamenal duplicitní příjem).
+    const { data: existing, error: findError } = await supabase.from('income')
+      .select('id').eq('id', event.margin_income_id).maybeSingle()
+    if (findError) return
+    if (existing) {
+      await supabase.from('income').update({ amount: clientPrice }).eq('id', event.margin_income_id)
+      return
+    }
+    // Řádek byl skutečně smazaný → zahodit osiřelé id a založit nový níž.
+    await supabase.from('events').update({ margin_income_id: null }).eq('id', eventId)
   }
-  const { data: inc } = await supabase.from('income')
+  const { data: inc, error: insertError } = await supabase.from('income')
     .insert([{ event_id: eventId, source: 'TECHNIKA (marže)', amount: clientPrice, note }]).select().single()
-  if (inc) await supabase.from('events').update({ margin_income_id: inc.id }).eq('id', eventId)
+  if (insertError || !inc) return
+  await supabase.from('events').update({ margin_income_id: inc.id }).eq('id', eventId)
 }
 
 // EXPENSES
