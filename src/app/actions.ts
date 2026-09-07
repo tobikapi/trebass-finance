@@ -94,6 +94,8 @@ export async function updateEventDescription(id: string, description: string) {
 }
 
 export async function updateEventMargin(id: string, margin_percent: number) {
+  const marginError = invalidMargin(margin_percent)
+  if (marginError) return { error: marginError }
   const supabase = await requireAuth()
   const { error } = await supabase.from('events').update({ margin_percent }).eq('id', id)
   if (error) return { error: error.message }
@@ -126,7 +128,7 @@ async function syncMarginIncome(supabase: Awaited<ReturnType<typeof requireAuth>
 
   const { data: techExpenses } = await supabase.from('expenses').select('price').eq('event_id', eventId).eq('category', 'TECHNIKA')
   const techCost = (techExpenses || []).reduce((s, e) => s + e.price, 0)
-  const clientPrice = techCost * (1 + (event.margin_percent || 0) / 100)
+  const clientPrice = roundMoney(techCost * (1 + (event.margin_percent || 0) / 100))
   const note = 'Automaticky generováno z marže techniky'
 
   if (event.margin_income_id) {
@@ -148,14 +150,39 @@ async function syncMarginIncome(supabase: Awaited<ReturnType<typeof requireAuth>
   await supabase.from('events').update({ margin_income_id: inc.id }).eq('id', eventId)
 }
 
+// Peníze ukládat zaokrouhlené na celé koruny. Appka částky v drtivé většině míst
+// zobrazuje bez desetinných míst, takže nezaokrouhlená hodnota (např. 112830.4914)
+// by v součtech, exportech a odsouhlasování neseděla s tím, co uživatel vidí.
+function roundMoney(n: number) {
+  return Math.round(n)
+}
+
+// Sleva nad 100 % by dělala zápornou cenu; NaN/Infinity nesmí projít do DB.
+function invalidDiscount(v: number | null | undefined) {
+  if (v === null || v === undefined) return null
+  if (!Number.isFinite(v) || v < 0 || v > 100) return 'Sleva musí být číslo v rozsahu 0–100 %.'
+  return null
+}
+
+// Marže může být i vyšší než 100 % (dvojnásobek ceny), záporná ale ne — to by
+// znamenalo prodej pod cenu a je to skoro jistě překlep.
+function invalidMargin(v: number | null | undefined) {
+  if (v === null || v === undefined) return null
+  if (!Number.isFinite(v) || v < 0) return 'Marže musí být číslo větší nebo rovné nule.'
+  return null
+}
+
 // EXPENSES
 export async function createExpense(payload: {
   event_id: string; category: string; item: string; note: string | null;
   payment_timing: string | null; price: number; deposit: number; paid: boolean; discount_percent?: number; with_vat?: boolean
 }) {
+  const discountError = invalidDiscount(payload.discount_percent)
+  if (discountError) return { error: discountError }
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('expenses').insert([payload]).select().single()
   if (error) return { error: error.message }
+  await syncMarginIncome(supabase, payload.event_id)
   return { data }
 }
 
@@ -166,13 +193,18 @@ export async function updateExpense(id: string, payload: {
   const supabase = await requireAuth()
   const { error } = await supabase.from('expenses').update(payload).eq('id', id)
   if (error) return { error: error.message }
+  const { data: row } = await supabase.from('expenses').select('event_id').eq('id', id).single()
+  if (row?.event_id) await syncMarginIncome(supabase, row.event_id)
   return { data: true }
 }
 
 export async function deleteExpense(id: string) {
   const supabase = await requireAuth()
+  // event_id se musí zjistit ještě před smazáním, potom už řádek neexistuje
+  const { data: row } = await supabase.from('expenses').select('event_id').eq('id', id).single()
   const { error } = await supabase.from('expenses').delete().eq('id', id)
   if (error) return { error: error.message }
+  if (row?.event_id) await syncMarginIncome(supabase, row.event_id)
   return { data: true }
 }
 
@@ -184,6 +216,8 @@ export async function renameExpenseItem(id: string, item: string) {
 }
 
 export async function updateVendorDiscount(id: string, discount_percent: number) {
+  const discountError = invalidDiscount(discount_percent)
+  if (discountError) return { error: discountError }
   const supabase = await requireAuth()
   const { error } = await supabase.from('expenses').update({ discount_percent }).eq('id', id)
   if (error) return { error: error.message }
@@ -494,7 +528,7 @@ async function recalcExpensePrice(supabase: Awaited<ReturnType<typeof requireAut
   const sum = (data || []).reduce((s, e) => s + e.total_price, 0)
   const discount = exp?.discount_percent || 0
   const vatMultiplier = exp?.with_vat ? 1.21 : 1
-  await supabase.from('expenses').update({ price: sum * (1 - discount / 100) * vatMultiplier }).eq('id', expenseId)
+  await supabase.from('expenses').update({ price: roundMoney(sum * (1 - discount / 100) * vatMultiplier) }).eq('id', expenseId)
   if (exp?.event_id) await syncMarginIncome(supabase, exp.event_id)
 }
 

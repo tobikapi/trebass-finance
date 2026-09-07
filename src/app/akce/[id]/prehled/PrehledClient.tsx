@@ -12,6 +12,25 @@ function fmt(n: number) {
   return n.toLocaleString('cs-CZ') + ' Kč'
 }
 
+// Stejné zaokrouhlení jako roundMoney() v actions.ts. Cena pro klienta se tu
+// počítá na klientovi, ale server ji ve stejné podobě ukládá do income.amount —
+// bez zaokrouhlení na obou stranách by se zobrazená a uložená částka lišily.
+function roundMoney(n: number) {
+  return Math.round(n)
+}
+
+// Prázdné pole = bez marže. Marže smí být i nad 100 % (dvojnásobek ceny),
+// záporná ne. Dřívější `parseFloat(x) || 0` tiše převedlo překlep na nulu.
+// Vrací null = neplatný vstup.
+function parseMargin(raw: string): number | null {
+  if (!raw.trim()) return 0
+  const n = parseFloat(raw)
+  if (!Number.isFinite(n) || n < 0) return null
+  return n
+}
+
+const MARGIN_ERROR = 'Marže musí být číslo větší nebo rovné nule.'
+
 function sameBudgets(a: Record<string, number>, b: Record<string, number>) {
   const ka = Object.keys(a)
   return ka.length === Object.keys(b).length && ka.every(k => a[k] === b[k])
@@ -99,7 +118,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
 
   const techCost = byCategory['TECHNIKA']?.total || 0
   const marginPercent = event?.margin_percent || 0
-  const clientPrice = techCost * (1 + marginPercent / 100)
+  const clientPrice = roundMoney(techCost * (1 + marginPercent / 100))
   const profit = clientPrice - techCost
 
   const bySource: Record<string, number> = {}
@@ -172,8 +191,9 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
   }
 
   async function saveMargin() {
+    const n = parseMargin(marginInput)
+    if (n === null) { alert(MARGIN_ERROR); return }
     setSavingMargin(true)
-    const n = parseFloat(marginInput) || 0
     const prevMargin = marginPercent
     const result = await callAction('updateEventMargin', id, n)
     if (result.error) { alert('Chyba: ' + result.error); setSavingMargin(false); return }
@@ -255,7 +275,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
         {marginEdit ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <input
-              type="number" value={marginInput} onChange={e => setMarginInput(e.target.value)} placeholder="0" autoFocus
+              type="number" min="0" value={marginInput} onChange={e => setMarginInput(e.target.value)} placeholder="0" autoFocus
               style={{ width: '100px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', outline: 'none' }}
             />
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>%</span>

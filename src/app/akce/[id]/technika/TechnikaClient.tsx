@@ -15,6 +15,24 @@ interface Props {
 
 interface ExpenseOption { id: string; item: string; category: string; note: string | null; payment_timing: string | null; price: number; deposit: number; paid: boolean; discount_percent: number; with_vat: boolean }
 
+// Prázdné pole = bez slevy. Cokoliv jiného musí být platné procento 0–100;
+// dřívější `parseFloat(x) || 0` tiše převedlo překlep i hodnotu mimo rozsah na nulu.
+// Vrací null = neplatný vstup.
+function parseDiscount(raw: string): number | null {
+  if (!raw.trim()) return 0
+  const n = parseFloat(raw)
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null
+  return n
+}
+
+const DISCOUNT_ERROR = 'Sleva musí být číslo v rozsahu 0–100 %.'
+
+// Stejné zaokrouhlení jako na serveru (roundMoney v actions.ts). Součty, které
+// odpovídají uložené expenses.price, se musí zobrazit shodně s tím, co je v DB.
+function roundMoney(n: number) {
+  return Math.round(n)
+}
+
 function netMultiplier(discountPercent: number, withVat: boolean) {
   return (1 - discountPercent / 100) * (withVat ? 1.21 : 1)
 }
@@ -195,9 +213,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   async function handleCreateVendor(e: React.FormEvent) {
     e.preventDefault()
     if (!vendorName.trim()) return
+    const discount = parseDiscount(vendorDiscount)
+    if (discount === null) { alert(DISCOUNT_ERROR); return }
     setSavingVendor(true)
     const vendorLabel = vendorName.trim()
-    const discount = parseFloat(vendorDiscount) || 0
     const result = await callAction('createExpense', {
       event_id: id, category: 'TECHNIKA', item: vendorLabel,
       note: null, payment_timing: null, price: 0, deposit: 0, paid: false, discount_percent: discount, with_vat: vendorVat,
@@ -224,7 +243,8 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
 
   async function saveVendorEdit(vendor: ExpenseOption) {
     const newName = editVendorName.trim() || vendor.item
-    const newDiscount = parseFloat(editVendorDiscount) || 0
+    const newDiscount = parseDiscount(editVendorDiscount)
+    if (newDiscount === null) { alert(DISCOUNT_ERROR); return }
     const newVat = editVendorVat
     const prevName = vendor.item
     const prevDiscount = vendor.discount_percent || 0
@@ -330,7 +350,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     const vendor = expenseOptions.find(o => o.id === e.expense_id)
     return e.total_price * netMultiplier(vendor?.discount_percent || 0, !!vendor?.with_vat)
   }
-  const totalPrice = visibleEquipment.reduce((s, e) => s + netPrice(e), 0)
+  const totalPrice = roundMoney(visibleEquipment.reduce((s, e) => s + netPrice(e), 0))
 
   const bubbles: { key: string; label: string; items: EventEquipment[] }[] = [
     ...expenseOptions.map(opt => ({ key: opt.id, label: opt.item, items: visibleEquipment.filter(e => e.expense_id === opt.id) })),
@@ -356,7 +376,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       const opt = expenseOptions.find(o => o.id === b.key)
       const discount = opt?.discount_percent || 0
       const withVat = !!opt?.with_vat
-      return { key: b.key, label: b.label, rows: aggregateByName(b.items), total: rawTotal, discount, withVat, netTotal: rawTotal * netMultiplier(discount, withVat) }
+      return { key: b.key, label: b.label, rows: aggregateByName(b.items), total: rawTotal, discount, withVat, netTotal: roundMoney(rawTotal * netMultiplier(discount, withVat)) }
     })
     .filter(b => b.rows.length > 0)
 
@@ -631,7 +651,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       {showVendorForm && (
         <form onSubmit={handleCreateVendor} style={{ display: 'flex', gap: '8px', marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
           <input autoFocus value={vendorName} onChange={e => setVendorName(e.target.value)} placeholder="Název pronajímatele, např. AudioLighty s.r.o." style={{ ...inputStyle, flex: 1 }} />
-          <input type="number" value={vendorDiscount} onChange={e => setVendorDiscount(e.target.value)} placeholder="Sleva %" title="Sleva v %" style={{ ...inputStyle, width: '100px', flex: 'none' }} />
+          <input type="number" min="0" max="100" value={vendorDiscount} onChange={e => setVendorDiscount(e.target.value)} placeholder="Sleva %" title="Sleva v % (0–100)" style={{ ...inputStyle, width: '100px', flex: 'none' }} />
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0, cursor: 'pointer' }}>
             <input type="checkbox" checked={vendorVat} onChange={e => setVendorVat(e.target.checked)} />
             S DPH
@@ -652,7 +672,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
         const bubbleVendorOpt = expenseOptions.find(o => o.id === bubble.key)
         const bubbleDiscount = bubbleVendorOpt?.discount_percent || 0
         const bubbleVat = !!bubbleVendorOpt?.with_vat
-        const bubbleNetTotal = bubbleTotal * netMultiplier(bubbleDiscount, bubbleVat)
+        const bubbleNetTotal = roundMoney(bubbleTotal * netMultiplier(bubbleDiscount, bubbleVat))
         const byLocation = locations.length === 0 ? null : [
           ...locations.map(loc => ({ key: loc, label: loc, rows: bubble.items.filter(e => e.location === loc) })),
           { key: NO_LOCATION, label: 'Bez místa', rows: bubble.items.filter(e => !e.location || !locations.includes(e.location)) },
@@ -675,7 +695,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                       style={{ ...inputStyle, width: '220px', padding: '4px 8px', fontSize: '13px' }}
                     />
                     <input
-                      type="number" value={editVendorDiscount} onChange={e => setEditVendorDiscount(e.target.value)}
+                      type="number" min="0" max="100" value={editVendorDiscount} onChange={e => setEditVendorDiscount(e.target.value)}
                       onClick={e => e.stopPropagation()}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveVendorEdit(vendor!) } if (e.key === 'Escape') setEditVendorId(null) }}
                       placeholder="Sleva %" title="Sleva v %"
