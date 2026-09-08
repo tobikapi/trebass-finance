@@ -99,7 +99,8 @@ export async function updateEventMargin(id: string, margin_percent: number) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('events').update({ margin_percent }).eq('id', id)
   if (error) return { error: error.message }
-  await syncMarginIncome(supabase, id)
+  const syncError = await syncMarginIncome(supabase, id)
+  if (syncError) return { error: syncError }
   return { data: true }
 }
 
@@ -107,26 +108,32 @@ export async function updateEventMarginToIncome(id: string, enabled: boolean) {
   const supabase = await requireAuth()
   const { error } = await supabase.from('events').update({ margin_to_income: enabled }).eq('id', id)
   if (error) return { error: error.message }
-  await syncMarginIncome(supabase, id)
+  const syncError = await syncMarginIncome(supabase, id)
+  if (syncError) return { error: syncError }
   return { data: true }
 }
 
 // Drží řádek v `income` v souladu s náklady na techniku (expenses.price kde category='TECHNIKA')
 // a nastavenou marží. Pokud je margin_to_income vypnuté, odpovídající příjem smaže.
-async function syncMarginIncome(supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string) {
-  const { data: event } = await supabase.from('events')
+async function syncMarginIncome(supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string): Promise<string | null> {
+  const { data: event, error: eventError } = await supabase.from('events')
     .select('margin_percent, margin_to_income, margin_income_id').eq('id', eventId).single()
-  if (!event) return
+  if (eventError) return eventError.message
+  if (!event) return null
 
   if (!event.margin_to_income) {
     if (event.margin_income_id) {
-      await supabase.from('income').delete().eq('id', event.margin_income_id)
-      await supabase.from('events').update({ margin_income_id: null }).eq('id', eventId)
+      const { error: deleteError } = await supabase.from('income').delete().eq('id', event.margin_income_id)
+      if (deleteError) return deleteError.message
+      const { error: clearError } = await supabase.from('events').update({ margin_income_id: null }).eq('id', eventId)
+      if (clearError) return clearError.message
     }
-    return
+    return null
   }
 
-  const { data: techExpenses } = await supabase.from('expenses').select('price').eq('event_id', eventId).eq('category', 'TECHNIKA')
+  const { data: techExpenses, error: techError } = await supabase.from('expenses')
+    .select('price').eq('event_id', eventId).eq('category', 'TECHNIKA')
+  if (techError) return techError.message
   const techCost = (techExpenses || []).reduce((s, e) => s + e.price, 0)
   const clientPrice = roundMoney(techCost * (1 + (event.margin_percent || 0) / 100))
   const note = 'Automaticky generováno z marže techniky'
@@ -136,18 +143,29 @@ async function syncMarginIncome(supabase: Awaited<ReturnType<typeof requireAuth>
     // (přechodná chyba — nový řádek by znamenal duplicitní příjem).
     const { data: existing, error: findError } = await supabase.from('income')
       .select('id').eq('id', event.margin_income_id).maybeSingle()
-    if (findError) return
+    if (findError) return findError.message
     if (existing) {
-      await supabase.from('income').update({ amount: clientPrice }).eq('id', event.margin_income_id)
-      return
+      const { error: updateError } = await supabase.from('income')
+        .update({ amount: clientPrice }).eq('id', event.margin_income_id)
+      return updateError ? updateError.message : null
     }
     // Řádek byl skutečně smazaný → zahodit osiřelé id a založit nový níž.
-    await supabase.from('events').update({ margin_income_id: null }).eq('id', eventId)
+    const { error: clearError } = await supabase.from('events').update({ margin_income_id: null }).eq('id', eventId)
+    if (clearError) return clearError.message
   }
   const { data: inc, error: insertError } = await supabase.from('income')
     .insert([{ event_id: eventId, source: 'TECHNIKA (marže)', amount: clientPrice, note }]).select().single()
-  if (insertError || !inc) return
-  await supabase.from('events').update({ margin_income_id: inc.id }).eq('id', eventId)
+  if (insertError) return insertError.message
+  if (!inc) return 'Nepodařilo se založit příjem z marže.'
+  const { error: linkError } = await supabase.from('events').update({ margin_income_id: inc.id }).eq('id', eventId)
+  return linkError ? linkError.message : null
+}
+
+// Sync je u těchhle akcí vedlejší efekt — hlavní operace už proběhla, takže se
+// chyba nesmí vrátit jako selhání celé akce (uživatel by ji zopakoval a založil
+// duplicitní výdaj). Zaloguje se na server, aby nezmizela beze stopy.
+function logSyncError(where: string, syncError: string | null) {
+  if (syncError) console.error(`[syncMarginIncome] ${where}: ${syncError}`)
 }
 
 // Peníze ukládat zaokrouhlené na celé koruny. Appka částky v drtivé většině míst
@@ -182,7 +200,7 @@ export async function createExpense(payload: {
   const supabase = await requireAuth()
   const { data, error } = await supabase.from('expenses').insert([payload]).select().single()
   if (error) return { error: error.message }
-  await syncMarginIncome(supabase, payload.event_id)
+  logSyncError('createExpense', await syncMarginIncome(supabase, payload.event_id))
   return { data }
 }
 
@@ -194,7 +212,7 @@ export async function updateExpense(id: string, payload: {
   const { error } = await supabase.from('expenses').update(payload).eq('id', id)
   if (error) return { error: error.message }
   const { data: row } = await supabase.from('expenses').select('event_id').eq('id', id).single()
-  if (row?.event_id) await syncMarginIncome(supabase, row.event_id)
+  if (row?.event_id) logSyncError('updateExpense', await syncMarginIncome(supabase, row.event_id))
   return { data: true }
 }
 
@@ -204,7 +222,7 @@ export async function deleteExpense(id: string) {
   const { data: row } = await supabase.from('expenses').select('event_id').eq('id', id).single()
   const { error } = await supabase.from('expenses').delete().eq('id', id)
   if (error) return { error: error.message }
-  if (row?.event_id) await syncMarginIncome(supabase, row.event_id)
+  if (row?.event_id) logSyncError('deleteExpense', await syncMarginIncome(supabase, row.event_id))
   return { data: true }
 }
 
@@ -529,7 +547,7 @@ async function recalcExpensePrice(supabase: Awaited<ReturnType<typeof requireAut
   const discount = exp?.discount_percent || 0
   const vatMultiplier = exp?.with_vat ? 1.21 : 1
   await supabase.from('expenses').update({ price: roundMoney(sum * (1 - discount / 100) * vatMultiplier) }).eq('id', expenseId)
-  if (exp?.event_id) await syncMarginIncome(supabase, exp.event_id)
+  if (exp?.event_id) logSyncError('recalcExpensePrice', await syncMarginIncome(supabase, exp.event_id))
 }
 
 export async function createEquipment(payload: {
