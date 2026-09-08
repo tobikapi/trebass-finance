@@ -7,6 +7,7 @@ import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 const emptyForm = { source: INCOME_SOURCES[0], amount: '', note: '' }
 
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function PrijmyClient({ id, initialIncome, initialExpenses }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [income, setIncome] = useState<Income[]>(initialIncome)
   const [expenses, setExpenses] = useState<{ price: number; deposit: number }[]>(initialExpenses)
@@ -42,7 +44,7 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
     const payload = { event_id: id, source: form.source, amount: parseFloat(form.amount) || 0, note: form.note || null }
     const prev = editId ? income.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateIncome', editId, payload) : await callAction('createIncome', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
       const prevPayload = { source: prev.source, amount: prev.amount, note: prev.note }
       pushUndo(`úprava příjmu „${prev.source}“`, async () => {

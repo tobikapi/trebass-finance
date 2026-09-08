@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 const TYPES = ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security', 'jiné']
 const TYPE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function KontaktyClient({ initialContacts }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [search, setSearch] = useState('')
@@ -52,7 +54,7 @@ export default function KontaktyClient({ initialContacts }: Props) {
     }
     const prev = editId ? contacts.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateContact', editId, payload) : await callAction('createContact', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
       const prevPayload = { name: prev.name, type: prev.type, fee: prev.fee, email: prev.email, phone: prev.phone, note: prev.note }
       pushUndo(`úprava kontaktu „${prev.name}“`, async () => {

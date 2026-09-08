@@ -7,6 +7,7 @@ import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 function fmt(n: number) {
   return n.toLocaleString('cs-CZ') + ' Kč'
@@ -73,6 +74,7 @@ interface Props {
 }
 
 export default function PrehledClient({ id, initialExpenses, initialIncome, initialEvent }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [income, setIncome] = useState<Income[]>(initialIncome)
@@ -149,7 +151,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
     }
     const prevBudgets = budgets
     const result = await callAction('updateEventBudgets', id, parsed)
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     setEvent(prev => prev ? { ...prev, budgets: parsed } : prev)
     if (!sameBudgets(parsed, prevBudgets)) {
       pushUndo('úprava rozpočtů', async () => {
@@ -172,7 +174,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
     const value = descInput.trim()
     const prevValue = event?.description || ''
     const result = await callAction('updateEventDescription', id, value)
-    if (result.error) { alert('Chyba: ' + result.error); setSavingDesc(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSavingDesc(false); return }
     setEvent(prev => prev ? { ...prev, description: value || null } : prev)
     if (value !== prevValue) {
       pushUndo('úprava poznámek k akci', async () => {
@@ -192,11 +194,11 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
 
   async function saveMargin() {
     const n = parseMargin(marginInput)
-    if (n === null) { alert(MARGIN_ERROR); return }
+    if (n === null) { notify(MARGIN_ERROR); return }
     setSavingMargin(true)
     const prevMargin = marginPercent
     const result = await callAction('updateEventMargin', id, n)
-    if (result.error) { alert('Chyba: ' + result.error); setSavingMargin(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSavingMargin(false); return }
     setEvent(prev => prev ? { ...prev, margin_percent: n } : prev)
     if (n !== prevMargin) {
       pushUndo(`změna marže na ${n}%`, async () => {
@@ -212,7 +214,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
   async function toggleMarginToIncome(enabled: boolean) {
     setSavingMarginToIncome(true)
     const result = await callAction('updateEventMarginToIncome', id, enabled)
-    if (result.error) { alert('Chyba: ' + result.error); setSavingMarginToIncome(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSavingMarginToIncome(false); return }
     setEvent(prev => prev ? { ...prev, margin_to_income: enabled } : prev)
     pushUndo(enabled ? 'zapnutí zápisu marže do Příjmů' : 'vypnutí zápisu marže do Příjmů', async () => {
       const r = await callAction('updateEventMarginToIncome', id, !enabled)

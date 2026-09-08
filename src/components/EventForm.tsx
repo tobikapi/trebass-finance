@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { callAction } from '@/lib/call-action'
 import { EventStatus, Event } from '@/lib/types'
+import { useDialog } from '@/lib/dialog-context'
 
 interface Props {
   existing?: Event
@@ -15,6 +16,7 @@ const emptyForm = {
 }
 
 export default function EventForm({ existing }: Props) {
+  const { notify } = useDialog()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showTime, setShowTime] = useState(!!(existing?.time_start))
@@ -40,7 +42,7 @@ export default function EventForm({ existing }: Props) {
     const result = existing
       ? await callAction('updateEvent', existing.id, payload)
       : await callAction('createEvent', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setLoading(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setLoading(false); return }
     if (!existing && 'data' in result && result.data && typeof result.data === 'object' && 'id' in result.data) {
       router.push(`/akce/${result.data.id}/vydaje`)
     } else {

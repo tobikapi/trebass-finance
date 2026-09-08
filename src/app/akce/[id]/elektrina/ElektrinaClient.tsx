@@ -7,6 +7,7 @@ import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 interface Props {
   id: string
@@ -47,6 +48,7 @@ const labelStyle: CSSProperties = {
 }
 
 export default function ElektrinaClient({ id, initialEquipment, initialLocations }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
   const [locations, setLocations] = useState<string[]>(initialLocations)
@@ -116,7 +118,7 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
     const result = editExtraId
       ? await callAction('updateEquipment', editExtraId, base)
       : await callAction('createEquipment', { event_id: id, ...base, elektrina_extra: true })
-    if (result.error) { alert('Chyba: ' + result.error); setSavingExtra(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSavingExtra(false); return }
     if (editExtraId && prev) {
       const prevPayload = { name: prev.name, note: prev.note, quantity: prev.quantity, unit_price: 0, total_price: 0, expense_id: null, category: prev.category, location: prev.location, power_kw: prev.power_kw }
       pushUndo(`úprava „${prev.name}“`, async () => {

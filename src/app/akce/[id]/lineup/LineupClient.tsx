@@ -7,6 +7,7 @@ import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 interface Contact { id: string; name: string; type: string; fee: number }
 
@@ -65,6 +66,7 @@ interface Props {
 }
 
 export default function LineupClient({ id, initialArtists, initialContacts, initialStages, initialEventDates }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [artists, setArtists] = useState<LineupArtist[]>(initialArtists)
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
@@ -169,7 +171,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
     const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, travel_cost: parseFloat(form.travel_cost) || 0, paid: form.paid, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
     const prev = editId ? artists.find(a => a.id === editId) : null
     const result = editId ? await callAction('updateArtist', editId, payload) : await callAction('createArtist', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
       const prevPayload = { event_id: id, artist_name: prev.artist_name, fee: prev.fee, deposit: prev.deposit, travel_cost: prev.travel_cost, paid: prev.paid, date: prev.date, set_time: prev.set_time, stage: prev.stage, notes: prev.notes }
       pushUndo(`úprava artisty „${prev.artist_name}“`, async () => {

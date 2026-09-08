@@ -6,6 +6,7 @@ import SplashScreen from "@/components/SplashScreen"
 import { UserProvider } from "@/lib/user-context"
 import { ThemeProvider } from "@/lib/theme-context"
 import { UndoProvider } from "@/lib/undo-context"
+import { DialogProvider } from "@/lib/dialog-context"
 
 const awakenning = localFont({
   src: '../../public/fonts/AWAKENNING.ttf',
@@ -36,10 +37,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body style={{ margin: 0, minHeight: '100vh' }}>
         <ThemeProvider>
           <UserProvider>
-            <UndoProvider>
-              <SplashScreen />
-              <AppShell>{children}</AppShell>
-            </UndoProvider>
+            <DialogProvider>
+              <UndoProvider>
+                <SplashScreen />
+                <AppShell>{children}</AppShell>
+              </UndoProvider>
+            </DialogProvider>
           </UserProvider>
         </ThemeProvider>
       </body>

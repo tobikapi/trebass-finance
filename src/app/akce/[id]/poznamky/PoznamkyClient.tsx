@@ -6,6 +6,7 @@ import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 interface Note { id: string; author: string; content: string; created_at: string }
 interface Props {
@@ -20,6 +21,7 @@ const MEMBER_COLORS: Record<string, string> = {
 }
 
 export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [notes, setNotes] = useState<Note[]>(initialNotes)
   const [author, setAuthor] = useState(initialAuthor)
@@ -41,7 +43,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
     if (!content.trim()) return
     setSaving(true)
     const result = await callAction('createNote', { event_id: id, author, content: content.trim() })
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (result.data) {
       const newId = (result.data as Note).id
       pushUndo(`přidání zprávy od ${author}`, async () => {

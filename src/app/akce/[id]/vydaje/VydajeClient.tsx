@@ -7,6 +7,7 @@ import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 type Budgets = Record<string, number>
 
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export default function VydajeClient({ id, initialExpenses, initialBudgets }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [budgets, setBudgets] = useState<Budgets>(initialBudgets)
@@ -77,7 +79,7 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
     }
     const prev = editId ? expenses.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateExpense', editId, payload) : await callAction('createExpense', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
       const prevPayload = { category: prev.category, item: prev.item, note: prev.note, payment_timing: prev.payment_timing, price: prev.price, deposit: prev.deposit, paid: prev.paid }
       pushUndo(`úprava výdaje „${prev.item}“`, async () => {

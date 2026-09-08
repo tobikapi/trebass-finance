@@ -7,6 +7,7 @@ import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 interface Props {
   id: string
@@ -74,6 +75,7 @@ function fmtWithVat(n: number) {
 }
 
 export default function TechnikaClient({ id, initialEquipment }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
   const [expenseOptions, setExpenseOptions] = useState<ExpenseOption[]>([])
@@ -154,7 +156,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     const result = editId
       ? await callAction('updateEquipment', editId, base)
       : await callAction('createEquipment', { event_id: id, ...base })
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
       const prevPayload = { name: prev.name, note: prev.note, quantity: prev.quantity, unit_price: prev.unit_price, total_price: prev.total_price, expense_id: prev.expense_id, category: prev.category, location: prev.location, power_kw: prev.power_kw }
       pushUndo(`úprava techniky „${prev.name}“`, async () => {
@@ -214,14 +216,14 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     e.preventDefault()
     if (!vendorName.trim()) return
     const discount = parseDiscount(vendorDiscount)
-    if (discount === null) { alert(DISCOUNT_ERROR); return }
+    if (discount === null) { notify(DISCOUNT_ERROR); return }
     setSavingVendor(true)
     const vendorLabel = vendorName.trim()
     const result = await callAction('createExpense', {
       event_id: id, category: 'TECHNIKA', item: vendorLabel,
       note: null, payment_timing: null, price: 0, deposit: 0, paid: false, discount_percent: discount, with_vat: vendorVat,
     })
-    if (result.error) { alert('Chyba: ' + result.error); setSavingVendor(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSavingVendor(false); return }
     if (result.data) {
       const newId = (result.data as { id: string }).id
       pushUndo(`přidání pronajímatele „${vendorLabel}“`, async () => {
@@ -244,7 +246,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
   async function saveVendorEdit(vendor: ExpenseOption) {
     const newName = editVendorName.trim() || vendor.item
     const newDiscount = parseDiscount(editVendorDiscount)
-    if (newDiscount === null) { alert(DISCOUNT_ERROR); return }
+    if (newDiscount === null) { notify(DISCOUNT_ERROR); return }
     const newVat = editVendorVat
     const prevName = vendor.item
     const prevDiscount = vendor.discount_percent || 0
@@ -252,15 +254,15 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     setSavingVendorEdit(true)
     if (newName !== prevName) {
       const res = await callAction('renameExpenseItem', vendor.id, newName)
-      if (res.error) { alert('Chyba: ' + res.error); setSavingVendorEdit(false); return }
+      if (res.error) { notify('Chyba: ' + res.error); setSavingVendorEdit(false); return }
     }
     if (newDiscount !== prevDiscount) {
       const res = await callAction('updateVendorDiscount', vendor.id, newDiscount)
-      if (res.error) { alert('Chyba: ' + res.error); setSavingVendorEdit(false); return }
+      if (res.error) { notify('Chyba: ' + res.error); setSavingVendorEdit(false); return }
     }
     if (newVat !== prevVat) {
       const res = await callAction('updateVendorVat', vendor.id, newVat)
-      if (res.error) { alert('Chyba: ' + res.error); setSavingVendorEdit(false); return }
+      if (res.error) { notify('Chyba: ' + res.error); setSavingVendorEdit(false); return }
     }
     await load()
     setEditVendorId(null); setSavingVendorEdit(false)
@@ -295,10 +297,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
     if (!confirm(msg)) return
     if (linkedItems.length > 0) {
       const res = await callAction('unassignEquipmentByExpense', vendor.id)
-      if (res.error) { alert('Chyba: ' + res.error); return }
+      if (res.error) { notify('Chyba: ' + res.error); return }
     }
     const res = await callAction('deleteExpense', vendor.id)
-    if (res.error) { alert('Chyba: ' + res.error); return }
+    if (res.error) { notify('Chyba: ' + res.error); return }
     await load()
     pushUndo(`smazání pronajímatele „${vendor.item}“`, async () => {
       const r1 = await callAction('restoreRow', 'expenses', vendor)

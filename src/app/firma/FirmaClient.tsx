@@ -8,6 +8,7 @@ import {
 } from '@/lib/types'
 import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 const emptyExpForm = {
   category: COMPANY_CATEGORIES[0], item: '', note: '', amount: '', paid: false, date: '',
@@ -47,6 +48,7 @@ interface Props {
 }
 
 export default function FirmaClient({ initialExpenses, initialIncome, initialContributions }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [expenses, setExpenses] = useState<CompanyExpense[]>(initialExpenses)
   const [income, setIncome] = useState<CompanyIncome[]>(initialIncome)
@@ -156,7 +158,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
     const result = editExpId
       ? await callAction('updateCompanyExpense', editExpId, payload)
       : await callAction('createCompanyExpense', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setSavingExp(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSavingExp(false); return }
     if (editExpId && prevExp) {
       const prevPayload = { category: prevExp.category, item: prevExp.item, note: prevExp.note, amount: prevExp.amount, paid: prevExp.paid, date: prevExp.date }
       pushUndo(`úprava firemního výdaje „${prevExp.item}“`, async () => {
@@ -215,7 +217,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
     const result = editIncId
       ? await callAction('updateCompanyIncome', editIncId, payload)
       : await callAction('createCompanyIncome', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setSavingInc(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSavingInc(false); return }
     if (editIncId && prevInc) {
       const prevPayload = { source: prevInc.source, name: prevInc.name, amount: prevInc.amount, note: prevInc.note, date: prevInc.date }
       pushUndo(`úprava vkladu „${prevInc.name || prevInc.source}“`, async () => {

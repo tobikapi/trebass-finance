@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
+import { useDialog } from '@/lib/dialog-context'
 
 interface Document {
   id: string; name: string; file_path: string
@@ -50,6 +51,7 @@ const ALLOWED_TYPES = [
 ]
 
 export default function SouboryClient({ id, initialDocuments, initialUploader }: Props) {
+  const { notify } = useDialog()
   const [documents, setDocuments] = useState<Document[]>(initialDocuments)
   const [uploading, setUploading] = useState(false)
   const [uploader, setUploader] = useState(initialUploader)
@@ -68,22 +70,22 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
     setUploading(true)
     for (const file of Array.from(files)) {
       if (file.size > MAX_FILE_SIZE) {
-        alert(`Soubor "${file.name}" je příliš velký (max 20 MB).`)
+        notify(`Soubor "${file.name}" je příliš velký (max 20 MB).`)
         continue
       }
       if (!ALLOWED_TYPES.includes(file.type)) {
-        alert(`Typ souboru "${file.name}" není povolen.`)
+        notify(`Typ souboru "${file.name}" není povolen.`)
         continue
       }
       const filePath = `${id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
-      if (uploadError) { alert('Chyba při nahrávání: ' + uploadError.message); continue }
+      if (uploadError) { notify('Chyba při nahrávání: ' + uploadError.message); continue }
       const { error: insertError } = await supabase.from('documents').insert([{
         event_id: id, name: file.name, file_path: filePath,
         file_size: file.size, file_type: file.type, uploaded_by: uploader,
       }])
       if (insertError) {
-        alert(`Soubor "${file.name}" se nahrál, ale uložení záznamu selhalo: ${insertError.message}`)
+        notify(`Soubor "${file.name}" se nahrál, ale uložení záznamu selhalo: ${insertError.message}`)
         await supabase.storage.from('documents').remove([filePath])
         continue
       }
@@ -106,7 +108,7 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
 
   async function handleDownload(doc: Document) {
     const { data, error } = await supabase.storage.from('documents').download(doc.file_path)
-    if (error || !data) { alert('Chyba při stahování'); return }
+    if (error || !data) { notify('Chyba při stahování'); return }
     const url = URL.createObjectURL(data)
     const a = document.createElement('a')
     a.href = url; a.download = doc.name; a.click()

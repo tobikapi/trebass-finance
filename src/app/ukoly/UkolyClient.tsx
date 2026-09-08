@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 const MEMBERS = ['Tobiáš', 'Jakub', 'Metoděj', 'Artur']
 const STATUSES = [
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export default function UkolyClient({ initialTasks, initialEvents }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [events, setEvents] = useState<Event[]>(initialEvents)
@@ -63,7 +65,7 @@ export default function UkolyClient({ initialTasks, initialEvents }: Props) {
     }
     const prev = editId ? tasks.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateTask', editId, payload) : await callAction('createTask', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
       const prevPayload = { title: prev.title, description: prev.description, assigned_to_members: prev.assigned_to_members, status: prev.status, priority: prev.priority, due_date: prev.due_date, event_id: prev.event_id }
       pushUndo(`úprava úkolu „${prev.title}“`, async () => {

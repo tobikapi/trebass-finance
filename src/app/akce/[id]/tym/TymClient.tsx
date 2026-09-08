@@ -6,6 +6,7 @@ import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
+import { useDialog } from '@/lib/dialog-context'
 
 const emptyForm = { name: '', amount: '', note: '' }
 
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function TymClient({ id, initialContributions }: Props) {
+  const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [contributions, setContributions] = useState<TeamContribution[]>(initialContributions)
   const [showForm, setShowForm] = useState(false)
@@ -40,7 +42,7 @@ export default function TymClient({ id, initialContributions }: Props) {
     const payload = { event_id: id, name: form.name, amount: parseFloat(form.amount) || 0, note: form.note || null }
     const prev = editId ? contributions.find(x => x.id === editId) : null
     const result = editId ? await callAction('updateContribution', editId, payload) : await callAction('createContribution', payload)
-    if (result.error) { alert('Chyba: ' + result.error); setSaving(false); return }
+    if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
       const prevPayload = { name: prev.name, amount: prev.amount, note: prev.note }
       pushUndo(`úprava příspěvku „${prev.name}“`, async () => {
