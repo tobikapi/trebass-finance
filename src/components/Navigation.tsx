@@ -29,12 +29,15 @@ export default function Navigation() {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const { profile, can } = useUser()
+  const { user, profile, can } = useUser()
   const { theme, toggleTheme } = useTheme()
 
   const visibleNavItems = NAV_ITEMS.filter(item => can(item.permission))
 
-  const userName = profile?.name || ''
+  // Zobrazované jméno může chybět (starý účet bez vyplněného Jména) — pak
+  // se vezme aspoň přihlašovací jméno z e-mailu, ať odhlašovací tlačítko
+  // nezmizí úplně jen kvůli prázdnému poli.
+  const userName = profile?.name || profile?.email?.replace(/@trebass\.cz$/, '') || ''
   const avatarColor = MEMBER_COLORS[userName] || '#e05555'
   const initials = userName.slice(0, 2).toUpperCase()
 
@@ -134,7 +137,7 @@ export default function Navigation() {
           {isLight ? '🌙' : '☀️'}
         </button>
 
-        {userName && (
+        {user && (
           <div className="nav-user-desktop">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700' }}>
@@ -174,7 +177,7 @@ export default function Navigation() {
           })}
         </div>
 
-        {userName && (
+        {user && (
           <div style={{ padding: '16px', borderTop: '1px solid var(--border-subtle)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700' }}>
