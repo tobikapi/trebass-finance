@@ -1,18 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Event, STATUS_LABELS, STATUS_COLORS, EventStatus, formatDateRange } from '@/lib/types'
 import { callAction } from '@/lib/call-action'
 import { useDialog } from '@/lib/dialog-context'
+import { useUser } from '@/lib/user-context'
+import { canAccessEvent, fetchEventAccessMap } from '@/lib/event-access'
 
 export default function AkceClient({ initialEvents }: { initialEvents: Event[] }) {
   const { notify } = useDialog()
   const router = useRouter()
+  const { user, role, loading: userLoading } = useUser()
   const [filter, setFilter] = useState<EventStatus | 'vse'>('vse')
   const [sort, setSort] = useState<'desc' | 'asc'>('desc')
   const [events, setEvents] = useState(initialEvents)
+
+  // initialEvents jde ze serveru nefiltrované (RLS je „allow all") — jakmile
+  // se dotáhne role a event_access, skryjí se akce omezené na jiné admíny.
+  useEffect(() => {
+    if (userLoading) return
+    fetchEventAccessMap().then(map => {
+      setEvents(prev => prev.filter(e => canAccessEvent(e, role, user?.id, map, e.id)))
+    })
+  }, [userLoading, role, user?.id])
 
   async function handleDelete(event: Event) {
     if (!confirm(`Smazat akci "${event.name}"? Smažou se i všechny výdaje, příjmy a lineup.`)) return

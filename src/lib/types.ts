@@ -18,6 +18,7 @@ export interface Event {
   margin_percent: number
   margin_to_income: boolean
   margin_income_id: string | null
+  admin_access_mode: 'all' | 'selected'
   created_at: string
 }
 

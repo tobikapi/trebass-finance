@@ -208,3 +208,95 @@ alter table expenses add column if not exists with_vat boolean not null default 
 -- margin_income_id ukazuje na řádek v income, který se drží v sync s náklady na techniku a marží
 alter table events add column if not exists margin_to_income boolean not null default false;
 alter table events add column if not exists margin_income_id uuid references income(id) on delete set null;
+
+-- ---------------------------------------------------------------------------
+-- Role systém, druhý pokus (8.9.2026)
+-- Role žijí v DB, ne v kódu, aby se daly zakládat a upravovat z konzole.
+-- Katalog možných oprávnění je v src/lib/permissions.ts.
+-- Vynucuje se v server actions; RLS zůstává „allow all" (vědomé rozhodnutí).
+-- ---------------------------------------------------------------------------
+create table if not exists roles (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  color text not null default '#60a5fa',
+  permissions jsonb not null default '{}'::jsonb,
+  is_system boolean not null default false,
+  created_at timestamp with time zone default now()
+);
+
+-- Starý textový sloupec profiles.role se záměrně nemaže — kdyby bylo potřeba couvnout.
+alter table profiles add column if not exists role_id uuid references roles(id) on delete set null;
+
+-- Admin má jediný přepínač „admin", který v kódu uděluje vše včetně budoucích
+-- oprávnění. Díky tomu se Admin nemusí aktualizovat při každém novém přepínači.
+insert into roles (name, color, permissions, is_system)
+values ('Admin', '#e05555', '{"admin": true}'::jsonb, true)
+on conflict (name) do nothing;
+
+-- Člen: vidí vše, může zakládat i upravovat, ale nemaže a nespravuje uživatele.
+-- Doladit se dá v konzoli bez zásahu do kódu.
+insert into roles (name, color, permissions, is_system)
+values ('Člen', '#60a5fa', '{
+  "viewDashboard": true, "viewAkce": true, "viewFirma": true, "viewKalendar": true,
+  "viewUkoly": true, "viewKontakty": true, "viewArchiv": true,
+  "viewVydaje": true, "viewPrijmy": true, "viewLineup": true, "viewLineupFees": true,
+  "viewTechnika": true, "viewElektrina": true, "viewTym": true, "viewChat": true,
+  "viewSoubory": true,
+  "canCreate": true, "canEdit": true
+}'::jsonb, true)
+on conflict (name) do nothing;
+
+-- Všichni stávající lidé (Tobiáš, Jakub, Artur, Metoděj) jsou admini.
+-- Bez tohohle kroku by po nasazení neměl roli nikdo.
+update profiles set role_id = (select id from roles where name = 'Admin') where role_id is null;
+
+alter table roles enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename = 'roles' and policyname = 'allow all') then
+    create policy "allow all" on roles for all using (true) with check (true); end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Přístup k akcím po jednotlivých lidech (21.9.2026)
+-- Admini vidí všechny akce, pokud u akce nezaškrtneš „jen vybraní" — pak
+-- vidí akci jen ti v event_access. Crew Member vidí akci vždy jen tak,
+-- to je jediný způsob, jak jim akci zpřístupnit.
+-- Schválně jen UI vrstva (stejně jako zbytek rolí) — allow all v RLS.
+-- ---------------------------------------------------------------------------
+
+-- 'Člen' se přejmenovává na 'Crew Member' a dostává úplně jiná oprávnění:
+-- dobrovolník/technik vidí jen provozní věci na akcích, kam má přístup,
+-- žádné finance, žádný Dashboard. Katalog je v src/lib/permissions.ts.
+-- Podmínka bere obě jména, pro případ že se role přejmenovala už z konzole.
+update roles set
+  name = 'Crew Member',
+  color = '#34d399',
+  permissions = '{
+    "viewAkce": true, "viewUkoly": true,
+    "viewLineup": true, "viewTechnika": true, "viewElektrina": true,
+    "viewTym": true, "viewChat": true, "viewSoubory": true,
+    "canCreate": true, "canEdit": true
+  }'::jsonb
+where name in ('Člen', 'Crew Member');
+
+alter table events add column if not exists admin_access_mode text not null default 'all';
+
+create table if not exists event_access (
+  event_id uuid not null references events(id) on delete cascade,
+  profile_id uuid not null references profiles(id) on delete cascade,
+  primary key (event_id, profile_id)
+);
+
+alter table event_access enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename = 'event_access' and policyname = 'allow all') then
+    create policy "allow all" on event_access for all using (true) with check (true); end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Vynucená změna hesla (21.9.2026)
+-- Admin zakládá/resetuje heslo a zná ho jen dokud ho neřekne osobně —
+-- při prvním přihlášení (nebo po resetu) appka pustí člověka jen na
+-- /zmena-hesla, dokud si nenastaví vlastní. Vynucuje se v proxy.ts.
+-- ---------------------------------------------------------------------------
+alter table profiles add column if not exists must_change_password boolean not null default false;

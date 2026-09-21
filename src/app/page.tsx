@@ -10,6 +10,9 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts'
 import { useRealtime } from '@/lib/use-realtime'
+import PermissionGuard from '@/components/PermissionGuard'
+import { useUser } from '@/lib/user-context'
+import { canAccessEvent, fetchEventAccessMap } from '@/lib/event-access'
 
 interface RawExpense { event_id: string; price: number; category: string; paid: boolean; deposit: number }
 interface RawIncome  { event_id: string; amount: number }
@@ -99,6 +102,7 @@ function countdown(dateStr: string, timeStart?: string | null) {
 }
 
 export default function Dashboard() {
+  const { user, role } = useUser()
   const [allEvents,   setAllEvents]   = useState<Event[]>([])
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
@@ -111,7 +115,7 @@ export default function Dashboard() {
   async function loadDashboard() {
     setDbError(null)
     try {
-      const [evtsRes, expsRes, incsRes, actExpsRes, actIncsRes, actLineupRes, actNotesRes] = await Promise.all([
+      const [evtsRes, expsRes, incsRes, actExpsRes, actIncsRes, actLineupRes, actNotesRes, accessMap] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: false }),
         supabase.from('expenses').select('price, event_id, category, paid, deposit'),
         supabase.from('income').select('amount, event_id'),
@@ -119,6 +123,7 @@ export default function Dashboard() {
         supabase.from('income').select('event_id, source, amount, created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('lineup').select('event_id, artist_name, fee, created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('notes').select('event_id, author, content, created_at').order('created_at', { ascending: false }).limit(5),
+        fetchEventAccessMap(),
       ])
 
       const firstError = [evtsRes, expsRes, incsRes].find(r => r.error)?.error
@@ -127,9 +132,14 @@ export default function Dashboard() {
         setDbError(firstError.message)
       }
 
-      setAllEvents(evtsRes.data || [])
-      setAllExpenses(expsRes.data || [])
-      setAllIncome(incsRes.data || [])
+      // Akce omezené na „jen vybrané admíny" se u ostatních vůbec neobjeví —
+      // ani v součtech, ani v poslední aktivitě, aby soukromé kalkulace nikoho neotravovaly.
+      const visibleEvents = (evtsRes.data || []).filter(e => canAccessEvent(e, role, user?.id, accessMap, e.id))
+      const visibleIds = new Set(visibleEvents.map(e => e.id))
+
+      setAllEvents(visibleEvents)
+      setAllExpenses((expsRes.data || []).filter(e => visibleIds.has(e.event_id)))
+      setAllIncome((incsRes.data || []).filter(i => visibleIds.has(i.event_id)))
 
       const actNotes = actNotesRes.data
       const items: ActivityItem[] = [
@@ -137,7 +147,8 @@ export default function Dashboard() {
         ...(actIncsRes.data || []).map(i => ({ type: 'income' as const, event_id: i.event_id, icon: '💰', label: i.source, amount: i.amount, created_at: i.created_at })),
         ...(actLineupRes.data || []).map(l => ({ type: 'lineup' as const, event_id: l.event_id, icon: '🎧', label: l.artist_name, amount: l.fee || undefined, created_at: l.created_at })),
         ...(actNotes || []).map(n => ({ type: 'note' as const, event_id: n.event_id, icon: '📝', label: `${n.author}: ${n.content.slice(0, 40)}${n.content.length > 40 ? '…' : ''}`, created_at: n.created_at })),
-      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10)
+      ].filter(item => visibleIds.has(item.event_id))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10)
       setActivity(items)
     } catch (err) {
       console.error('[Dashboard] Unexpected error:', err)
@@ -225,6 +236,7 @@ export default function Dashboard() {
 
   return (
     <div>
+      <PermissionGuard permission="viewDashboard" />
       {/* Header + quick action */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>

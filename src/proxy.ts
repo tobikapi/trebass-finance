@@ -35,6 +35,23 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Nové/resetnuté heslo je jednorázové (admin ho zná a řekl ho osobně) —
+  // dokud si člověk nenastaví vlastní, appka ho pustí jen na tuhle stránku.
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('must_change_password').eq('id', user.id).single()
+    const mustChange = profile?.must_change_password === true
+    if (mustChange && req.nextUrl.pathname !== '/zmena-hesla') {
+      const url = req.nextUrl.clone()
+      url.pathname = '/zmena-hesla'
+      return NextResponse.redirect(url)
+    }
+    if (!mustChange && req.nextUrl.pathname === '/zmena-hesla') {
+      const url = req.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+  }
+
   return supabaseResponse
 }
 

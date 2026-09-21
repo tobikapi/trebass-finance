@@ -5,32 +5,56 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Event, STATUS_LABELS, STATUS_COLORS, formatDateRange } from '@/lib/types'
+import { useUser } from '@/lib/user-context'
+import type { PermissionKey } from '@/lib/permissions'
+import { canAccessEvent, fetchEventAccessMap } from '@/lib/event-access'
 
 interface Props {
   eventId: string
   children: React.ReactNode
 }
 
-const TABS = (id: string) => [
-  { href: `/akce/${id}/prehled`,  label: '📊 Přehled'  },
-  { href: `/akce/${id}/vydaje`,   label: '💸 Výdaje'   },
-  { href: `/akce/${id}/prijmy`,   label: '💰 Příjmy'   },
-  { href: `/akce/${id}/lineup`,   label: '🎧 Lineup'   },
-  { href: `/akce/${id}/technika`, label: '🔧 Technika' },
-  { href: `/akce/${id}/elektrina`,label: '⚡ Elektřina' },
-  { href: `/akce/${id}/tym`,      label: '👥 Tým'      },
-  { href: `/akce/${id}/poznamky`, label: '💬 Chat' },
-  { href: `/akce/${id}/soubory`,  label: '📎 Soubory'  },
+const TABS = (id: string): { href: string; label: string; permission: PermissionKey }[] => [
+  { href: `/akce/${id}/prehled`,  label: '📊 Přehled',   permission: 'viewPrehled'  },
+  { href: `/akce/${id}/vydaje`,   label: '💸 Výdaje',    permission: 'viewVydaje'   },
+  { href: `/akce/${id}/prijmy`,   label: '💰 Příjmy',    permission: 'viewPrijmy'   },
+  { href: `/akce/${id}/lineup`,   label: '🎧 Lineup',    permission: 'viewLineup'   },
+  { href: `/akce/${id}/technika`, label: '🔧 Technika',  permission: 'viewTechnika' },
+  { href: `/akce/${id}/elektrina`,label: '⚡ Elektřina', permission: 'viewElektrina'},
+  { href: `/akce/${id}/tym`,      label: '👥 Tým',       permission: 'viewTym'      },
+  { href: `/akce/${id}/poznamky`, label: '💬 Chat',      permission: 'viewChat'     },
+  { href: `/akce/${id}/soubory`,  label: '📎 Soubory',   permission: 'viewSoubory'  },
 ]
 
 export default function EventLayout({ eventId, children }: Props) {
   const pathname = usePathname()
   const router = useRouter()
+  const { user, role, can, loading } = useUser()
   const [event, setEvent] = useState<Event | null>(null)
+  const [accessMap, setAccessMap] = useState<Map<string, Set<string>> | null>(null)
 
   useEffect(() => {
     supabase.from('events').select('*').eq('id', eventId).single().then(({ data }) => setEvent(data))
+    fetchEventAccessMap().then(setAccessMap)
   }, [eventId])
+
+  const visibleTabs = TABS(eventId).filter(tab => can(tab.permission))
+
+  // Přístup k celé akci (crew members / admini omezení na „jen vybraní") —
+  // dokud nejsou načtená data (role, event, access mapa), nic neblokujeme,
+  // ať se stránka po refreshi na zlomek sekundy nezablikne pryč.
+  useEffect(() => {
+    if (loading || !event || !accessMap) return
+    if (!canAccessEvent(event, role, user?.id, accessMap, eventId)) {
+      router.replace('/akce')
+      return
+    }
+    const currentTab = TABS(eventId).find(t => t.href === pathname)
+    if (currentTab && !can(currentTab.permission)) {
+      router.replace(visibleTabs[0]?.href || '/akce')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, event, accessMap, role, user?.id, pathname, eventId])
 
   return (
     <div>
@@ -62,7 +86,7 @@ export default function EventLayout({ eventId, children }: Props) {
 
       <div className="event-tabs-wrap">
         <div className="event-tabs-inner">
-          {TABS(eventId).map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActive = pathname === tab.href
             return (
               <Link key={tab.href} href={tab.href} style={{

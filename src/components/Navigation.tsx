@@ -6,17 +6,19 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect, useTransition } from 'react'
 import { signOut } from '@/app/login/actions'
 import { useUser } from '@/lib/user-context'
+import type { PermissionKey } from '@/lib/permissions'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
 
-const NAV_ITEMS = [
-  { href: '/',          label: 'Dashboard' },
-  { href: '/firma',     label: 'Firma'     },
-  { href: '/akce',      label: 'Akce'      },
-  { href: '/kalendar',  label: 'Kalendář'  },
-  { href: '/ukoly',     label: 'Úkoly'     },
-  { href: '/kontakty',  label: 'Kontakty'  },
-  { href: '/archiv',    label: 'Archiv'    },
+const NAV_ITEMS: { href: string; label: string; permission: PermissionKey }[] = [
+  { href: '/',          label: 'Dashboard', permission: 'viewDashboard' },
+  { href: '/firma',     label: 'Firma',     permission: 'viewFirma'     },
+  { href: '/akce',      label: 'Akce',      permission: 'viewAkce'      },
+  { href: '/kalendar',  label: 'Kalendář',  permission: 'viewKalendar'  },
+  { href: '/ukoly',     label: 'Úkoly',     permission: 'viewUkoly'     },
+  { href: '/kontakty',  label: 'Kontakty',  permission: 'viewKontakty'  },
+  { href: '/archiv',    label: 'Archiv',    permission: 'viewArchiv'    },
+  { href: '/admin',     label: 'Role',      permission: 'manageUsers'   },
 ]
 
 const MEMBER_COLORS: Record<string, string> = {
@@ -27,8 +29,10 @@ export default function Navigation() {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const { profile } = useUser()
+  const { profile, can } = useUser()
   const { theme, toggleTheme } = useTheme()
+
+  const visibleNavItems = NAV_ITEMS.filter(item => can(item.permission))
 
   const userName = profile?.name || ''
   const avatarColor = MEMBER_COLORS[userName] || '#e05555'
@@ -79,7 +83,7 @@ export default function Navigation() {
         </Link>
 
         <nav className="nav-desktop">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link key={item.href} href={item.href} style={{
@@ -159,7 +163,7 @@ export default function Navigation() {
     {menuOpen && (
       <div className="nav-mobile-dropdown">
         <div style={{ padding: '8px 16px', flex: 1 }}>
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}

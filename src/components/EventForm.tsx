@@ -1,14 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { callAction } from '@/lib/call-action'
+import { supabase } from '@/lib/supabase'
 import { EventStatus, Event } from '@/lib/types'
 import { useDialog } from '@/lib/dialog-context'
 
 interface Props {
   existing?: Event
 }
+
+interface PersonOption { id: string; name: string | null; email: string | null }
 
 const emptyForm = {
   name: '', date: '', date_end: '', time_start: '', time_end: '',
@@ -32,13 +35,53 @@ export default function EventForm({ existing }: Props) {
     description: existing.description || '',
   } : emptyForm)
 
+  // Kdo má k akci přístup. Admini s adminAccessMode='all' (default) vidí
+  // akci všichni — jen když zaškrtneš „jen vybraní", vybíráš konkrétní lidi.
+  // Crew Member musí být vybraný vždy, jinak akci vůbec neuvidí.
+  const [admins, setAdmins] = useState<PersonOption[]>([])
+  const [crew, setCrew] = useState<PersonOption[]>([])
+  const [adminAccessMode, setAdminAccessMode] = useState<'all' | 'selected'>(existing?.admin_access_mode || 'all')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    async function load() {
+      const { data: roles } = await supabase.from('roles').select('id, name')
+      const adminRoleIds = new Set((roles || []).filter(r => r.name === 'Admin').map(r => r.id))
+      const crewRoleIds = new Set((roles || []).filter(r => r.name !== 'Admin').map(r => r.id))
+
+      const { data: profiles } = await supabase.from('profiles').select('id, name, email, role_id')
+      setAdmins((profiles || []).filter(p => p.role_id && adminRoleIds.has(p.role_id)))
+      setCrew((profiles || []).filter(p => p.role_id && crewRoleIds.has(p.role_id)))
+
+      if (existing) {
+        const { data: access } = await supabase.from('event_access').select('profile_id').eq('event_id', existing.id)
+        setSelectedIds(new Set((access || []).map(a => a.profile_id)))
+      }
+    }
+    load()
+  }, [existing])
+
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   const f = (field: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm({ ...form, [field]: e.target.value })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const payload = { ...form, time_start: showTime ? form.time_start : '', time_end: showTime ? form.time_end : '' }
+    const payload = {
+      ...form,
+      time_start: showTime ? form.time_start : '', time_end: showTime ? form.time_end : '',
+      admin_access_mode: adminAccessMode,
+      access_profile_ids: Array.from(selectedIds),
+    }
     const result = existing
       ? await callAction('updateEvent', existing.id, payload)
       : await callAction('createEvent', payload)
@@ -131,6 +174,49 @@ export default function EventForm({ existing }: Props) {
       <div>
         <label style={labelStyle}>Obecné info (kontext, dress code...)</label>
         <textarea value={form.description} onChange={f('description')} placeholder="Např. dress code, kontext akce, důležité info pro tým..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+      </div>
+
+      {/* Kdo má přístup */}
+      <div style={{ borderTop: '1px solid var(--border-card)', paddingTop: '20px' }}>
+        <label style={labelStyle}>Kdo má k akci přístup</label>
+
+        <div style={{ display: 'flex', gap: '16px', marginBottom: admins.length > 0 || crew.length > 0 ? '14px' : 0 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+            <input type="radio" checked={adminAccessMode === 'all'} onChange={() => setAdminAccessMode('all')} />
+            Všichni administrátoři
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+            <input type="radio" checked={adminAccessMode === 'selected'} onChange={() => setAdminAccessMode('selected')} />
+            Jen vybraní admini
+          </label>
+        </div>
+
+        {adminAccessMode === 'selected' && admins.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+            {admins.map(p => (
+              <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelected(p.id)} />
+                {p.name || p.email}
+              </label>
+            ))}
+          </div>
+        )}
+
+        {crew.length > 0 && (
+          <>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              Crew members (vidí akci jen ti zaškrtnutí):
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {crew.map(p => (
+                <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelected(p.id)} />
+                  {p.name || p.email}
+                </label>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: '12px', paddingTop: '4px' }}>

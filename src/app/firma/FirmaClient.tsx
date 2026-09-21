@@ -9,6 +9,7 @@ import {
 import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import PermissionGuard from '@/components/PermissionGuard'
 
 const emptyExpForm = {
   category: COMPANY_CATEGORIES[0], item: '', note: '', amount: '', paid: false, date: '',
@@ -257,6 +258,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
 
   return (
     <div>
+      <PermissionGuard permission="viewFirma" />
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Firma</h1>
