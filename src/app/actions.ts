@@ -863,19 +863,20 @@ export async function createUser(name: string, username: string, password: strin
     .upsert([{ id: created.user.id, name: trimmedName, email, role_id: roleId, must_change_password: true }])
   if (profileError) return { error: profileError.message }
 
-  return { data: { id: created.user.id, name: trimmedName, email, role_id: roleId } }
+  return { data: { id: created.user.id, name: trimmedName, email, phone: null, role_id: roleId } }
 }
 
-// Upraví jméno a/nebo uživatelské jméno. Změna uživatelského jména = změna
-// e-mailu v Auth (login je postavený na `${username}@trebass.cz`), proto
-// jde přes service_role, ne přes běžný update.
-export async function updateProfile(profileId: string, name: string, username: string) {
+// Upraví jméno, uživatelské jméno a telefon. Změna uživatelského jména =
+// změna e-mailu v Auth (login je postavený na `${username}@trebass.cz`),
+// proto jde přes service_role, ne přes běžný update.
+export async function updateProfile(profileId: string, name: string, username: string, phone: string) {
   const supabase = await requireAuth()
   const denied = await denyUnless(supabase, 'manageUsers')
   if (denied) return { error: denied }
 
   const trimmedName = name.trim()
   const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '')
+  const trimmedPhone = phone.trim()
   if (!trimmedName) return { error: 'Jméno je povinné.' }
   if (!cleanUsername) return { error: 'Neplatné uživatelské jméno (jen písmena, čísla, tečka, pomlčka).' }
 
@@ -893,11 +894,11 @@ export async function updateProfile(profileId: string, name: string, username: s
 
   const { error: profileError } = await supabase
     .from('profiles')
-    .update({ name: trimmedName, email })
+    .update({ name: trimmedName, email, phone: trimmedPhone || null })
     .eq('id', profileId)
   if (profileError) return { error: profileError.message }
 
-  return { data: { id: profileId, name: trimmedName, email } }
+  return { data: { id: profileId, name: trimmedName, email, phone: trimmedPhone || null } }
 }
 
 // Pojistky proti zamčení stejné jako u assignRole: nikdo si nesmí smazat sám

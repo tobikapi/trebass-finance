@@ -17,10 +17,11 @@ export default async function UkolyPage() {
     }
   )
 
-  const [{ data: tasks }, { data: events }] = await Promise.all([
+  const [{ data: tasks }, { data: events }, { data: profiles }] = await Promise.all([
     supabase.from('tasks').select('*').order('due_date', { ascending: true, nullsFirst: false }).order('created_at'),
-    supabase.from('events').select('id, name').order('date', { ascending: false }),
+    supabase.from('events').select('id, name, date, status').order('date', { ascending: false }),
+    supabase.from('profiles').select('id, name').order('name'),
   ])
 
-  return <UkolyClient initialTasks={tasks || []} initialEvents={events || []} />
+  return <UkolyClient initialTasks={tasks || []} initialEvents={events || []} initialMembers={profiles || []} />
 }

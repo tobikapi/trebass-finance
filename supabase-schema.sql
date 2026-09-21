@@ -300,3 +300,10 @@ end $$;
 -- /zmena-hesla, dokud si nenastaví vlastní. Vynucuje se v proxy.ts.
 -- ---------------------------------------------------------------------------
 alter table profiles add column if not exists must_change_password boolean not null default false;
+
+-- ---------------------------------------------------------------------------
+-- Telefon u profilu (21.9.2026)
+-- Kontakty teď zobrazují i lidi z Třebassu (jméno, telefon, e-mail), ne jen
+-- externí dodavatele/umělce — upravuje se v Role → Upravit.
+-- ---------------------------------------------------------------------------
+alter table profiles add column if not exists phone text;

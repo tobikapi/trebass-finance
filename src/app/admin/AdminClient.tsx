@@ -10,6 +10,7 @@ interface ProfileRow {
   id: string
   name: string | null
   email: string | null
+  phone: string | null
   role_id: string | null
 }
 
@@ -55,6 +56,14 @@ function RoleEditorCard({ role, onSaved }: { role: Role; onSaved: (updated: Role
 
   function toggle(key: keyof Permissions) {
     setDraft(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  // Zkratka nad canCreate/canEdit/canDelete — nemusí se ťukat po jednom.
+  // canDeleteEvent (nevratné mazání celých akcí) se schválně nepřepíná s tím,
+  // to je jinak závažné než smazat jeden výdaj.
+  const isReader = !draft.canCreate && !draft.canEdit && !draft.canDelete
+  function applyPreset(mode: 'reader' | 'editor') {
+    setDraft(prev => ({ ...prev, canCreate: mode === 'editor', canEdit: mode === 'editor', canDelete: mode === 'editor' }))
   }
 
   async function save() {
@@ -108,11 +117,29 @@ function RoleEditorCard({ role, onSaved }: { role: Role; onSaved: (updated: Role
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
           {PERMISSION_GROUPS.filter(g => g.label !== 'Správa').map(group => (
             <div key={group.label}>
-              <div style={{
-                fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)',
-                textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px',
-              }}>
-                {group.label}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <div style={{
+                  fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                }}>
+                  {group.label}
+                </div>
+                {group.label === 'Úpravy' && (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button type="button" onClick={() => applyPreset('reader')} style={{
+                      fontSize: '10px', padding: '2px 8px', borderRadius: '10px', cursor: 'pointer',
+                      border: '1px solid var(--border-card)',
+                      backgroundColor: isReader ? 'var(--text-secondary)' : 'transparent',
+                      color: isReader ? 'var(--bg-card-alt)' : 'var(--text-muted)',
+                    }}>Čtenář</button>
+                    <button type="button" onClick={() => applyPreset('editor')} style={{
+                      fontSize: '10px', padding: '2px 8px', borderRadius: '10px', cursor: 'pointer',
+                      border: '1px solid var(--border-card)',
+                      backgroundColor: !isReader ? '#e05555' : 'transparent',
+                      color: !isReader ? '#fff' : 'var(--text-muted)',
+                    }}>Editor</button>
+                  </div>
+                )}
               </div>
               {group.permissions.map(perm => (
                 <label key={perm.key} title={perm.hint} style={{
@@ -141,11 +168,12 @@ function PersonRow({ profile, role, roles, isMe, disabled, saving, onChangeRole,
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(profile.name || '')
   const [username, setUsername] = useState(profile.email?.replace(/@trebass\.cz$/, '') || '')
+  const [phone, setPhone] = useState(profile.phone || '')
   const [busy, setBusy] = useState(false)
 
   async function saveEdit() {
     setBusy(true)
-    const result = await callAction<{ data?: ProfileRow; error?: string }>('updateProfile', profile.id, name, username)
+    const result = await callAction<{ data?: ProfileRow; error?: string }>('updateProfile', profile.id, name, username, phone)
     setBusy(false)
     if (result.error) { notify(result.error); return }
     if (result.data) onUpdated({ ...profile, ...result.data })
@@ -188,6 +216,7 @@ function PersonRow({ profile, role, roles, isMe, disabled, saving, onChangeRole,
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Jméno" style={cellStyle} />
           <input value={username} onChange={e => setUsername(e.target.value)} placeholder="uživatelské jméno" style={cellStyle} />
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="telefon (nepovinné)" style={cellStyle} />
         </div>
       ) : (
         <div>
@@ -195,7 +224,9 @@ function PersonRow({ profile, role, roles, isMe, disabled, saving, onChangeRole,
             {profile.name || '—'}
             {isMe && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>(ty)</span>}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{username || '—'}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            {username || '—'}{profile.phone ? ` · ${profile.phone}` : ''}
+          </div>
         </div>
       )}
       <div><RoleBadge role={role} /></div>

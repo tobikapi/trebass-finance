@@ -23,13 +23,24 @@ interface Contact {
   email: string | null; phone: string | null; note: string | null; created_at: string
 }
 
+interface MemberRole { name: string; color: string }
+interface MemberProfile {
+  id: string; name: string | null; email: string | null; phone: string | null
+  roles: MemberRole | MemberRole[] | null
+}
+
 const emptyForm = { name: '', type: 'DJ', email: '', phone: '', note: '', fee: '0' }
 
 interface Props {
   initialContacts: Contact[]
+  initialMembers: MemberProfile[]
 }
 
-export default function KontaktyClient({ initialContacts }: Props) {
+export default function KontaktyClient({ initialContacts, initialMembers }: Props) {
+  const members = initialMembers.map(m => ({
+    ...m,
+    role: Array.isArray(m.roles) ? m.roles[0] : m.roles,
+  }))
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
@@ -107,13 +118,55 @@ export default function KontaktyClient({ initialContacts }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Kontakty</h1>
-          <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Adresář umělců, dodavatelů a partnerů</p>
+          <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Lidé z Třebassu a externí kontakty</p>
         </div>
         <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }}
           style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
           + Přidat kontakt
         </button>
       </div>
+
+      {/* Lidé z Třebassu — organizátoři a crew, telefon/email se upravuje v Role → Upravit */}
+      {members.length > 0 && (
+        <div style={{ marginBottom: '32px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 4px' }}>Lidé z Třebassu</h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+            Kontakt na organizátory a crew. Upravuje se v sekci Role.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
+            {members.map(m => (
+              <div key={m.id} style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid #2d1515', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{m.name || '—'}</div>
+                  {m.role && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', color: m.role.color, backgroundColor: `${m.role.color}1f`, border: `1px solid ${m.role.color}59` }}>
+                      {m.role.name}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {m.phone && (
+                    <a href={`tel:${m.phone}`} style={{ fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>📞</span> {m.phone}
+                    </a>
+                  )}
+                  {m.email && (
+                    <a href={`mailto:${m.email}`} style={{ fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>✉️</span> {m.email.replace(/@trebass\.cz$/, '')}
+                    </a>
+                  )}
+                  {!m.phone && !m.email && (
+                    <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Bez kontaktu</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 4px' }}>Externí kontakty</h2>
+      <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 12px' }}>Umělci, dodavatelé a partneři</p>
 
       {/* Search + filters */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>

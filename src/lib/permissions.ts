@@ -91,10 +91,11 @@ export const PERMISSION_LABELS: Record<string, string> =
 
 // Výchozí sada pro Crew Member: dobrovolníci/technici vidí jen provozní věci
 // na akcích, na které mají přístup (viz event_access) — žádné finance, žádný
-// Dashboard, žádný Přehled akce. Úkoly vidí všechny napříč akcemi. Doladit
-// se dá v konzoli, aniž by se sahalo do kódu.
+// Přehled akce. Dashboard mají svůj vlastní bez peněz (viz MyDashboard.tsx),
+// zapíná/vypíná se stejným přepínačem. Doladit se dá v konzoli, aniž by se
+// sahalo do kódu.
 export const CREW_DEFAULTS: Permissions = {
-  viewAkce: true, viewUkoly: true,
+  viewDashboard: true, viewAkce: true, viewUkoly: true, viewKontakty: true,
   viewLineup: true, viewTechnika: true, viewElektrina: true,
   viewTym: true, viewChat: true, viewSoubory: true,
   canCreate: true, canEdit: true,

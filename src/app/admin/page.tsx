@@ -18,7 +18,7 @@ export default async function AdminPage() {
   )
 
   const [{ data: profiles }, { data: roles }] = await Promise.all([
-    supabase.from('profiles').select('id, name, email, role_id').order('name'),
+    supabase.from('profiles').select('id, name, email, phone, role_id').order('name'),
     supabase.from('roles').select('id, name, color, permissions, is_system').order('name'),
   ])
 

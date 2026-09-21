@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { useRealtime } from '@/lib/use-realtime'
 import PermissionGuard from '@/components/PermissionGuard'
+import MyDashboard from '@/components/MyDashboard'
 import { useUser } from '@/lib/user-context'
 import { canAccessEvent, fetchEventAccessMap } from '@/lib/event-access'
 
@@ -102,6 +103,16 @@ function countdown(dateStr: string, timeStart?: string | null) {
 }
 
 export default function Dashboard() {
+  const { can, loading: userLoading } = useUser()
+  return (
+    <>
+      <PermissionGuard permission="viewDashboard" />
+      {!userLoading && !can('viewFirma') ? <MyDashboard /> : <FinancialDashboard />}
+    </>
+  )
+}
+
+function FinancialDashboard() {
   const { user, role } = useUser()
   const [allEvents,   setAllEvents]   = useState<Event[]>([])
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
@@ -236,7 +247,6 @@ export default function Dashboard() {
 
   return (
     <div>
-      <PermissionGuard permission="viewDashboard" />
       {/* Header + quick action */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>

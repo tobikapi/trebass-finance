@@ -17,7 +17,10 @@ export default async function KontaktyPage() {
     }
   )
 
-  const { data: contacts } = await supabase.from('contacts').select('*').order('name')
+  const [{ data: contacts }, { data: profiles }] = await Promise.all([
+    supabase.from('contacts').select('*').order('name'),
+    supabase.from('profiles').select('id, name, email, phone, roles(name, color)').order('name'),
+  ])
 
-  return <KontaktyClient initialContacts={contacts || []} />
+  return <KontaktyClient initialContacts={contacts || []} initialMembers={profiles || []} />
 }

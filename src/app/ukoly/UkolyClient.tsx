@@ -6,7 +6,6 @@ import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
 
-const MEMBERS = ['Tobiáš', 'Jakub', 'Metoděj', 'Artur']
 const STATUSES = [
   { value: 'todo', label: 'To Do', color: '#6b7280', bg: '#1e1e1e' },
   { value: 'in_progress', label: 'In Progress', color: '#f4978e', bg: '#2d1515' },
@@ -23,31 +22,35 @@ interface Task {
   assigned_to: string | null; assigned_to_members: string[]
   status: string; priority: string; due_date: string | null; event_id: string | null; created_at: string
 }
-interface Event { id: string; name: string }
+interface Event { id: string; name: string; date: string | null; status: string }
+interface Member { id: string; name: string | null }
 
 const emptyForm = { title: '', description: '', assigned_to_members: [] as string[], status: 'todo', priority: 'medium', due_date: '', event_id: '' }
 
 interface Props {
   initialTasks: Task[]
   initialEvents: Event[]
+  initialMembers: Member[]
 }
 
-export default function UkolyClient({ initialTasks, initialEvents }: Props) {
+export default function UkolyClient({ initialTasks, initialEvents, initialMembers }: Props) {
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [events, setEvents] = useState<Event[]>(initialEvents)
+  const members = initialMembers.map(m => m.name).filter((n): n is string => !!n)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [filterUser, setFilterUser] = useState('vse')
   const [filterStatus, setFilterStatus] = useState('vse')
+  const [filterEvent, setFilterEvent] = useState('vse')
 
   async function load() {
     const [{ data: t }, { data: e }] = await Promise.all([
       supabase.from('tasks').select('*').order('due_date', { ascending: true, nullsFirst: false }).order('created_at'),
-      supabase.from('events').select('id, name').order('date', { ascending: false }),
+      supabase.from('events').select('id, name, date, status').order('date', { ascending: false }),
     ])
     setTasks(t || []); setEvents(e || [])
   }
@@ -128,6 +131,8 @@ export default function UkolyClient({ initialTasks, initialEvents }: Props) {
   const filtered = tasks.filter((t) => {
     if (filterUser !== 'vse' && !(t.assigned_to_members || []).includes(filterUser)) return false
     if (filterStatus !== 'vse' && t.status !== filterStatus) return false
+    if (filterEvent === 'bez_akce' && t.event_id) return false
+    if (filterEvent !== 'vse' && filterEvent !== 'bez_akce' && t.event_id !== filterEvent) return false
     return true
   })
 
@@ -168,7 +173,7 @@ export default function UkolyClient({ initialTasks, initialEvents }: Props) {
       <div style={{ display: 'flex', gap: '24px', marginBottom: '24px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>Člen:</span>
-          {['vse', ...MEMBERS].map((m) => (
+          {['vse', ...members].map((m) => (
             <button key={m} onClick={() => setFilterUser(m)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterUser === m ? '#e05555' : 'var(--bg-card-dark)', color: filterUser === m ? '#fff' : 'var(--text-secondary)' }}>
               {m === 'vse' ? 'Vše' : m}
             </button>
@@ -181,6 +186,21 @@ export default function UkolyClient({ initialTasks, initialEvents }: Props) {
               {s.label}
             </button>
           ))}
+        </div>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>Akce:</span>
+          <select
+            value={filterEvent} onChange={e => setFilterEvent(e.target.value)}
+            style={{
+              padding: '4px 10px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer',
+              backgroundColor: filterEvent === 'vse' ? 'var(--bg-card-dark)' : '#e05555',
+              color: filterEvent === 'vse' ? 'var(--text-secondary)' : '#fff', outline: 'none',
+            }}
+          >
+            <option value="vse">Vše</option>
+            <option value="bez_akce">Bez akce</option>
+            {events.map(ev => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
+          </select>
         </div>
       </div>
 
@@ -196,7 +216,7 @@ export default function UkolyClient({ initialTasks, initialEvents }: Props) {
             <div>
               <label style={labelStyle}>Přiřadit (více lidí)</label>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', paddingTop: '4px' }}>
-                {MEMBERS.map(m => {
+                {members.map(m => {
                   const selected = form.assigned_to_members.includes(m)
                   return (
                     <button key={m} type="button" onClick={() => toggleMember(m)} style={{
