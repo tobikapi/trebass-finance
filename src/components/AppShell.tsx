@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Navigation from './Navigation'
 import IdleTimer from './IdleTimer'
+import EmberParticles from './EmberParticles'
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isLogin = pathname === '/login'
@@ -21,6 +22,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }} />
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'var(--overlay)', transition: 'background-color 0.2s' }} />
       </div>
+
+      <EmberParticles />
 
       {/* Content */}
       <div style={{ position: 'relative', zIndex: 1 }}>
