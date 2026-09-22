@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { LineupArtist } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import Collapse from '@/components/Collapse'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
@@ -479,8 +480,8 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
                     </button>
                   )}
                 </div>
-                {!isCollapsed && (
-                  <div className="collapse-content" style={{ marginTop: '14px' }}>
+                <Collapse open={!isCollapsed}>
+                  <div style={{ marginTop: '14px' }}>
                     {!multiDay ? (
                       <>{isStageFormOpen && renderForm(stageName)}{renderTable(stageArtists, sc)}</>
                     ) : (
@@ -511,7 +512,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
                       </div>
                     )}
                   </div>
-                )}
+                </Collapse>
               </div>
             )
           })}

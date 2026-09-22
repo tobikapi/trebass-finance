@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { callAction } from '@/lib/call-action'
 import { useDialog } from '@/lib/dialog-context'
 import { useUser } from '@/lib/user-context'
 import { PERMISSION_GROUPS, type Permissions, type Role } from '@/lib/permissions'
+import Collapse from '@/components/Collapse'
 
 interface ProfileRow {
   id: string
@@ -48,6 +50,8 @@ const ROLE_COLORS = ['#e05555', '#34d399', '#60a5fa', '#f59e0b', '#a78bfa', '#f4
 
 function RoleEditorCard({ role, onSaved }: { role: Role; onSaved: (updated: Role) => void }) {
   const { notify } = useDialog()
+  const { setViewAs } = useUser()
+  const router = useRouter()
   const [name, setName] = useState(role.name)
   const [draft, setDraft] = useState<Permissions>(role.permissions || {})
   const [saving, setSaving] = useState(false)
@@ -98,6 +102,19 @@ function RoleEditorCard({ role, onSaved }: { role: Role; onSaved: (updated: Role
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             má automaticky všechna oprávnění, i ta, která teprve přibudou
           </span>
+        )}
+        {!isAdminRole && (
+          <button
+            onClick={() => { setViewAs(role.id); router.push('/') }}
+            title="Prohlédnout appku jako tahle role — vynucuje se i na serveru"
+            style={{
+              marginLeft: 'auto', padding: '5px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600,
+              backgroundColor: 'transparent', color: 'var(--text-secondary)',
+              border: '1px solid var(--border-card)', cursor: 'pointer',
+            }}
+          >
+            👁 Zobrazit z pohledu
+          </button>
         )}
         {dirty && (
           <button
@@ -277,6 +294,7 @@ export default function AdminClient({ initialProfiles, initialRoles }: Props) {
   const [profiles, setProfiles] = useState<ProfileRow[]>(initialProfiles)
   const [roles, setRoles] = useState<Role[]>(initialRoles)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [peopleOpen, setPeopleOpen] = useState(true)
 
   const [newRoleName, setNewRoleName] = useState('')
   const [creatingRole, setCreatingRole] = useState(false)
@@ -438,38 +456,52 @@ export default function AdminClient({ initialProfiles, initialRoles }: Props) {
         borderRadius: '12px', overflow: 'hidden',
         border: '1px solid var(--border-card)', marginBottom: '36px',
       }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 150px 200px 190px', gap: '12px',
-          padding: '10px 18px', backgroundColor: 'var(--bg-card-alt)',
-          fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
-        }}>
-          <div>Člověk</div><div>Role</div><div>Změnit na</div><div>Akce</div>
-        </div>
+        <button
+          onClick={() => setPeopleOpen(o => !o)}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 18px', backgroundColor: 'var(--bg-card-alt)', border: 'none', cursor: 'pointer',
+            fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)',
+          }}
+        >
+          <span>Lidé ({profiles.length})</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', transform: peopleOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▾</span>
+        </button>
 
-        {profiles.length === 0 && (
-          <div style={{ padding: '20px 18px', color: 'var(--text-muted)', fontSize: '13px' }}>
-            Zatím tu nikdo není.
-          </div>
-        )}
+        <Collapse open={peopleOpen}>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 150px 200px 190px', gap: '12px',
+              padding: '10px 18px', borderTop: '1px solid var(--border-card)',
+              fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
+            }}>
+              <div>Člověk</div><div>Role</div><div>Změnit na</div><div>Akce</div>
+            </div>
 
-        {profiles.map(p => {
-          const role = p.role_id ? rolesById.get(p.role_id) : undefined
-          const isMe = user?.id === p.id
-          return (
-            <PersonRow
-              key={p.id}
-              profile={p}
-              role={role}
-              roles={roles}
-              isMe={isMe}
-              disabled={migrationMissing}
-              saving={savingId === p.id}
-              onChangeRole={roleId => changeRole(p.id, roleId)}
-              onUpdated={updated => setProfiles(prev => prev.map(pr => (pr.id === updated.id ? updated : pr)))}
-              onDeleted={() => setProfiles(prev => prev.filter(pr => pr.id !== p.id))}
-            />
-          )
-        })}
+            {profiles.length === 0 && (
+              <div style={{ padding: '20px 18px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                Zatím tu nikdo není.
+              </div>
+            )}
+
+            {profiles.map(p => {
+              const role = p.role_id ? rolesById.get(p.role_id) : undefined
+              const isMe = user?.id === p.id
+              return (
+                <PersonRow
+                  key={p.id}
+                  profile={p}
+                  role={role}
+                  roles={roles}
+                  isMe={isMe}
+                  disabled={migrationMissing}
+                  saving={savingId === p.id}
+                  onChangeRole={roleId => changeRole(p.id, roleId)}
+                  onUpdated={updated => setProfiles(prev => prev.map(pr => (pr.id === updated.id ? updated : pr)))}
+                  onDeleted={() => setProfiles(prev => prev.filter(pr => pr.id !== p.id))}
+                />
+              )
+            })}
+        </Collapse>
       </div>
 
       {/* Co která role smí — editovatelné */}

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Navigation from './Navigation'
 import IdleTimer from './IdleTimer'
 import EmberParticles from './EmberParticles'
+import ViewAsBanner from './ViewAsBanner'
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isLogin = pathname === '/login'
@@ -27,6 +28,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Content */}
       <div style={{ position: 'relative', zIndex: 1 }}>
+        <ViewAsBanner />
         <IdleTimer />
         <Navigation />
         <main className="page-main">

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Expense, CATEGORIES, CATEGORY_COLORS, PaymentTiming } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import Collapse from '@/components/Collapse'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
@@ -301,8 +302,8 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
                     </div>
                   )
                 })()}
-                {!isCollapsed && (
-                  <div className="collapse-content">
+                <Collapse open={!isCollapsed}>
+                  <div>
                     <div className="expense-header">
                       {['Položka / Poznámka', 'Platba', 'Cena', 'Záloha', 'Zbývá', 'Paid', ''].map((h, i) => (
                         <div key={h + i} className="text-xs font-medium" style={{ color: 'var(--text-dim)', textAlign: i >= 2 && i <= 4 ? 'right' : 'left' }}>{h}</div>
@@ -352,7 +353,7 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
                       </div>
                     ))}
                   </div>
-                )}
+                </Collapse>
               </div>
             )
           })}

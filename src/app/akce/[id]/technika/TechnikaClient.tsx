@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { EventEquipment, EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_COLORS } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import Collapse from '@/components/Collapse'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
@@ -764,8 +765,8 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
 
             {showForm === bubble.key && !editId && <div style={{ padding: '0 12px' }}>{renderForm()}</div>}
 
-            {!isCollapsed && (
-              bubble.items.length === 0 ? (
+            <Collapse open={!isCollapsed}>
+              {bubble.items.length === 0 ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', backgroundColor: 'var(--bg-card)' }}>
                   Zatím žádná technika v této bublině.
                 </div>
@@ -794,8 +795,8 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                     )
                   })}
                 </div>
-              )
-            )}
+              )}
+            </Collapse>
           </div>
         )
       })}

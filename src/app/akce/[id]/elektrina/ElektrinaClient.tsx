@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { EventEquipment, EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_COLORS, EquipmentCategory } from '@/lib/types'
 import EventLayout from '@/components/EventLayout'
+import Collapse from '@/components/Collapse'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
@@ -324,8 +325,8 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
                   </div>
                   <span style={{ fontSize: '13px', fontWeight: '700', color: '#fbbf24' }}>⚡ {fmtKw(groupTotal)}</span>
                 </div>
-                {!isCollapsed && (
-                  g.items ? (
+                <Collapse open={!isCollapsed}>
+                  {g.items ? (
                     <>
                       <div style={{ display: 'grid', gridTemplateColumns: rowGrid, padding: '8px 16px', backgroundColor: 'var(--bg-card-alt)', borderTop: '1px solid var(--border-card)', borderBottom: '1px solid var(--border-card)' }}>
                         {['Název', 'Počet', 'kW/ks', 'Celkem kW', ''].map((h, i) => (
@@ -351,8 +352,8 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
                         </div>
                       )
                     })
-                  )
-                )}
+                  )}
+                </Collapse>
               </div>
             )
           })}

@@ -24,11 +24,11 @@ async function requireAuth() {
   return supabase
 }
 
-// Načte oprávnění přihlášeného uživatele. Vrací null, když uživatel nemá
-// přiřazenou roli nebo role systém ještě není v DB — hasPermission() pak
-// povolí vše. Viz komentář u hasPermission v permissions.ts: zamykat lidi ven
-// kvůli nedoběhlé migraci by bylo horší než je nechat pracovat.
-async function currentPermissions(supabase: Awaited<ReturnType<typeof requireAuth>>): Promise<Permissions | null> {
+// Skutečná oprávnění podle role v DB — bez ohledu na „Zobrazit jako", ta
+// existuje jen v currentPermissions() níž. Použij tuhle variantu všude, kde
+// jde o bezpečnostní rozhodnutí, u kterého by falšovaný náhled neměl mít
+// slovo (typicky: kdo smí udělit administrátorská práva).
+async function realPermissions(supabase: Awaited<ReturnType<typeof requireAuth>>): Promise<Permissions | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const { data, error } = await supabase.from('profiles').select('roles(permissions)').eq('id', user.id).single()
@@ -36,6 +36,30 @@ async function currentPermissions(supabase: Awaited<ReturnType<typeof requireAut
   const rel = (data as Record<string, unknown>).roles
   const role = (Array.isArray(rel) ? rel[0] : rel) as { permissions?: Permissions } | null | undefined
   return role?.permissions ?? null
+}
+
+// Načte oprávnění přihlášeného uživatele. Vrací null, když uživatel nemá
+// přiřazenou roli nebo role systém ještě není v DB — hasPermission() pak
+// povolí vše. Viz komentář u hasPermission v permissions.ts: zamykat lidi ven
+// kvůli nedoběhlé migraci by bylo horší než je nechat pracovat.
+//
+// Admin si může v appce zapnout „Zobrazit jako [role]" — vynucuje se to
+// i tady na serveru (ne jen skrytí v UI), aby šlo reálně ověřit co která
+// role smí, ne jen co vidí. Cookie respektujeme jen když je skutečná role
+// admin — jinak by šlo obejít oprávnění tím, že si někdo nastaví cookie ručně.
+async function currentPermissions(supabase: Awaited<ReturnType<typeof requireAuth>>): Promise<Permissions | null> {
+  const real = await realPermissions(supabase)
+
+  if (real?.admin === true) {
+    const cookieStore = await cookies()
+    const viewAsRoleId = cookieStore.get('trebass_view_as')?.value
+    if (viewAsRoleId) {
+      const { data: viewRole } = await supabase.from('roles').select('permissions').eq('id', viewAsRoleId).single()
+      if (viewRole) return viewRole.permissions ?? null
+    }
+  }
+
+  return real
 }
 
 // Vrátí chybovou hlášku, když uživatel na akci nemá právo, jinak null.
@@ -781,6 +805,16 @@ export async function assignRole(profileId: string, roleId: string | null) {
     : { data: null }
   const wouldBeAdmin = (newRole as { permissions?: Permissions } | null)?.permissions?.admin === true
 
+  // Pojistka 0: manageUsers samo o sobě neopravňuje udělit roli s admin:true
+  // (typicky přímo roli Admin) — bez tohohle by šlo obejít manageRoles
+  // a rovnou se (nebo někoho jiného) povýšit na plného administrátora.
+  if (wouldBeAdmin) {
+    const real = await realPermissions(supabase)
+    if (real?.admin !== true) {
+      return { error: 'Jen administrátor smí přiřadit administrátorskou roli.' }
+    }
+  }
+
   // Pojistka 1: nikdo si nesmí sebrat vlastní administrátorská práva.
   const { data: { user } } = await supabase.auth.getUser()
   if (user?.id === profileId && !wouldBeAdmin) {
@@ -820,9 +854,13 @@ function getAdminClient() {
   )
 }
 
+// Math.random() není kryptograficky bezpečný RNG (jde v principu předvídat) —
+// pro heslo, byť jednorázové, patří crypto.getRandomValues.
 function randomPassword(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  const bytes = new Uint32Array(10)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => chars[b % chars.length]).join('')
 }
 
 // Založení nového člověka pod vlastním uživatelským jménem a heslem (náhrada
@@ -840,6 +878,16 @@ export async function createUser(name: string, username: string, password: strin
   if (!trimmedName) return { error: 'Jméno je povinné.' }
   if (!cleanUsername) return { error: 'Neplatné uživatelské jméno (jen písmena, čísla, tečka, pomlčka).' }
   if (password.length < 6) return { error: 'Heslo musí mít aspoň 6 znaků.' }
+
+  // manageUsers samo o sobě neopravňuje rovnou založit dalšího admina —
+  // stejná pojistka jako u assignRole.
+  if (roleId) {
+    const { data: newRole } = await supabase.from('roles').select('permissions').eq('id', roleId).single()
+    if ((newRole as { permissions?: Permissions } | null)?.permissions?.admin === true) {
+      const real = await realPermissions(supabase)
+      if (real?.admin !== true) return { error: 'Jen administrátor smí založit účet s administrátorskou rolí.' }
+    }
+  }
 
   const admin = getAdminClient()
   if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local — bez něj nejde účty zakládat.' }
@@ -962,6 +1010,17 @@ export async function updateRolePermissions(roleId: string, permissions: Permiss
   const supabase = await requireAuth()
   const denied = await denyUnless(supabase, 'manageRoles')
   if (denied) return { error: denied }
+
+  // manageRoles bez admin:true nesmí udělit admin:true — jinak by role
+  // "spravovat role" + "přiřazovat role lidem" dohromady byla tichá cesta
+  // k plným admin právům. Kontroluje se skutečná role, ne aktivní náhled.
+  if (permissions?.admin === true) {
+    const real = await realPermissions(supabase)
+    if (real?.admin !== true) {
+      return { error: 'Jen administrátor smí roli udělit administrátorská práva.' }
+    }
+  }
+
   const { error } = await supabase.from('roles').update({ permissions }).eq('id', roleId)
   if (error) return { error: error.message }
   return { data: true }

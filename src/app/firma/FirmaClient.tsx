@@ -10,6 +10,7 @@ import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
 import PermissionGuard from '@/components/PermissionGuard'
+import Collapse from '@/components/Collapse'
 
 const emptyExpForm = {
   category: COMPANY_CATEGORIES[0], item: '', note: '', amount: '', paid: false, date: '',
@@ -383,8 +384,8 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
                       </div>
                       <span style={{ fontSize: '12px', fontWeight: '700', color: cc.color }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
                     </div>
-                    {!isCollapsed && (
-                      <div className="collapse-content">
+                    <Collapse open={!isCollapsed}>
+                      <div>
                         {items.map(exp => (
                           <div key={exp.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '10px', alignItems: 'center' }}>
                             <div>
@@ -414,7 +415,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
                           </div>
                         ))}
                       </div>
-                    )}
+                    </Collapse>
                   </div>
                 )
               })}
