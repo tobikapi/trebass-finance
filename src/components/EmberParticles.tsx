@@ -23,16 +23,6 @@ interface Smoke {
   driftSpeed: number
 }
 
-// Jednorázová jiskra z „škrtnutí" po kliknutí — na rozdíl od Ember nežije
-// donekonečna, jen dohasne (life -> maxLife) a zmizí, nerespawnuje se.
-interface Burst {
-  x: number; y: number
-  vx: number; vy: number
-  life: number; maxLife: number
-  size: number
-  hue: number
-}
-
 // Chladnější, tvrdší paleta — rozžhavený kov, ne vánoční světýlka. Žádná
 // pastelová zlatá/růžová.
 const EMBER_COLORS = [
@@ -90,7 +80,6 @@ export default function EmberParticles() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
     const embers: Ember[] = []
     const smokes: Smoke[] = []
-    const bursts: Burst[] = []
     let mouseX = -9999, mouseY = -9999
     let scrollY = window.scrollY
     let rafId = 0
@@ -157,41 +146,6 @@ export default function EmberParticles() {
     function onMouseMove(e: MouseEvent) { mouseX = e.clientX; mouseY = e.clientY }
     function onMouseLeave() { mouseX = -9999; mouseY = -9999 }
     function onScroll() { scrollY = window.scrollY }
-
-    // Škrtnutí zapalovače pod kurzorem — jiskry vyletí do všech stran jako
-    // v nulové gravitaci (žádný pád dolů, embery samy o sobě gravitaci
-    // nemají) a zůstanou natrvalo, splynou s běžným hejnem. Jen záblesk
-    // škrtnutí je jednorázový a rychle zhasne. pointerEvents:none na canvasu
-    // klik nijak neblokuje, jen ho tady navíc zaznamenáme.
-    const MAX_CLICK_EXTRA = 260
-    function spawnBurst(clientX: number, clientY: number) {
-      const worldY = clientY + scrollY
-      const count = 24 + Math.floor(Math.random() * 14)
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2
-        const speed = 220 + Math.random() * 620
-        embers.push({
-          x: clientX, y: worldY,
-          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-          size: 0.8 + Math.random() * 2,
-          baseAlpha: 0.4 + Math.random() * 0.45,
-          alpha: 0.9,
-          flickerPhase: Math.random() * Math.PI * 2,
-          flickerSpeed: 6 + Math.random() * 10,
-          hue: Math.floor(Math.random() * EMBER_COLORS.length),
-        })
-      }
-      // ať klikání donekonečna nenafukuje pole — nejstarší extra jiskry pryč
-      const cap = emberCountFor(width, height) + MAX_CLICK_EXTRA
-      if (embers.length > cap) embers.splice(0, embers.length - cap)
-
-      // záblesk škrtnutí — velký, jasný, hasne během chvilky (jediné, co mizí)
-      bursts.push({
-        x: clientX, y: worldY, vx: 0, vy: 0,
-        life: 0, maxLife: 0.14, size: 10, hue: 2,
-      })
-    }
-    function onClick(e: MouseEvent) { spawnBurst(e.clientX, e.clientY) }
 
     // Vítr jako celek pomalu bloudí ve směru i síle (dvě rozladěné siny
     // místo jedné periodické), ať to necuká pravidelně, ale jako opravdový
@@ -280,27 +234,6 @@ export default function EmberParticles() {
         drawSpark(ctx!, p.x, drawY, p.vx, p.vy, p.size, p.alpha * flicker, EMBER_COLORS[p.hue])
       }
 
-      // --- jiskření po kliknutí: dohasíná a mizí, nerespawnuje se ---
-      for (let i = bursts.length - 1; i >= 0; i--) {
-        const b = bursts[i]
-        b.life += dt
-        if (b.life >= b.maxLife) { bursts.splice(i, 1); continue }
-
-        const t = b.life / b.maxLife
-        const a = (1 - t) * 0.95
-        const drawY = b.y - scrollY
-        const c = EMBER_COLORS[b.hue]
-        const glowSize = b.size * (1 - t * 0.3)
-        const grad = ctx!.createRadialGradient(b.x, drawY, 0, b.x, drawY, glowSize)
-        grad.addColorStop(0, `rgba(255,244,230,${a})`)
-        grad.addColorStop(0.4, `rgba(${c.r},${c.g},${c.b},${a})`)
-        grad.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0)`)
-        ctx!.fillStyle = grad
-        ctx!.beginPath()
-        ctx!.arc(b.x, drawY, glowSize, 0, Math.PI * 2)
-        ctx!.fill()
-      }
-
       rafId = requestAnimationFrame(tick)
     }
 
@@ -319,7 +252,6 @@ export default function EmberParticles() {
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseleave', onMouseLeave)
     window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('click', onClick)
     document.addEventListener('visibilitychange', onVisibility)
     rafId = requestAnimationFrame(tick)
 
@@ -330,7 +262,6 @@ export default function EmberParticles() {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseleave', onMouseLeave)
       window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('click', onClick)
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
