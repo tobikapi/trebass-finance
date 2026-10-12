@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import EventLayout from '@/components/EventLayout'
 import Collapse from '@/components/Collapse'
+import LedgerStyles from '@/components/LedgerStyles'
 import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
@@ -139,6 +140,7 @@ export default function TymClient({ id, initialLedger, people }: Props) {
 
   return (
     <EventLayout eventId={id}>
+      <LedgerStyles />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           {[

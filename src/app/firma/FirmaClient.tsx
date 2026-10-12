@@ -497,7 +497,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
 
           {Object.keys(groupedInc).length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '13px' }}>
-              Žádné vklady mimo akce. Přidej první vklad.
+              Žádné ostatní příjmy. Vklady majitelů jsou ve Vklady a vyrovnání.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

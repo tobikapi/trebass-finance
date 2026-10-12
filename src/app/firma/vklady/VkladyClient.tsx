@@ -10,6 +10,7 @@ import { useDialog } from '@/lib/dialog-context'
 import { useUser } from '@/lib/user-context'
 import PermissionGuard from '@/components/PermissionGuard'
 import Collapse from '@/components/Collapse'
+import LedgerStyles from '@/components/LedgerStyles'
 import { computeSettlement, type LedgerKind } from '@/lib/settlement'
 import {
   LEDGER_KIND_COLORS, LEDGER_KIND_LABELS, LEDGER_SELECT, LEDGER_SOURCE_LABELS, sortLedger,
@@ -227,6 +228,7 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
   return (
     <div>
       <PermissionGuard permission="viewFirma" />
+      <LedgerStyles />
 
       <div style={{ marginBottom: '20px' }}>
         <Link href="/firma" style={{ fontSize: '13px', color: 'var(--text-muted)', textDecoration: 'none' }}>← Zpět na Firmu</Link>
