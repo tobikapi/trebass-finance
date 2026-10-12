@@ -9,6 +9,7 @@ import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
 
 interface Props {
   id: string
@@ -49,6 +50,12 @@ const labelStyle: CSSProperties = {
 }
 
 export default function ElektrinaClient({ id, initialEquipment, initialLocations }: Props) {
+  // Tlačítka podle oprávnění v téhle akci (role NEBO výjimka). Vynucuje to
+  // databáze — tady jde jen o to, aby čtenář neklikal na něco, co neprojde.
+  const { canInEvent } = useEventPermissions(id)
+  const canCreate = canInEvent('canCreate')
+  const canEdit = canInEvent('canEdit')
+  const canDelete = canInEvent('canDelete')
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
@@ -200,8 +207,8 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
           {eq.elektrina_extra && (
             <>
-              <button onClick={() => startEditExtra(eq)} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-              <button onClick={() => handleDeleteExtra(eq.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+              {canEdit && (<button onClick={() => startEditExtra(eq)} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
+              {canDelete && (<button onClick={() => handleDeleteExtra(eq.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
             </>
           )}
         </div>
@@ -228,10 +235,10 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: live ? '#34d399' : 'var(--text-faint)', display: 'inline-block' }} />
             {refreshing ? '...' : '↻'}
           </button>
-          <button onClick={openAddExtra}
+          {canCreate && (<button onClick={openAddExtra}
             style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', backgroundColor: '#e05555', color: '#fff', border: 'none', cursor: 'pointer' }}>
             + Přidat mimo techniku
-          </button>
+          </button>)}
         </div>
       </div>
 

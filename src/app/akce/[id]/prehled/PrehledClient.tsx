@@ -8,6 +8,8 @@ import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
+import { useUser } from '@/lib/user-context'
 
 function fmt(n: number) {
   return n.toLocaleString('cs-CZ') + ' Kč'
@@ -74,6 +76,12 @@ interface Props {
 }
 
 export default function PrehledClient({ id, initialExpenses, initialIncome, initialEvent }: Props) {
+  // Úpravy podle oprávnění v téhle akci (role NEBO výjimka). Započítávání do
+  // přehledů smí měnit jen admin nebo zakladatel (hlídá i trigger v DB).
+  const { canInEvent } = useEventPermissions(id)
+  const canEdit = canInEvent('canEdit')
+  const { user, realRole } = useUser()
+  const canManageTotals = realRole?.permissions?.admin === true || (!!user && initialEvent?.created_by === user.id)
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
@@ -250,7 +258,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
         backgroundColor: includeInTotals ? 'var(--bg-card-alt)' : 'rgba(251,191,36,0.08)',
         border: `1px solid ${includeInTotals ? 'var(--border-card)' : 'rgba(251,191,36,0.35)'}`,
       }}>
-        <input type="checkbox" checked={includeInTotals} disabled={savingIncludeInTotals}
+        <input type="checkbox" checked={includeInTotals} disabled={savingIncludeInTotals || !canManageTotals}
           onChange={e => toggleIncludeInTotals(e.target.checked)}
           style={{ width: '18px', height: '18px', flexShrink: 0 }} />
         <span style={{ flex: 1 }}>
@@ -269,7 +277,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
       <div style={{ marginBottom: '24px', padding: '18px 20px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: descEdit || event?.description ? '10px' : 0 }}>
           <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>📝 Poznámky k akci</span>
-          {!descEdit && (
+          {!descEdit && canEdit && (
             <button onClick={openDescEdit}
               style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
               {event?.description ? 'Upravit' : '+ Přidat'}
@@ -305,7 +313,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
       <div style={{ marginBottom: '24px', padding: '18px 20px', borderRadius: '12px', backgroundColor: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.25)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <span style={{ fontSize: '13px', fontWeight: '700', color: '#a78bfa' }}>💹 Marže z pronájmu techniky</span>
-          {!marginEdit && (
+          {!marginEdit && canEdit && (
             <button onClick={openMarginEdit}
               style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', backgroundColor: '#1e1035', color: '#a78bfa', border: '1px solid #3d2d6b', cursor: 'pointer' }}>
               Nastavit marži
@@ -349,7 +357,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
               </div>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px', fontSize: '12px', color: 'var(--text-secondary)', cursor: savingMarginToIncome ? 'default' : 'pointer' }}>
-              <input type="checkbox" checked={!!event?.margin_to_income} disabled={savingMarginToIncome}
+              <input type="checkbox" checked={!!event?.margin_to_income} disabled={savingMarginToIncome || !canEdit}
                 onChange={e => toggleMarginToIncome(e.target.checked)} />
               Zapisovat cenu pro klienta do Příjmů
             </label>
@@ -475,7 +483,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
               <h2 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
                 Výdaje podle kategorií
               </h2>
-              {!budgetEdit && (
+              {!budgetEdit && canEdit && (
                 <button onClick={openBudgetEdit}
                   style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '11px', backgroundColor: '#1e1035', color: '#a78bfa', border: '1px solid #3d2d6b', cursor: 'pointer' }}>
                   Nastavit rozpočet
@@ -567,7 +575,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
           <div style={{ textAlign: 'center', padding: '64px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', color: 'var(--text-muted)', marginBottom: '16px' }}>
             Žádná data. Přidej výdaje nebo příjmy k této akci.
           </div>
-          {!budgetEdit && (
+          {!budgetEdit && canEdit && (
             <div style={{ textAlign: 'center' }}>
               <button onClick={openBudgetEdit}
                 style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13px', backgroundColor: '#1e1035', color: '#a78bfa', border: '1px solid #3d2d6b', cursor: 'pointer' }}>

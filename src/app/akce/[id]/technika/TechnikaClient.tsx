@@ -9,6 +9,7 @@ import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
 
 interface Props {
   id: string
@@ -76,6 +77,12 @@ function fmtWithVat(n: number) {
 }
 
 export default function TechnikaClient({ id, initialEquipment }: Props) {
+  // Tlačítka podle oprávnění v téhle akci (role NEBO výjimka). Vynucuje to
+  // databáze — tady jde jen o to, aby čtenář neklikal na něco, co neprojde.
+  const { canInEvent } = useEventPermissions(id)
+  const canCreate = canInEvent('canCreate')
+  const canEdit = canInEvent('canEdit')
+  const canDelete = canInEvent('canDelete')
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [equipment, setEquipment] = useState<EventEquipment[]>(initialEquipment)
@@ -494,8 +501,8 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                  <button onClick={() => startEdit(eq)} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                  <button onClick={() => handleDelete(eq.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                  {canEdit && (<button onClick={() => startEdit(eq)} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
+                  {canDelete && (<button onClick={() => handleDelete(eq.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                 </div>
               </div>
               {editId === eq.id && <div style={{ padding: '0 12px' }}>{renderForm()}</div>}
@@ -530,10 +537,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
             style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', backgroundColor: showSummary ? '#0369a1' : 'var(--bg-card)', color: showSummary ? '#fff' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
             Σ Souhrn
           </button>
-          <button onClick={() => { setVendorName(''); setVendorDiscount(''); setShowVendorForm(v => !v) }}
+          {canCreate && (<button onClick={() => { setVendorName(''); setVendorDiscount(''); setShowVendorForm(v => !v) }}
             style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
             + Nový pronajímatel
-          </button>
+          </button>)}
         </div>
       </div>
 
@@ -552,11 +559,11 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                 fontSize: '12px', color: active ? '#0c0c0c' : c.color, fontWeight: '700',
               }}>
               {l}
-              <button onClick={(e) => { e.stopPropagation(); removeLocation(l) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '14px', lineHeight: 1, padding: 0, opacity: 0.6 }}>×</button>
+              {canEdit && (<button onClick={(e) => { e.stopPropagation(); removeLocation(l) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '14px', lineHeight: 1, padding: 0, opacity: 0.6 }}>×</button>)}
             </span>
           )
         })}
-        <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
+        {canEdit && <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
           <input
             value={newLocation} onChange={e => setNewLocation(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLocation())}
@@ -566,7 +573,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
           <button onClick={addLocation} style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
             + Přidat
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* Kategorie */}
@@ -750,14 +757,14 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                     </div>
                     {vendor && (
                       <>
-                        <button onClick={(e) => { e.stopPropagation(); startEditVendor(vendor) }} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteVendor(vendor) }} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                        {canEdit && (<button onClick={(e) => { e.stopPropagation(); startEditVendor(vendor) }} style={{ fontSize: '12px', color: '#38bdf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
+                        {canDelete && (<button onClick={(e) => { e.stopPropagation(); handleDeleteVendor(vendor) }} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                       </>
                     )}
-                    <button onClick={(e) => { e.stopPropagation(); openAddForm(bubble.key) }}
+                    {canCreate && (<button onClick={(e) => { e.stopPropagation(); openAddForm(bubble.key) }}
                       style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#0369a1', color: '#fff', border: 'none', cursor: 'pointer' }}>
                       + Přidat techniku
-                    </button>
+                    </button>)}
                   </>
                 )}
               </div>
@@ -784,10 +791,10 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: c.color, backgroundColor: c.bg, border: `1px solid ${c.border}`, borderRadius: '5px', padding: '2px 8px' }}>
                           📍 {loc.label} <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({loc.rows.length})</span>
                         </div>
-                        <button onClick={() => openAddForm(bubble.key, loc.key)}
+                        {canCreate && (<button onClick={() => openAddForm(bubble.key, loc.key)}
                           style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', backgroundColor: '#0369a1', color: '#fff', border: 'none', cursor: 'pointer' }}>
                           + Přidat
-                        </button>
+                        </button>)}
                       </div>
                       {showForm === locFormKey && !editId && <div>{renderForm()}</div>}
                       {renderItemsTable(loc.rows, bubbleDiscount, bubbleVat)}

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useUser } from '@/lib/user-context'
 
 const TYPES = ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security', 'jiné']
 const TYPE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -37,6 +38,12 @@ interface Props {
 }
 
 export default function KontaktyClient({ initialContacts, initialMembers }: Props) {
+  // Tlačítka podle role. Vynucuje to server a databáze — tady jde jen o to,
+  // aby člověk neklikal na něco, co neprojde.
+  const { can } = useUser()
+  const canCreate = can('canCreate')
+  const canEdit = can('canEdit')
+  const canDelete = can('canDelete')
   const members = initialMembers.map(m => ({
     ...m,
     role: Array.isArray(m.roles) ? m.roles[0] : m.roles,
@@ -120,10 +127,10 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Kontakty</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Lidé z Třebassu a externí kontakty</p>
         </div>
-        <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }}
+        {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }}
           style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
           + Přidat kontakt
-        </button>
+        </button>)}
       </div>
 
       {/* Lidé z Třebassu — organizátoři a crew, telefon/email se upravuje v Role → Upravit */}
@@ -250,8 +257,8 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                    <button onClick={() => startEdit(c)} style={{ fontSize: '11px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                    <button onClick={() => handleDelete(c.id)} style={{ fontSize: '11px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                    {canEdit && (<button onClick={() => startEdit(c)} style={{ fontSize: '11px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
+                    {canDelete && (<button onClick={() => handleDelete(c.id)} style={{ fontSize: '11px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                   </div>
                 </div>
 

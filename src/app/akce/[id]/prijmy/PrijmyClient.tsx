@@ -8,6 +8,7 @@ import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
 
 const emptyForm = { source: INCOME_SOURCES[0], amount: '', note: '' }
 
@@ -18,6 +19,12 @@ interface Props {
 }
 
 export default function PrijmyClient({ id, initialIncome, initialExpenses }: Props) {
+  // Tlačítka podle oprávnění v téhle akci (role NEBO výjimka). Vynucuje to
+  // databáze — tady jde jen o to, aby čtenář neklikal na něco, co neprojde.
+  const { canInEvent } = useEventPermissions(id)
+  const canCreate = canInEvent('canCreate')
+  const canEdit = canInEvent('canEdit')
+  const canDelete = canInEvent('canDelete')
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [income, setIncome] = useState<Income[]>(initialIncome)
@@ -119,9 +126,9 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: live ? '#34d399' : 'var(--text-faint)', flexShrink: 0, display: 'inline-block' }} />
             {refreshing ? '...' : '↻'}
           </button>
-          <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+          {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
             + Přidat příjem
-          </button>
+          </button>)}
         </div>
       </div>
 
@@ -157,7 +164,7 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
 
       {income.length === 0 ? (
         <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-          Zatím žádné příjmy. Klikni + Přidat příjem.
+          Zatím žádné příjmy.{canCreate && ' Klikni + Přidat příjem.'}
         </div>
       ) : (
         <div className="space-y-4">
@@ -184,8 +191,8 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
                         <td className="px-4 py-2.5 font-semibold" style={{ color: '#34d399' }}>{inc.amount.toLocaleString('cs-CZ')} Kč</td>
                         <td className="px-4 py-2.5">
                           <div className="flex gap-2">
-                            <button onClick={() => startEdit(inc)} className="text-xs" style={{ color: '#a78bfa' }}>Upravit</button>
-                            <button onClick={() => handleDelete(inc.id)} className="text-xs" style={{ color: '#f87171' }}>Smazat</button>
+                            {canEdit && (<button onClick={() => startEdit(inc)} className="text-xs" style={{ color: '#a78bfa' }}>Upravit</button>)}
+                            {canDelete && (<button onClick={() => handleDelete(inc.id)} className="text-xs" style={{ color: '#f87171' }}>Smazat</button>)}
                           </div>
                         </td>
                       </tr>

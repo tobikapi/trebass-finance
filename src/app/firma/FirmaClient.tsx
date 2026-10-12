@@ -11,6 +11,7 @@ import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
 import PermissionGuard from '@/components/PermissionGuard'
 import Collapse from '@/components/Collapse'
+import { useUser } from '@/lib/user-context'
 
 const emptyExpForm = {
   category: COMPANY_CATEGORIES[0], item: '', note: '', amount: '', paid: false, date: '',
@@ -50,6 +51,12 @@ interface Props {
 }
 
 export default function FirmaClient({ initialExpenses, initialIncome, initialContributions }: Props) {
+  // Tlačítka podle role. Vynucuje to server a databáze — tady jde jen o to,
+  // aby člověk neklikal na něco, co neprojde.
+  const { can } = useUser()
+  const canCreate = can('canCreate')
+  const canEdit = can('canEdit')
+  const canDelete = can('canDelete')
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [expenses, setExpenses] = useState<CompanyExpense[]>(initialExpenses)
@@ -307,12 +314,12 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Výdaje firmy</h2>
-            <button
+            {canCreate && (<button
               onClick={() => { setExpForm(emptyExpForm); setEditExpId(null); setShowExpForm(v => !v) }}
               style={{ padding: '7px 16px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer' }}
             >
               + Přidat výdaj
-            </button>
+            </button>)}
           </div>
 
           {showExpForm && (
@@ -399,7 +406,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
                               <span style={{ fontSize: '13px', fontWeight: '600', color: exp.paid ? '#34d399' : '#f87171' }}>
                                 {exp.amount.toLocaleString('cs-CZ')} Kč
                               </span>
-                              <button onClick={() => handleToggleExpPaid(exp)} style={{
+                              <button onClick={canEdit ? () => handleToggleExpPaid(exp) : undefined} disabled={!canEdit} style={{
                                 backgroundColor: exp.paid ? '#14532d' : 'var(--bg-badge)',
                                 color: exp.paid ? '#34d399' : '#f87171',
                                 fontSize: '10px', fontWeight: '600', padding: '2px 7px',
@@ -409,8 +416,8 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
                               </button>
                             </div>
                             <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                              <button onClick={() => startEditExp(exp)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                              <button onClick={() => handleExpDelete(exp.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                              {canEdit && (<button onClick={() => startEditExp(exp)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
+                              {canDelete && (<button onClick={() => handleExpDelete(exp.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                             </div>
                           </div>
                         ))}
@@ -439,12 +446,12 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Vklady do firmy</h2>
-            <button
+            {canCreate && (<button
               onClick={() => { setIncForm(emptyIncForm); setEditIncId(null); setShowIncForm(v => !v) }}
               style={{ padding: '7px 16px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer' }}
             >
               + Přidat vklad
-            </button>
+            </button>)}
           </div>
 
           {showIncForm && (
@@ -514,8 +521,8 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
                           {inc.amount.toLocaleString('cs-CZ')} Kč
                         </span>
                         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                          <button onClick={() => startEditInc(inc)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                          <button onClick={() => handleIncDelete(inc.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                          {canEdit && (<button onClick={() => startEditInc(inc)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
+                          {canDelete && (<button onClick={() => handleIncDelete(inc.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                         </div>
                       </div>
                     ))}

@@ -7,6 +7,7 @@ import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
 
 const emptyForm = { name: '', amount: '', note: '' }
 
@@ -16,6 +17,12 @@ interface Props {
 }
 
 export default function TymClient({ id, initialContributions }: Props) {
+  // Tlačítka podle oprávnění v téhle akci (role NEBO výjimka). Vynucuje to
+  // databáze — tady jde jen o to, aby čtenář neklikal na něco, co neprojde.
+  const { canInEvent } = useEventPermissions(id)
+  const canCreate = canInEvent('canCreate')
+  const canEdit = canInEvent('canEdit')
+  const canDelete = canInEvent('canDelete')
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [contributions, setContributions] = useState<TeamContribution[]>(initialContributions)
@@ -107,9 +114,9 @@ export default function TymClient({ id, initialContributions }: Props) {
             className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-card)', color: refreshing ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)' }}>
             {refreshing ? '...' : '↻'}
           </button>
-          <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+          {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
             + Přidat příspěvek
-          </button>
+          </button>)}
         </div>
       </div>
 
@@ -143,7 +150,7 @@ export default function TymClient({ id, initialContributions }: Props) {
 
       {contributions.length === 0 ? (
         <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-          Zatím žádné příspěvky. Klikni + Přidat příspěvek.
+          Zatím žádné příspěvky.{canCreate && ' Klikni + Přidat příspěvek.'}
         </div>
       ) : (
         <div className="space-y-3">
@@ -159,8 +166,8 @@ export default function TymClient({ id, initialContributions }: Props) {
                   <div className="flex items-center gap-4">
                     <span className="font-bold text-lg" style={{ color: '#34d399' }}>{c.amount.toLocaleString('cs-CZ')} Kč</span>
                     <div className="flex gap-2">
-                      <button onClick={() => startEdit(c)} className="text-xs" style={{ color: '#a78bfa' }}>Upravit</button>
-                      <button onClick={() => handleDelete(c.id)} className="text-xs" style={{ color: '#f87171' }}>Smazat</button>
+                      {canEdit && (<button onClick={() => startEdit(c)} className="text-xs" style={{ color: '#a78bfa' }}>Upravit</button>)}
+                      {canDelete && (<button onClick={() => handleDelete(c.id)} className="text-xs" style={{ color: '#f87171' }}>Smazat</button>)}
                     </div>
                   </div>
                 </div>

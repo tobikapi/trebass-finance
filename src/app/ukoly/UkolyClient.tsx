@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useUser } from '@/lib/user-context'
 
 const STATUSES = [
   { value: 'todo', label: 'To Do', color: '#6b7280', bg: '#1e1e1e' },
@@ -34,6 +35,12 @@ interface Props {
 }
 
 export default function UkolyClient({ initialTasks, initialEvents, initialMembers }: Props) {
+  // Tlačítka podle role. Vynucuje to server a databáze — tady jde jen o to,
+  // aby člověk neklikal na něco, co neprojde.
+  const { can } = useUser()
+  const canCreate = can('canCreate')
+  const canEdit = can('canEdit')
+  const canDelete = can('canDelete')
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
@@ -164,9 +171,9 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Úkoly</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Task management pro celý tým</p>
         </div>
-        <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
+        {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
           + Nový úkol
-        </button>
+        </button>)}
       </div>
 
       {/* Filters */}
@@ -327,14 +334,14 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <select
                           value={task.status}
-                          onChange={(e) => handleStatusChange(task, e.target.value)}
+                          onChange={(e) => handleStatusChange(task, e.target.value)} disabled={!canEdit}
                           style={{ fontSize: '11px', backgroundColor: getStatusInfo(task.status).bg, color: getStatusInfo(task.status).color, border: 'none', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer', outline: 'none' }}
                         >
                           {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => startEdit(task)} style={{ fontSize: '11px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                          <button onClick={() => handleDelete(task.id)} style={{ fontSize: '11px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                          {canEdit && (<button onClick={() => startEdit(task)} style={{ fontSize: '11px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
+                          {canDelete && (<button onClick={() => handleDelete(task.id)} style={{ fontSize: '11px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                         </div>
                       </div>
                     </div>

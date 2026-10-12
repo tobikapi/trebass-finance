@@ -113,7 +113,7 @@ export default function Dashboard() {
 }
 
 function FinancialDashboard() {
-  const { user, role, viewAsRoleId } = useUser()
+  const { user, role, viewAsRoleId, can } = useUser()
   const [allEvents,   setAllEvents]   = useState<Event[]>([])
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
@@ -261,9 +261,9 @@ function FinancialDashboard() {
             {excludedCount > 0 && ` · ${excludedCount} mimo součty`}
           </p>
         </div>
-        <Link href="/akce/nova" style={{ padding: '9px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.05em' }}>
+        {can('canCreate') && <Link href="/akce/nova" style={{ padding: '9px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.05em' }}>
           + Nová akce
-        </Link>
+        </Link>}
       </div>
 
       {/* Filtry */}

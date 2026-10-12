@@ -12,7 +12,11 @@ import { canAccessEvent, fetchEventAccessMap } from '@/lib/event-access'
 export default function AkceClient({ initialEvents }: { initialEvents: Event[] }) {
   const { notify } = useDialog()
   const router = useRouter()
-  const { user, role, loading: userLoading, viewAsRoleId } = useUser()
+  const { user, role, loading: userLoading, viewAsRoleId, can, realRole } = useUser()
+  // Upravit akci smí role s úpravami, admin nebo zakladatel akce; mazat jen
+  // role s „Mazat celé akce". Výjimky v akci platí uvnitř akce, ne tady.
+  const isAdmin = realRole?.permissions?.admin === true
+  const canEditEvent = (event: Event) => can('canEdit') || isAdmin || (!!user && event.created_by === user.id)
   const [filter, setFilter] = useState<EventStatus | 'vse'>('vse')
   const [sort, setSort] = useState<'desc' | 'asc'>('desc')
   const [events, setEvents] = useState(initialEvents)
@@ -56,9 +60,9 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Akce</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Všechny festivaly a události</p>
         </div>
-        <Link href="/akce/nova" style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
+        {can('canCreate') && <Link href="/akce/nova" style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
           + Nová akce
-        </Link>
+        </Link>}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '8px' }}>
@@ -90,7 +94,7 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
 
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-          Žádné akce. <Link href="/akce/nova" style={{ color: '#e05555' }}>Vytvoř první →</Link>
+          Žádné akce.{can('canCreate') && <> <Link href="/akce/nova" style={{ color: '#e05555' }}>Vytvoř první →</Link></>}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -112,14 +116,14 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
                   </span>
                 </div>
               </Link>
-              <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '8px 24px', display: 'flex', gap: '16px' }}>
-                <button onClick={() => router.push(`/akce/${event.id}/upravit`)} style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
+              {(canEditEvent(event) || can('canDeleteEvent')) && <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '8px 24px', display: 'flex', gap: '16px' }}>
+                {canEditEvent(event) && (<button onClick={() => router.push(`/akce/${event.id}/upravit`)} style={{ fontSize: '12px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
                   ✏️ Upravit
-                </button>
-                <button onClick={() => handleDelete(event)} style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
+                </button>)}
+                {can('canDeleteEvent') && (<button onClick={() => handleDelete(event)} style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
                   🗑 Smazat
-                </button>
-              </div>
+                </button>)}
+              </div>}
             </div>
           ))}
         </div>

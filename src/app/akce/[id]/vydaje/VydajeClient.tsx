@@ -9,6 +9,7 @@ import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
 
 type Budgets = Record<string, number>
 
@@ -25,6 +26,12 @@ interface Props {
 }
 
 export default function VydajeClient({ id, initialExpenses, initialBudgets }: Props) {
+  // Tlačítka podle oprávnění v téhle akci (role NEBO výjimka). Vynucuje to
+  // databáze — tady jde jen o to, aby čtenář neklikal na něco, co neprojde.
+  const { canInEvent } = useEventPermissions(id)
+  const canCreate = canInEvent('canCreate')
+  const canEdit = canInEvent('canEdit')
+  const canDelete = canInEvent('canDelete')
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
@@ -198,9 +205,9 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: live ? '#34d399' : 'var(--text-faint)', flexShrink: 0, display: 'inline-block' }} />
             {refreshing ? '...' : '↻'}
           </button>
-          <button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+          {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
             + Přidat výdaj
-          </button>
+          </button>)}
         </div>
       </div>
 
@@ -262,7 +269,7 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
 
       {expenses.length === 0 ? (
         <div className="text-center py-16 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-          Zatím žádné výdaje. Klikni + Přidat výdaj.
+          Zatím žádné výdaje.{canCreate && ' Klikni + Přidat výdaj.'}
         </div>
       ) : (
         <div className="space-y-4">
@@ -337,7 +344,7 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
                           {exp.paid ? '0 Kč' : `${(exp.price - exp.deposit).toLocaleString('cs-CZ')} Kč`}
                         </div>
                         <div>
-                          <button onClick={() => handleTogglePaid(exp)} style={{
+                          <button onClick={canEdit ? () => handleTogglePaid(exp) : undefined} disabled={!canEdit} style={{
                             backgroundColor: exp.paid ? '#14532d' : 'var(--bg-badge)',
                             color: exp.paid ? '#34d399' : '#f87171',
                             fontSize: '11px', fontWeight: '600',
@@ -347,8 +354,8 @@ export default function VydajeClient({ id, initialExpenses, initialBudgets }: Pr
                           </button>
                         </div>
                         <div className="flex gap-3 justify-end">
-                          <button onClick={() => startEdit(exp)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>
-                          <button onClick={() => handleDelete(exp.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>
+                          {canEdit && (<button onClick={() => startEdit(exp)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
+                          {canDelete && (<button onClick={() => handleDelete(exp.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                         </div>
                       </div>
                     ))}

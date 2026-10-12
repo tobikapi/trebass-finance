@@ -5,6 +5,7 @@ import EventLayout from '@/components/EventLayout'
 import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
 
 interface Document {
   id: string; name: string; file_path: string
@@ -51,6 +52,11 @@ const ALLOWED_TYPES = [
 ]
 
 export default function SouboryClient({ id, initialDocuments, initialUploader }: Props) {
+  // Tlačítka podle oprávnění v téhle akci (role NEBO výjimka). Vynucuje to
+  // databáze — tady jde jen o to, aby čtenář neklikal na něco, co neprojde.
+  const { canInEvent } = useEventPermissions(id)
+  const canCreate = canInEvent('canCreate')
+  const canDelete = canInEvent('canDelete')
   const { notify } = useDialog()
   const [documents, setDocuments] = useState<Document[]>(initialDocuments)
   const [uploading, setUploading] = useState(false)
@@ -129,6 +135,7 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
 
   return (
     <EventLayout eventId={id}>
+      {canCreate && <>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
         <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Nahrává:</span>
         {MEMBERS.map(m => (
@@ -161,6 +168,7 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
         <input ref={fileRef} type="file" multiple style={{ display: 'none' }}
           onChange={e => uploadFiles(e.target.files)} />
       </div>
+      </>}
 
       {documents.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--bg-card-alt)', border: '1px dashed var(--border-subtle)', borderRadius: '12px', color: 'var(--text-dim)' }}>
@@ -190,10 +198,10 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
                   style={{ fontSize: '12px', color: '#60a5fa', background: 'none', border: '1px solid #1e2d3d', borderRadius: '6px', cursor: 'pointer', padding: '4px 12px' }}>
                   ⬇ Stáhnout
                 </button>
-                <button onClick={() => handleDelete(doc)}
+                {canDelete && (<button onClick={() => handleDelete(doc)}
                   style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>
                   Smazat
-                </button>
+                </button>)}
               </div>
             </div>
           ))}

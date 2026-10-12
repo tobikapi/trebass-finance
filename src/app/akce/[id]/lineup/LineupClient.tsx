@@ -75,6 +75,9 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
   // částky nevydá a appka je místo nul schová.
   const { canInEvent } = useEventPermissions(id)
   const showFees = canInEvent('viewLineupFees')
+  const canCreate = canInEvent('canCreate')
+  const canEdit = canInEvent('canEdit')
+  const canDelete = canInEvent('canDelete')
   const [artists, setArtists] = useState<LineupArtist[]>(initialArtists)
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [stages, setStages] = useState<string[]>(initialStages)
@@ -354,7 +357,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
               <div /><div /><div /><div />
             </>}
             <div>
-              {showFees && <button onClick={() => handleTogglePaid(art)} style={{
+              {showFees && <button onClick={canEdit ? () => handleTogglePaid(art) : undefined} disabled={!canEdit} style={{
                 backgroundColor: art.paid ? '#052e16' : 'var(--bg-badge)',
                 color: art.paid ? '#34d399' : '#f87171',
                 fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer',
@@ -366,8 +369,8 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
               {art.notes || '—'}
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button onClick={() => startEdit(art)} style={{ fontSize: '12px', color: sc.main, background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>
-              <button onClick={() => handleDelete(art.id)} style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>
+              {canEdit && (<button onClick={() => startEdit(art)} style={{ fontSize: '12px', color: sc.main, background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>)}
+              {canDelete && (<button onClick={() => handleDelete(art.id)} style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>)}
             </div>
           </div>
         ))}
@@ -389,13 +392,13 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             <span style={{ fontSize: '13px', color: dc.label, fontWeight: '600', letterSpacing: '0.03em' }}>{fmtDay(dayStr)}</span>
             {dayArtists.length > 0 && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>({dayArtists.length})</span>}
           </div>
-          <button
+          {canCreate && <button
             onClick={() => isDayFormOpen && !editId ? closeForm() : openForm(stageName, dayStr)}
             style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', border: `1px solid ${isDayFormOpen && !editId ? 'var(--border)' : dc.line}`, cursor: 'pointer',
               backgroundColor: isDayFormOpen && !editId ? 'var(--bg-card-dark)' : 'transparent',
               color: isDayFormOpen && !editId ? 'var(--text-dim)' : dc.label }}>
             {isDayFormOpen && !editId ? '× Zrušit' : '+ Přidat'}
-          </button>
+          </button>}
         </div>
         {isDayFormOpen && renderForm(stageName)}
         {renderTable(dayArtists, sc)}
@@ -454,11 +457,11 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
           return (
             <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '5px', backgroundColor: sc.bg, border: `1px solid ${sc.border}`, fontSize: '12px', color: sc.main, fontWeight: '600' }}>
               {s}
-              <button onClick={() => removeStage(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: sc.main, fontSize: '14px', lineHeight: 1, padding: 0, opacity: 0.6 }}>×</button>
+              {canEdit && (<button onClick={() => removeStage(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: sc.main, fontSize: '14px', lineHeight: 1, padding: 0, opacity: 0.6 }}>×</button>)}
             </span>
           )
         })}
-        <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
+        {canEdit && <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
           <input
             value={newStage} onChange={e => setNewStage(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addStage())}
@@ -468,7 +471,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
           <button onClick={addStage} style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12px', backgroundColor: 'var(--bg-badge)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
             + Přidat
           </button>
-        </div>
+        </div>}
       </div>
 
       {stages.length === 0 ? (
@@ -495,7 +498,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
                       <span style={{ fontSize: '13px', fontWeight: '700', color: sc.main, marginLeft: '4px' }}>{stageTotal.toLocaleString('cs-CZ')} Kč</span>
                     )}
                   </div>
-                  {!multiDay && !isCollapsed && (
+                  {!multiDay && !isCollapsed && canCreate && (
                     <button onClick={() => isStageFormOpen && !editId ? closeForm() : openForm(stageName)}
                       style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', border: `1px solid ${sc.border}`, cursor: 'pointer',
                         backgroundColor: isStageFormOpen && !editId ? 'var(--bg-card-dark)' : sc.main,
@@ -529,7 +532,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
                         })()}
                       </div>
                     )}
-                    {stageArtists.length > 0 && (
+                    {showFees && stageArtists.length > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '24px', padding: '8px 14px', borderRadius: '8px', backgroundColor: sc.bg, border: `1px solid ${sc.border}`, marginTop: '6px' }}>
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Celkem stage: <strong style={{ color: sc.main }}>{stageTotal.toLocaleString('cs-CZ')} Kč</strong></span>
                         {stageUnpaid > 0 && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{stageUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}

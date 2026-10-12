@@ -7,6 +7,7 @@ import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
 
 interface Note { id: string; author: string; content: string; created_at: string }
 interface Props {
@@ -21,6 +22,11 @@ const MEMBER_COLORS: Record<string, string> = {
 }
 
 export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Props) {
+  // Tlačítka podle oprávnění v téhle akci (role NEBO výjimka). Vynucuje to
+  // databáze — tady jde jen o to, aby čtenář neklikal na něco, co neprojde.
+  const { canInEvent } = useEventPermissions(id)
+  const canCreate = canInEvent('canCreate')
+  const canDelete = canInEvent('canDelete')
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const [notes, setNotes] = useState<Note[]>(initialNotes)
@@ -85,7 +91,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
           {refreshing ? '...' : '↻ Obnovit'}
         </button>
       </div>
-      <form onSubmit={handleSubmit} style={{ marginBottom: '24px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '20px' }}>
+      {canCreate && <form onSubmit={handleSubmit} style={{ marginBottom: '24px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '20px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
           <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flexShrink: 0 }}>Píše:</span>
           <div style={{ display: 'flex', gap: '6px' }}>
@@ -111,7 +117,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
         }}>
           {saving ? 'Odesílám...' : '+ Odeslat'}
         </button>
-      </form>
+      </form>}
 
       {notes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--bg-card-alt)', border: '1px dashed var(--border-subtle)', borderRadius: '12px', color: 'var(--text-dim)' }}>
@@ -133,9 +139,9 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
                   <span style={{ fontSize: '13px', fontWeight: '600', color: MEMBER_COLORS[note.author] || '#f4978e' }}>{note.author}</span>
                   <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{formatTime(note.created_at)}</span>
                 </div>
-                <button onClick={() => handleDelete(note.id)} style={{ fontSize: '11px', color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                {canDelete && (<button onClick={() => handleDelete(note.id)} style={{ fontSize: '11px', color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                   Smazat
-                </button>
+                </button>)}
               </div>
               <p style={{ fontSize: '14px', color: 'var(--text-primary)', margin: 0, lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{note.content}</p>
             </div>
