@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import LineupClient from './LineupClient'
+import { LINEUP_SELECT, toArtist } from '@/lib/lineup'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,7 @@ export default async function LineupPage({ params }: Props) {
   )
 
   const [{ data: artists }, { data: contacts }, { data: event }] = await Promise.all([
-    supabase.from('lineup').select('*').eq('event_id', id).order('set_time').order('artist_name'),
+    supabase.from('lineup').select(LINEUP_SELECT).eq('event_id', id).order('set_time').order('artist_name'),
     supabase.from('contacts').select('id, name, type, fee').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
     supabase.from('events').select('stages, date, date_end').eq('id', id).single(),
   ])
@@ -24,7 +25,7 @@ export default async function LineupPage({ params }: Props) {
   return (
     <LineupClient
       id={id}
-      initialArtists={artists || []}
+      initialArtists={(artists || []).map(toArtist)}
       initialContacts={contacts || []}
       initialStages={event?.stages || []}
       initialEventDates={{ date: event?.date || null, date_end: event?.date_end || null }}

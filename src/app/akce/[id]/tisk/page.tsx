@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import TiskClient from './TiskClient'
+import { LINEUP_SELECT, toArtist } from '@/lib/lineup'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export default async function TiskPage({ params }: Props) {
     supabase.from('events').select('*').eq('id', id).single(),
     supabase.from('expenses').select('*').eq('event_id', id).order('category'),
     supabase.from('income').select('*').eq('event_id', id),
-    supabase.from('lineup').select('*').eq('event_id', id).order('set_time'),
+    supabase.from('lineup').select(LINEUP_SELECT).eq('event_id', id).order('set_time'),
     supabase.from('team_contributions').select('*').eq('event_id', id),
     supabase.from('notes').select('*').eq('event_id', id).order('created_at', { ascending: false }),
     supabase.from('event_equipment').select('*').eq('event_id', id).eq('elektrina_extra', false).order('created_at'),
@@ -33,7 +34,7 @@ export default async function TiskPage({ params }: Props) {
       event={ev}
       expenses={ex || []}
       income={inc || []}
-      lineup={lin || []}
+      lineup={(lin || []).map(toArtist)}
       team={tm || []}
       notes={nt || []}
       equipment={eq || []}

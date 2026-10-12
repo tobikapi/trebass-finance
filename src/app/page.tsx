@@ -132,7 +132,7 @@ function FinancialDashboard() {
         supabase.from('income').select('amount, event_id'),
         supabase.from('expenses').select('event_id, category, item, price, created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('income').select('event_id, source, amount, created_at').order('created_at', { ascending: false }).limit(8),
-        supabase.from('lineup').select('event_id, artist_name, fee, created_at').order('created_at', { ascending: false }).limit(8),
+        supabase.from('lineup').select('event_id, artist_name, created_at, lineup_fees(fee)').order('created_at', { ascending: false }).limit(8),
         supabase.from('notes').select('event_id, author, content, created_at').order('created_at', { ascending: false }).limit(5),
         // Přístup k akcím vynucuje databáze; mapa je potřeba jen pro náhled „Zobrazit jako".
         viewAsRoleId ? fetchEventAccessMap() : Promise.resolve(null),
@@ -157,7 +157,7 @@ function FinancialDashboard() {
       const items: ActivityItem[] = [
         ...(actExpsRes.data || []).map(e => ({ type: 'expense' as const, event_id: e.event_id, icon: '💸', label: `${e.item} (${e.category})`, amount: e.price, created_at: e.created_at })),
         ...(actIncsRes.data || []).map(i => ({ type: 'income' as const, event_id: i.event_id, icon: '💰', label: i.source, amount: i.amount, created_at: i.created_at })),
-        ...(actLineupRes.data || []).map(l => ({ type: 'lineup' as const, event_id: l.event_id, icon: '🎧', label: l.artist_name, amount: l.fee || undefined, created_at: l.created_at })),
+        ...(actLineupRes.data || []).map(l => ({ type: 'lineup' as const, event_id: l.event_id, icon: '🎧', label: l.artist_name, amount: (Array.isArray(l.lineup_fees) ? l.lineup_fees[0]?.fee : (l.lineup_fees as { fee: number } | null)?.fee) || undefined, created_at: l.created_at })),
         ...(actNotes || []).map(n => ({ type: 'note' as const, event_id: n.event_id, icon: '📝', label: `${n.author}: ${n.content.slice(0, 40)}${n.content.length > 40 ? '…' : ''}`, created_at: n.created_at })),
       ].filter(item => visibleIds.has(item.event_id))
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10)

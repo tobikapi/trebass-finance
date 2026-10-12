@@ -9,6 +9,8 @@ import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { useEventPermissions } from '@/lib/event-permissions'
+import { LINEUP_SELECT, toArtist } from '@/lib/lineup'
 
 interface Contact { id: string; name: string; type: string; fee: number }
 
@@ -69,6 +71,10 @@ interface Props {
 export default function LineupClient({ id, initialArtists, initialContacts, initialStages, initialEventDates }: Props) {
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
+  // Honoráře jen s oprávněním (role nebo výjimka v akci) — bez něj databáze
+  // částky nevydá a appka je místo nul schová.
+  const { canInEvent } = useEventPermissions(id)
+  const showFees = canInEvent('viewLineupFees')
   const [artists, setArtists] = useState<LineupArtist[]>(initialArtists)
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [stages, setStages] = useState<string[]>(initialStages)
@@ -87,11 +93,11 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
 
   async function load() {
     const [{ data: lineup }, { data: ctc }, { data: ev }] = await Promise.all([
-      supabase.from('lineup').select('*').eq('event_id', id).order('set_time').order('artist_name'),
+      supabase.from('lineup').select(LINEUP_SELECT).eq('event_id', id).order('set_time').order('artist_name'),
       supabase.from('contacts').select('id, name, type, fee').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
       supabase.from('events').select('stages, date, date_end').eq('id', id).single(),
     ])
-    setArtists(lineup || [])
+    setArtists((lineup || []).map(toArtist))
     setContacts(ctc || [])
     setStages(ev?.stages || [])
     setEventDates({ date: ev?.date || null, date_end: ev?.date_end || null })
@@ -169,12 +175,19 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
-    const payload = { event_id: id, artist_name: form.artist_name, fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, travel_cost: parseFloat(form.travel_cost) || 0, paid: form.paid, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null }
+    // Kdo honoráře nevidí, částky neposílá — server je pak nechá být.
+    const fees = showFees
+      ? { fee: parseFloat(form.fee) || 0, deposit: parseFloat(form.deposit) || 0, travel_cost: parseFloat(form.travel_cost) || 0, paid: form.paid }
+      : undefined
+    const payload = { event_id: id, artist_name: form.artist_name, date: form.date || null, set_time: form.set_time || null, stage: form.stage || null, notes: form.notes || null, fees }
     const prev = editId ? artists.find(a => a.id === editId) : null
     const result = editId ? await callAction('updateArtist', editId, payload) : await callAction('createArtist', payload)
     if (result.error) { notify('Chyba: ' + result.error); setSaving(false); return }
     if (editId && prev) {
-      const prevPayload = { event_id: id, artist_name: prev.artist_name, fee: prev.fee, deposit: prev.deposit, travel_cost: prev.travel_cost, paid: prev.paid, date: prev.date, set_time: prev.set_time, stage: prev.stage, notes: prev.notes }
+      const prevPayload = {
+        event_id: id, artist_name: prev.artist_name, date: prev.date, set_time: prev.set_time, stage: prev.stage, notes: prev.notes,
+        fees: showFees ? { fee: prev.fee, deposit: prev.deposit, travel_cost: prev.travel_cost, paid: prev.paid } : undefined,
+      }
       pushUndo(`úprava artisty „${prev.artist_name}“`, async () => {
         const res = await callAction('updateArtist', editId, prevPayload)
         if (res.error) throw new Error(res.error)
@@ -197,7 +210,9 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
     await callAction('deleteArtist', artId); await load()
     if (row) {
       pushUndo(`smazání artisty „${row.artist_name}“`, async () => {
-        const res = await callAction('restoreArtist', row)
+        const { fee, deposit, travel_cost, paid, created_at: _created, ...info } = row
+        void _created
+        const res = await callAction('restoreArtist', { ...info, fees: showFees ? { fee, deposit, travel_cost, paid } : undefined })
         if (res.error) throw new Error(res.error)
         await load()
       })
@@ -264,6 +279,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             <label style={labelStyle}>Set time</label>
             <input value={form.set_time} onChange={e => setForm({ ...form, set_time: e.target.value })} placeholder="22:00" style={inputStyle} />
           </div>
+          {showFees && <>
           <div>
             <label style={labelStyle}>Honorář (Kč)</label>
             <input type="number" value={form.fee} onChange={e => setForm({ ...form, fee: e.target.value })} placeholder="0" style={inputStyle} />
@@ -282,6 +298,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
               Zaplaceno
             </label>
           </div>
+          </>}
         </div>
         <div style={{ marginBottom: '14px' }}>
           <label style={labelStyle}>Poznámky</label>
@@ -311,7 +328,9 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
     return (
       <div style={{ borderRadius: '10px', overflow: 'hidden', border: `1px solid ${sc.border}`, marginBottom: '4px' }}>
         <div className="lineup-header" style={{ backgroundColor: sc.bg }}>
-          {(['Artist', 'Set Time', 'Honorář', 'Záloha', 'Cesťák', 'Zbývá', 'Paid', 'Poznámky', ''] as const).map((h, i) => (
+          {(showFees
+            ? ['Artist', 'Set Time', 'Honorář', 'Záloha', 'Cesťák', 'Zbývá', 'Paid', 'Poznámky', '']
+            : ['Artist', 'Set Time', '', '', '', '', '', 'Poznámky', '']).map((h, i) => (
             <div key={h + i} style={{ fontSize: '11px', fontWeight: '600', color: sc.main, textAlign: i >= 2 && i <= 5 ? 'right' : 'left', opacity: 0.9 }}>{h}</div>
           ))}
         </div>
@@ -319,6 +338,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
           <div key={art.id} className="lineup-row" style={{ borderLeft: `3px solid ${sc.border}` }}>
             <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px' }}>{art.artist_name}</div>
             <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{art.set_time || '—'}</div>
+            {showFees ? <>
             <div style={{ textAlign: 'right', color: 'var(--text-primary)', fontSize: '13px', fontWeight: '500' }}>{art.fee.toLocaleString('cs-CZ')} Kč</div>
             <div style={{ textAlign: 'right', color: art.deposit > 0 ? '#60a5fa' : 'var(--text-faint)', fontSize: '13px' }}>
               {art.deposit > 0 ? `${art.deposit.toLocaleString('cs-CZ')} Kč` : '—'}
@@ -329,14 +349,18 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             <div style={{ textAlign: 'right', fontWeight: '500', fontSize: '13px', color: art.paid || art.fee + art.travel_cost - art.deposit <= 0 ? '#34d399' : '#f87171' }}>
               {art.paid ? '0 Kč' : `${(art.fee + art.travel_cost - art.deposit).toLocaleString('cs-CZ')} Kč`}
             </div>
+            </> : <>
+              {/* Bez oprávnění k honorářům — prázdné buňky drží rozložení tabulky */}
+              <div /><div /><div /><div />
+            </>}
             <div>
-              <button onClick={() => handleTogglePaid(art)} style={{
+              {showFees && <button onClick={() => handleTogglePaid(art)} style={{
                 backgroundColor: art.paid ? '#052e16' : 'var(--bg-badge)',
                 color: art.paid ? '#34d399' : '#f87171',
                 fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer',
               }}>
                 {art.paid ? 'ANO' : 'NE'}
-              </button>
+              </button>}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {art.notes || '—'}
@@ -375,7 +399,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
         </div>
         {isDayFormOpen && renderForm(stageName)}
         {renderTable(dayArtists, sc)}
-        {dayArtists.length > 0 && (
+        {showFees && dayArtists.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '20px', padding: '5px 14px', fontSize: '12px' }}>
             <span style={{ color: 'var(--text-dim)' }}>Celkem den: <strong style={{ color: dc.label }}>{dayTotal.toLocaleString('cs-CZ')} Kč</strong></span>
             {dayUnpaid > 0 && <span style={{ color: 'var(--text-dim)' }}>Zbývá zaplatit: <strong style={{ color: '#f87171' }}>{dayUnpaid.toLocaleString('cs-CZ')} Kč</strong></span>}
@@ -395,7 +419,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             { label: 'Zálohy', value: totalDeposits.toLocaleString('cs-CZ'), color: '#60a5fa', suffix: ' Kč' },
             { label: 'Cesťáky', value: totalTravel.toLocaleString('cs-CZ'), color: '#fbbf24', suffix: ' Kč' },
             { label: 'Nezaplacených', value: unpaid, color: '#fbbf24', suffix: '' },
-          ].map((s) => (
+          ].filter((_, i) => showFees || i === 0).map((s) => (
             <div key={s.label} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.label}</div>
               <div style={{ fontWeight: '600', fontSize: '14px', color: s.color }}>{s.value}{s.suffix}</div>

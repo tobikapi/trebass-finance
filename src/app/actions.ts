@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { hasPermission, type PermissionKey, type Permissions } from '@/lib/permissions'
+import { EVENT_PERMISSION_KEYS, hasPermission, type PermissionKey, type Permissions } from '@/lib/permissions'
 
 async function requireAuth() {
   const cookieStore = await cookies()
@@ -68,18 +68,65 @@ async function denyUnless(supabase: Awaited<ReturnType<typeof requireAuth>>, key
   return hasPermission(perms, key) ? null : 'Na tuhle akci nemáš oprávnění.'
 }
 
+// Oprávnění uvnitř konkrétní akce: role NEBO výjimka v event_access.permissions
+// (viz has_event_perm v sql/2026-10-12b_vyjimky_v_akci.sql). Databáze to
+// vynucuje i sama — tady jde o srozumitelnou hlášku místo tichého „nic se
+// neuložilo". Bez event_id (úkol mimo akci) platí jen role. Při náhledu
+// „Zobrazit jako" se výjimky ignorují a platí jen zobrazovaná role.
+async function denyUnlessEvent(
+  supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string | null | undefined, key: PermissionKey
+): Promise<string | null> {
+  if (!eventId) return denyUnless(supabase, key)
+  const cookieStore = await cookies()
+  if (cookieStore.get('trebass_view_as')?.value) return denyUnless(supabase, key)
+  const { data, error } = await supabase.rpc('has_event_perm', { eid: eventId, key })
+  if (error) return error.message
+  return data === true ? null : 'Na tuhle akci nemáš oprávnění.'
+}
+
+// event_id řádku, ke kterému se akce vztahuje. null = řádek neexistuje,
+// člověk ho nesmí vidět, nebo nepatří k žádné akci (úkol mimo akci).
+async function eventIdOf(supabase: Awaited<ReturnType<typeof requireAuth>>, table: string, id: string): Promise<string | null> {
+  const { data } = await supabase.from(table).select('event_id').eq('id', id).maybeSingle()
+  return (data as { event_id: string | null } | null)?.event_id ?? null
+}
+
 // Přepíše, kdo (kromě adminů s admin_access_mode='all') má k akci přístup.
 // Volá se po create/update eventu — nejjednodušší je vždy smazat staré řádky
 // a nahrát nové, event_access nemá vlastní historii, kterou by bylo co zachovat.
-async function syncEventAccess(supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string, profileIds: string[]) {
+async function syncEventAccess(
+  supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string, profileIds: string[],
+  exceptions: Record<string, Permissions> = {}
+) {
   const { error: delError } = await supabase.from('event_access').delete().eq('event_id', eventId)
   if (delError) return delError.message
   const uniqueIds = [...new Set(profileIds)]
   if (uniqueIds.length === 0) return null
   const { error: insError } = await supabase
     .from('event_access')
-    .insert(uniqueIds.map(profile_id => ({ event_id: eventId, profile_id })))
+    .insert(uniqueIds.map(profile_id => ({
+      event_id: eventId, profile_id, permissions: sanitizeEventPermissions(exceptions[profile_id]),
+    })))
   return insError?.message ?? null
+}
+
+// Výjimka smí obsahovat jen klíče uvnitř akce a jen hodnotu true — nic jiného
+// (admin, Firma, správa lidí…) se přes výjimku udělit nesmí. Databáze má
+// stejnou pojistku v is_event_perm_key().
+function sanitizeEventPermissions(perms: Permissions | undefined): Permissions {
+  const clean: Permissions = {}
+  for (const key of EVENT_PERMISSION_KEYS) if (perms?.[key] === true) clean[key] = true
+  return clean
+}
+
+// Kdo smí měnit, kdo má k akci přístup a s jakými výjimkami: admin nebo
+// zakladatel akce (stejně jako politika event_access_write v DB).
+async function canManageEventAccess(supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string): Promise<boolean> {
+  const real = await realPermissions(supabase)
+  if (real?.admin === true) return true
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data } = await supabase.from('events').select('created_by').eq('id', eventId).maybeSingle()
+  return !!user && data?.created_by === user.id
 }
 
 // EVENTS
@@ -87,6 +134,7 @@ export async function createEvent(form: {
   name: string; date: string; date_end: string; time_start: string; time_end: string
   location: string; type: string; status: string; description: string
   admin_access_mode?: 'all' | 'selected'; access_profile_ids?: string[]
+  access_exceptions?: Record<string, Permissions>
   include_in_totals?: boolean
 }) {
   const supabase = await requireAuth()
@@ -107,7 +155,7 @@ export async function createEvent(form: {
   }
   const { data, error } = await supabase.from('events').insert([payload]).select().single()
   if (error) return { error: error.message }
-  const accessError = await syncEventAccess(supabase, data.id, form.access_profile_ids || [])
+  const accessError = await syncEventAccess(supabase, data.id, form.access_profile_ids || [], form.access_exceptions)
   if (accessError) return { error: accessError }
   return { data }
 }
@@ -116,10 +164,11 @@ export async function updateEvent(id: string, form: {
   name: string; date: string; date_end: string; time_start: string; time_end: string
   location: string; type: string; status: string; description: string
   admin_access_mode?: 'all' | 'selected'; access_profile_ids?: string[]
+  access_exceptions?: Record<string, Permissions>
   include_in_totals?: boolean
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const payload = {
     name: form.name,
@@ -131,19 +180,26 @@ export async function updateEvent(id: string, form: {
     type: form.type || null,
     status: form.status,
     description: form.description || null,
-    admin_access_mode: form.admin_access_mode || 'all',
-    include_in_totals: form.include_in_totals ?? true,
   }
-  const { error } = await supabase.from('events').update(payload).eq('id', id)
+  // Kdo akci vidí (a s jakými výjimkami) a jestli se počítá do přehledů,
+  // smí měnit jen admin nebo zakladatel — editor přes výjimku jen zbytek.
+  const manageAccess = await canManageEventAccess(supabase, id)
+  const fullPayload = manageAccess
+    ? { ...payload, admin_access_mode: form.admin_access_mode || 'all', include_in_totals: form.include_in_totals ?? true }
+    : payload
+  const { data: updated, error } = await supabase.from('events').update(fullPayload).eq('id', id).select('id')
   if (error) return { error: error.message }
-  const accessError = await syncEventAccess(supabase, id, form.access_profile_ids || [])
-  if (accessError) return { error: accessError }
+  if (!updated?.length) return { error: 'Akci se nepodařilo uložit (nemáš k ní přístup?).' }
+  if (manageAccess) {
+    const accessError = await syncEventAccess(supabase, id, form.access_profile_ids || [], form.access_exceptions)
+    if (accessError) return { error: accessError }
+  }
   return { data: true }
 }
 
 export async function updateEventStages(id: string, stages: string[]) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('events').update({ stages }).eq('id', id)
   if (error) return { error: error.message }
@@ -152,7 +208,7 @@ export async function updateEventStages(id: string, stages: string[]) {
 
 export async function updateEventEquipmentLocations(id: string, locations: string[]) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('events').update({ equipment_locations: locations }).eq('id', id)
   if (error) return { error: error.message }
@@ -161,7 +217,7 @@ export async function updateEventEquipmentLocations(id: string, locations: strin
 
 export async function updateEventBudgets(id: string, budgets: Record<string, number>) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('events').update({ budgets }).eq('id', id)
   if (error) return { error: error.message }
@@ -170,7 +226,7 @@ export async function updateEventBudgets(id: string, budgets: Record<string, num
 
 export async function updateEventDescription(id: string, description: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('events').update({ description: description || null }).eq('id', id)
   if (error) return { error: error.message }
@@ -181,7 +237,7 @@ export async function updateEventMargin(id: string, margin_percent: number) {
   const marginError = invalidMargin(margin_percent)
   if (marginError) return { error: marginError }
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('events').update({ margin_percent }).eq('id', id)
   if (error) return { error: error.message }
@@ -194,7 +250,7 @@ export async function updateEventMargin(id: string, margin_percent: number) {
 // celkových součtů na Dashboardu a v Archivu.
 export async function updateEventIncludeInTotals(id: string, include: boolean) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('events').update({ include_in_totals: include }).eq('id', id).select('id')
   if (error) return { error: error.message }
@@ -204,7 +260,7 @@ export async function updateEventIncludeInTotals(id: string, include: boolean) {
 
 export async function updateEventMarginToIncome(id: string, enabled: boolean) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('events').update({ margin_to_income: enabled }).eq('id', id)
   if (error) return { error: error.message }
@@ -298,7 +354,7 @@ export async function createExpense(payload: {
   const discountError = invalidDiscount(payload.discount_percent)
   if (discountError) return { error: discountError }
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('expenses').insert([payload]).select().single()
   if (error) return { error: error.message }
@@ -311,7 +367,7 @@ export async function updateExpense(id: string, payload: {
   payment_timing: string | null; price: number; deposit: number; paid: boolean
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'expenses', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('expenses').update(payload).eq('id', id)
   if (error) return { error: error.message }
@@ -322,7 +378,7 @@ export async function updateExpense(id: string, payload: {
 
 export async function deleteExpense(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'expenses', id), 'canDelete')
   if (denied) return { error: denied }
   // event_id se musí zjistit ještě před smazáním, potom už řádek neexistuje
   const { data: row } = await supabase.from('expenses').select('event_id').eq('id', id).single()
@@ -334,7 +390,7 @@ export async function deleteExpense(id: string) {
 
 export async function renameExpenseItem(id: string, item: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'expenses', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('expenses').update({ item }).eq('id', id)
   if (error) return { error: error.message }
@@ -345,7 +401,7 @@ export async function updateVendorDiscount(id: string, discount_percent: number)
   const discountError = invalidDiscount(discount_percent)
   if (discountError) return { error: discountError }
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'expenses', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('expenses').update({ discount_percent }).eq('id', id)
   if (error) return { error: error.message }
@@ -355,7 +411,7 @@ export async function updateVendorDiscount(id: string, discount_percent: number)
 
 export async function updateVendorVat(id: string, with_vat: boolean) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'expenses', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('expenses').update({ with_vat }).eq('id', id)
   if (error) return { error: error.message }
@@ -365,7 +421,7 @@ export async function updateVendorVat(id: string, with_vat: boolean) {
 
 export async function unassignEquipmentByExpense(expenseId: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'expenses', expenseId), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('event_equipment').update({ expense_id: null }).eq('expense_id', expenseId)
   if (error) return { error: error.message }
@@ -374,7 +430,7 @@ export async function unassignEquipmentByExpense(expenseId: string) {
 
 export async function toggleExpensePaid(id: string, paid: boolean) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'expenses', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('expenses').update({ paid }).eq('id', id)
   if (error) return { error: error.message }
@@ -386,7 +442,7 @@ export async function createIncome(payload: {
   event_id: string; source: string; amount: number; note: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('income').insert([payload]).select().single()
   if (error) return { error: error.message }
@@ -397,7 +453,7 @@ export async function updateIncome(id: string, payload: {
   source: string; amount: number; note: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'income', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('income').update(payload).eq('id', id)
   if (error) return { error: error.message }
@@ -406,7 +462,7 @@ export async function updateIncome(id: string, payload: {
 
 export async function deleteIncome(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'income', id), 'canDelete')
   if (denied) return { error: denied }
   const { error } = await supabase.from('income').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -414,52 +470,68 @@ export async function deleteIncome(id: string) {
 }
 
 // LINEUP
-export async function createArtist(payload: {
-  event_id: string; artist_name: string; fee: number; deposit: number; travel_cost: number;
-  paid: boolean; date: string | null; set_time: string | null; stage: string | null; notes: string | null
-}) {
+// Částky (honorář, záloha, cesťák, zaplaceno) žijí v `lineup_fees`, kterou
+// databáze vydá jen s oprávněním „Honoráře v Lineupu". Kdo je nevidí, posílá
+// fees = undefined a jeho úprava se částek nedotkne (jinak by je přepsal nulou).
+interface ArtistFees { fee: number; deposit: number; travel_cost: number; paid: boolean }
+interface ArtistInfo {
+  event_id: string; artist_name: string
+  date: string | null; set_time: string | null; stage: string | null; notes: string | null
+}
+
+function lineupExpenseNote(stage: string | null, setTime: string | null) {
+  const parts = [stage, setTime].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
+}
+
+export async function createArtist(payload: ArtistInfo & { fees?: ArtistFees }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
   if (denied) return { error: denied }
-  const { data, error } = await supabase.from('lineup').insert([payload]).select().single()
+  const { fees, ...info } = payload
+  const { data, error } = await supabase.from('lineup').insert([info]).select().single()
   if (error) return { error: error.message }
 
+  const f = fees ?? { fee: 0, deposit: 0, travel_cost: 0, paid: false }
+  const { error: feeError } = await supabase.from('lineup_fees').insert([{ lineup_id: data.id, event_id: info.event_id, ...f }])
+  if (feeError) return { error: feeError.message }
+
   // Sync to expenses — LINEUP category, linked via lineup_artist_id
-  const noteParts = [payload.stage, payload.set_time].filter(Boolean)
   const { error: expError } = await supabase.from('expenses').insert([{
-    event_id: payload.event_id,
+    event_id: info.event_id,
     category: 'LINEUP',
-    item: payload.artist_name,
-    note: noteParts.length ? noteParts.join(' · ') : null,
+    item: info.artist_name,
+    note: lineupExpenseNote(info.stage, info.set_time),
     payment_timing: null,
-    price: payload.fee + payload.travel_cost,
-    deposit: payload.deposit,
-    paid: payload.paid,
+    price: f.fee + f.travel_cost,
+    deposit: f.deposit,
+    paid: f.paid,
     lineup_artist_id: data.id,
   }])
   if (expError) return { error: expError.message }
 
-  return { data }
+  return { data: { ...data, ...f } }
 }
 
-export async function updateArtist(id: string, payload: {
-  event_id: string; artist_name: string; fee: number; deposit: number; travel_cost: number;
-  paid: boolean; date: string | null; set_time: string | null; stage: string | null; notes: string | null
-}) {
+export async function updateArtist(id: string, payload: ArtistInfo & { fees?: ArtistFees }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'lineup', id), 'canEdit')
   if (denied) return { error: denied }
-  const { error } = await supabase.from('lineup').update(payload).eq('id', id)
+  const { fees, ...info } = payload
+  const { error } = await supabase.from('lineup').update(info).eq('id', id)
   if (error) return { error: error.message }
 
-  // Sync linked expense
-  const noteParts = [payload.stage, payload.set_time].filter(Boolean)
+  if (fees) {
+    const { error: feeError } = await supabase.from('lineup_fees')
+      .upsert([{ lineup_id: id, event_id: info.event_id, ...fees }])
+    if (feeError) return { error: feeError.message }
+  }
+
+  // Sync linked expense (částky jen když je člověk vidí a posílá)
   const { error: expError } = await supabase.from('expenses').update({
-    item: payload.artist_name,
-    note: noteParts.length ? noteParts.join(' · ') : null,
-    price: payload.fee + payload.travel_cost,
-    deposit: payload.deposit,
-    paid: payload.paid,
+    item: info.artist_name,
+    note: lineupExpenseNote(info.stage, info.set_time),
+    ...(fees ? { price: fees.fee + fees.travel_cost, deposit: fees.deposit, paid: fees.paid } : {}),
   }).eq('lineup_artist_id', id)
   if (expError) return { error: expError.message }
 
@@ -468,9 +540,9 @@ export async function updateArtist(id: string, payload: {
 
 export async function deleteArtist(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'lineup', id), 'canDelete')
   if (denied) return { error: denied }
-  // Expense is deleted automatically via ON DELETE CASCADE
+  // Expense i lineup_fees se smažou automaticky přes ON DELETE CASCADE
   const { error } = await supabase.from('lineup').delete().eq('id', id)
   if (error) return { error: error.message }
   return { data: true }
@@ -478,10 +550,11 @@ export async function deleteArtist(id: string) {
 
 export async function toggleArtistPaid(id: string, paid: boolean) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'lineup', id), 'canEdit')
   if (denied) return { error: denied }
-  const { error } = await supabase.from('lineup').update({ paid }).eq('id', id)
+  const { data, error } = await supabase.from('lineup_fees').update({ paid }).eq('lineup_id', id).select('lineup_id')
   if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Honorář se nepodařilo uložit (nemáš oprávnění k honorářům?).' }
 
   // Sync paid status to linked expense
   const { error: expError } = await supabase.from('expenses').update({ paid }).eq('lineup_artist_id', id)
@@ -495,7 +568,7 @@ export async function createContribution(payload: {
   event_id: string; name: string; amount: number; note: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('team_contributions').insert([payload]).select().single()
   if (error) return { error: error.message }
@@ -506,7 +579,7 @@ export async function updateContribution(id: string, payload: {
   name: string; amount: number; note: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'team_contributions', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('team_contributions').update(payload).eq('id', id)
   if (error) return { error: error.message }
@@ -525,7 +598,7 @@ export async function deleteEvent(id: string) {
 
 export async function deleteContribution(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'team_contributions', id), 'canDelete')
   if (denied) return { error: denied }
   const { error } = await supabase.from('team_contributions').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -535,7 +608,7 @@ export async function deleteContribution(id: string) {
 // DOCUMENTS
 export async function deleteDocument(id: string, filePath: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'documents', id), 'canDelete')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('documents').delete().eq('id', id).select('id')
   if (error) return { error: error.message }
@@ -547,7 +620,7 @@ export async function deleteDocument(id: string, filePath: string) {
 // NOTES
 export async function createNote(payload: { event_id: string; author: string; content: string }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('notes').insert([payload]).select().single()
   if (error) return { error: error.message }
@@ -556,7 +629,7 @@ export async function createNote(payload: { event_id: string; author: string; co
 
 export async function deleteNote(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'notes', id), 'canDelete')
   if (denied) return { error: denied }
   const { error } = await supabase.from('notes').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -601,7 +674,7 @@ export async function createTask(payload: {
   status: string; priority: string; due_date: string | null; event_id: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('tasks').insert([{ ...payload, assigned_to: null }]).select().single()
   if (error) return { error: error.message }
@@ -613,7 +686,7 @@ export async function updateTask(id: string, payload: {
   status: string; priority: string; due_date: string | null; event_id: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'tasks', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('tasks').update({ ...payload, assigned_to: null }).eq('id', id)
   if (error) return { error: error.message }
@@ -622,7 +695,7 @@ export async function updateTask(id: string, payload: {
 
 export async function updateTaskStatus(id: string, status: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'tasks', id), 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('tasks').update({ status }).eq('id', id)
   if (error) return { error: error.message }
@@ -631,7 +704,7 @@ export async function updateTaskStatus(id: string, status: string) {
 
 export async function deleteTask(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'tasks', id), 'canDelete')
   if (denied) return { error: denied }
   const { error } = await supabase.from('tasks').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -729,7 +802,7 @@ export async function createEquipment(payload: {
   expense_id: string | null; category: string | null; location: string | null; power_kw: number; elektrina_extra?: boolean
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('event_equipment').insert([payload]).select().single()
   if (error) return { error: error.message }
@@ -742,7 +815,7 @@ export async function updateEquipment(id: string, payload: {
   expense_id: string | null; category: string | null; location: string | null; power_kw: number; elektrina_extra?: boolean
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'event_equipment', id), 'canEdit')
   if (denied) return { error: denied }
   const { data: prev } = await supabase.from('event_equipment').select('expense_id').eq('id', id).single()
   const { error } = await supabase.from('event_equipment').update(payload).eq('id', id)
@@ -754,7 +827,7 @@ export async function updateEquipment(id: string, payload: {
 
 export async function deleteEquipment(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'event_equipment', id), 'canDelete')
   if (denied) return { error: denied }
   const { data: prev } = await supabase.from('event_equipment').select('expense_id').eq('id', id).single()
   const { error } = await supabase.from('event_equipment').delete().eq('id', id)
@@ -772,7 +845,7 @@ type RestorableTable = typeof RESTORABLE_TABLES[number]
 
 export async function restoreRow(table: RestorableTable, row: Record<string, unknown>) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, row.event_id as string | undefined, 'canCreate')
   if (denied) return { error: denied }
   if (!RESTORABLE_TABLES.includes(table)) return { error: 'Neplatná tabulka pro obnovení' }
   const { error } = await supabase.from(table).insert([row])
@@ -783,26 +856,27 @@ export async function restoreRow(table: RestorableTable, row: Record<string, unk
   return { data: true }
 }
 
-export async function restoreArtist(row: {
-  id: string; event_id: string; artist_name: string; fee: number; deposit: number; travel_cost: number
-  paid: boolean; date: string | null; set_time: string | null; stage: string | null; notes: string | null
-}) {
+export async function restoreArtist(row: ArtistInfo & { id: string; fees?: ArtistFees }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const denied = await denyUnlessEvent(supabase, row.event_id, 'canCreate')
   if (denied) return { error: denied }
-  const { error } = await supabase.from('lineup').insert([row])
+  const { fees, ...info } = row
+  const { error } = await supabase.from('lineup').insert([info])
   if (error) return { error: error.message }
 
-  const noteParts = [row.stage, row.set_time].filter(Boolean)
+  const f = fees ?? { fee: 0, deposit: 0, travel_cost: 0, paid: false }
+  const { error: feeError } = await supabase.from('lineup_fees').insert([{ lineup_id: row.id, event_id: row.event_id, ...f }])
+  if (feeError) return { error: feeError.message }
+
   const { error: expError } = await supabase.from('expenses').insert([{
     event_id: row.event_id,
     category: 'LINEUP',
     item: row.artist_name,
-    note: noteParts.length ? noteParts.join(' · ') : null,
+    note: lineupExpenseNote(row.stage, row.set_time),
     payment_timing: null,
-    price: row.fee + row.travel_cost,
-    deposit: row.deposit,
-    paid: row.paid,
+    price: f.fee + f.travel_cost,
+    deposit: f.deposit,
+    paid: f.paid,
     lineup_artist_id: row.id,
   }])
   if (expError) return { error: expError.message }

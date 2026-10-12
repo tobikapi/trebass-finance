@@ -121,3 +121,19 @@ export function hasPermission(permissions: Permissions | null, key: PermissionKe
   if (permissions.admin === true) return true
   return permissions[key] === true
 }
+
+// Oprávnění, která jde dát člověku jako VÝJIMKU jen v jedné akci (navíc
+// k jeho roli) — viz event_access.permissions. Jen věci uvnitř akce:
+// přes výjimku nejde udělit admina, Firmu, správu lidí ani mazání akce.
+// Musí odpovídat is_event_perm_key() v sql/2026-10-12b_vyjimky_v_akci.sql.
+export const EVENT_PERMISSION_KEYS: PermissionKey[] = [
+  'viewPrehled', 'viewVydaje', 'viewPrijmy', 'viewLineup', 'viewLineupFees', 'viewTechnika',
+  'viewElektrina', 'viewTym', 'viewChat', 'viewSoubory', 'canCreate', 'canEdit', 'canDelete',
+]
+
+// Záložky v akci, které jde zapnout výjimkou (pořadí = pořadí v UI).
+export const EVENT_VIEW_KEYS: PermissionKey[] = EVENT_PERMISSION_KEYS.filter(k => k.startsWith('view'))
+
+// Čtenář = jen vidí, Editor = smí vytvářet a upravovat. Mazání je zvlášť,
+// stejně jako u rolí (Admin → Role a práva).
+export const EVENT_EDIT_KEYS: PermissionKey[] = ['canCreate', 'canEdit']

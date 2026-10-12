@@ -8,6 +8,7 @@ import { Event, STATUS_LABELS, STATUS_COLORS, formatDateRange } from '@/lib/type
 import { useUser } from '@/lib/user-context'
 import type { PermissionKey } from '@/lib/permissions'
 import { canAccessEvent, fetchEventAccessMap } from '@/lib/event-access'
+import { useEventPermissions } from '@/lib/event-permissions'
 
 interface Props {
   eventId: string
@@ -34,7 +35,9 @@ const eventCache = new Map<string, Event>()
 export default function EventLayout({ eventId, children }: Props) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, role, can, loading, viewAsRoleId } = useUser()
+  const { user, role, loading, viewAsRoleId } = useUser()
+  // Záložky podle role NEBO výjimky v téhle akci (event_access.permissions).
+  const { canInEvent: can } = useEventPermissions(eventId)
   const [event, setEvent] = useState<Event | null>(() => eventCache.get(eventId) ?? null)
   const [accessMap, setAccessMap] = useState<Map<string, Set<string>> | null>(null)
 

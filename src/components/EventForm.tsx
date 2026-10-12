@@ -6,6 +6,11 @@ import { callAction } from '@/lib/call-action'
 import { supabase } from '@/lib/supabase'
 import { EventStatus, Event } from '@/lib/types'
 import { useDialog } from '@/lib/dialog-context'
+import { useUser } from '@/lib/user-context'
+import Collapse from '@/components/Collapse'
+import {
+  EVENT_EDIT_KEYS, EVENT_VIEW_KEYS, PERMISSION_LABELS, type PermissionKey, type Permissions,
+} from '@/lib/permissions'
 
 interface Props {
   existing?: Event
@@ -43,6 +48,13 @@ export default function EventForm({ existing }: Props) {
   const [adminAccessMode, setAdminAccessMode] = useState<'all' | 'selected'>(existing?.admin_access_mode || 'all')
   const [includeInTotals, setIncludeInTotals] = useState<boolean>(existing?.include_in_totals ?? true)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // Výjimky = oprávnění navíc k roli, jen v téhle akci (event_access.permissions).
+  const [exceptions, setExceptions] = useState<Record<string, Permissions>>({})
+  const [openExceptionsFor, setOpenExceptionsFor] = useState<string | null>(null)
+  const { user, realRole } = useUser()
+  // Kdo akci vidí a s jakými výjimkami, smí měnit jen admin nebo zakladatel
+  // (stejně jako server a databáze). Editor přes výjimku tuhle sekci nevidí.
+  const canManageAccess = !existing || realRole?.permissions?.admin === true || existing.created_by === user?.id
 
   useEffect(() => {
     async function load() {
@@ -55,8 +67,9 @@ export default function EventForm({ existing }: Props) {
       setCrew((profiles || []).filter(p => p.role_id && crewRoleIds.has(p.role_id)))
 
       if (existing) {
-        const { data: access } = await supabase.from('event_access').select('profile_id').eq('event_id', existing.id)
+        const { data: access } = await supabase.from('event_access').select('profile_id, permissions').eq('event_id', existing.id)
         setSelectedIds(new Set((access || []).map(a => a.profile_id)))
+        setExceptions(Object.fromEntries((access || []).map(a => [a.profile_id, (a.permissions || {}) as Permissions])))
       }
     }
     load()
@@ -67,6 +80,37 @@ export default function EventForm({ existing }: Props) {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      return next
+    })
+  }
+
+  function toggleException(profileId: string, key: PermissionKey) {
+    setExceptions(prev => {
+      const cur = { ...(prev[profileId] || {}) }
+      if (cur[key]) delete cur[key]
+      else cur[key] = true
+      return { ...prev, [profileId]: cur }
+    })
+  }
+
+  // Čtenář = jen vidí zaškrtnuté záložky, Editor = smí v nich i vytvářet
+  // a upravovat. Mazání je samostatné zaškrtávátko.
+  function setEditMode(profileId: string, editor: boolean) {
+    setExceptions(prev => {
+      const cur = { ...(prev[profileId] || {}) }
+      for (const k of EVENT_EDIT_KEYS) {
+        if (editor) cur[k] = true
+        else delete cur[k]
+      }
+      return { ...prev, [profileId]: cur }
+    })
+  }
+
+  function copyExceptionsToAll(fromId: string) {
+    const source = exceptions[fromId] || {}
+    setExceptions(prev => {
+      const next = { ...prev }
+      for (const p of crew) if (selectedIds.has(p.id)) next[p.id] = { ...source }
       return next
     })
   }
@@ -82,6 +126,7 @@ export default function EventForm({ existing }: Props) {
       time_start: showTime ? form.time_start : '', time_end: showTime ? form.time_end : '',
       admin_access_mode: adminAccessMode,
       access_profile_ids: Array.from(selectedIds),
+      access_exceptions: Object.fromEntries(Array.from(selectedIds).map(pid => [pid, exceptions[pid] || {}])),
       include_in_totals: includeInTotals,
     }
     const result = existing
@@ -179,6 +224,7 @@ export default function EventForm({ existing }: Props) {
       </div>
 
       {/* Kdo má přístup */}
+      {canManageAccess && <>
       <div style={{ borderTop: '1px solid var(--border-card)', paddingTop: '20px' }}>
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
           <input type="checkbox" checked={includeInTotals} onChange={e => setIncludeInTotals(e.target.checked)}
@@ -223,16 +269,75 @@ export default function EventForm({ existing }: Props) {
               Crew members (vidí akci jen ti zaškrtnutí):
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              {crew.map(p => (
-                <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelected(p.id)} />
-                  {p.name || p.email}
-                </label>
-              ))}
+              {crew.map(p => {
+                const selected = selectedIds.has(p.id)
+                const exc = exceptions[p.id] || {}
+                const excCount = Object.values(exc).filter(Boolean).length
+                const isEditor = EVENT_EDIT_KEYS.every(k => exc[k])
+                const open = openExceptionsFor === p.id && selected
+                return (
+                  <div key={p.id} style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={selected} onChange={() => toggleSelected(p.id)} />
+                        {p.name || p.email}
+                      </label>
+                      {selected && (
+                        <button type="button" onClick={() => setOpenExceptionsFor(open ? null : p.id)} style={{
+                          fontSize: '11px', padding: '3px 10px', borderRadius: '10px', cursor: 'pointer',
+                          border: '1px solid var(--border-card)', background: 'none',
+                          color: excCount > 0 ? '#fbbf24' : 'var(--text-muted)',
+                        }}>
+                          {open ? '▾' : '▸'} výjimky{excCount > 0 ? ` (${excCount})` : ''}
+                        </button>
+                      )}
+                    </div>
+                    <Collapse open={open}>
+                      <div style={{ margin: '8px 0 10px 24px', padding: '12px 14px', borderRadius: '10px', backgroundColor: 'var(--bg-card-dark)', border: '1px solid var(--border-subtle)' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                          Navíc k roli, jen v téhle akci — nikdy nic neubírá.
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', marginBottom: '10px' }}>
+                          {EVENT_VIEW_KEYS.map(k => (
+                            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', color: exc[k] ? 'var(--text-primary)' : 'var(--text-dim)' }}>
+                              <input type="checkbox" checked={exc[k] === true} onChange={() => toggleException(p.id, k)} />
+                              {PERMISSION_LABELS[k]}
+                            </label>
+                          ))}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginRight: '2px' }}>V téhle akci:</span>
+                          {([false, true] as const).map(editor => {
+                            const active = isEditor === editor
+                            return (
+                              <button key={String(editor)} type="button" onClick={() => setEditMode(p.id, editor)} style={{
+                                fontSize: '11px', padding: '3px 10px', borderRadius: '10px', cursor: 'pointer',
+                                border: '1px solid var(--border-card)',
+                                backgroundColor: active ? (editor ? '#e05555' : 'var(--text-secondary)') : 'transparent',
+                                color: active ? (editor ? '#fff' : 'var(--bg-card-alt)') : 'var(--text-muted)',
+                              }}>{editor ? 'Editor' : 'Čtenář'}</button>
+                            )
+                          })}
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', marginLeft: '6px', color: exc.canDelete ? 'var(--text-primary)' : 'var(--text-dim)' }}>
+                            <input type="checkbox" checked={exc.canDelete === true} onChange={() => toggleException(p.id, 'canDelete')} />
+                            Mazat záznamy
+                          </label>
+                          <button type="button" onClick={() => copyExceptionsToAll(p.id)} style={{
+                            marginLeft: 'auto', fontSize: '11px', padding: '3px 10px', borderRadius: '10px', cursor: 'pointer',
+                            border: '1px solid var(--border-card)', background: 'none', color: 'var(--text-secondary)',
+                          }}>Stejné pro všechny vybrané crew</button>
+                        </div>
+                      </div>
+                    </Collapse>
+                  </div>
+                )
+              })}
             </div>
           </>
         )}
       </div>
+
+      </>}
 
       <div style={{ display: 'flex', gap: '12px', paddingTop: '4px' }}>
         <button type="submit" disabled={loading} style={{ padding: '10px 24px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
