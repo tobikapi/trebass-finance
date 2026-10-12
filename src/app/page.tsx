@@ -113,7 +113,7 @@ export default function Dashboard() {
 }
 
 function FinancialDashboard() {
-  const { user, role } = useUser()
+  const { user, role, viewAsRoleId } = useUser()
   const [allEvents,   setAllEvents]   = useState<Event[]>([])
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
@@ -134,7 +134,8 @@ function FinancialDashboard() {
         supabase.from('income').select('event_id, source, amount, created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('lineup').select('event_id, artist_name, fee, created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('notes').select('event_id, author, content, created_at').order('created_at', { ascending: false }).limit(5),
-        fetchEventAccessMap(),
+        // Přístup k akcím vynucuje databáze; mapa je potřeba jen pro náhled „Zobrazit jako".
+        viewAsRoleId ? fetchEventAccessMap() : Promise.resolve(null),
       ])
 
       const firstError = [evtsRes, expsRes, incsRes].find(r => r.error)?.error
@@ -145,7 +146,7 @@ function FinancialDashboard() {
 
       // Akce omezené na „jen vybrané admíny" se u ostatních vůbec neobjeví —
       // ani v součtech, ani v poslední aktivitě, aby soukromé kalkulace nikoho neotravovaly.
-      const visibleEvents = (evtsRes.data || []).filter(e => canAccessEvent(e, role, user?.id, accessMap, e.id))
+      const visibleEvents = (evtsRes.data || []).filter(e => !accessMap || canAccessEvent(e, role, user?.id, accessMap, e.id))
       const visibleIds = new Set(visibleEvents.map(e => e.id))
 
       setAllEvents(visibleEvents)
@@ -192,7 +193,11 @@ function FinancialDashboard() {
     return yearOk && statusOk
   }), [allEvents, yearFilter, statusFilter])
 
-  const filteredIds = useMemo(() => new Set(filteredEvents.map(e => e.id)), [filteredEvents])
+  // Akce vypnuté „Započítávat do celkových přehledů" (soukromé kalkulačky)
+  // se v seznamu akcí ukážou, ale do součtů, grafů ani koláče nejdou.
+  const totalsEvents = useMemo(() => filteredEvents.filter(e => e.include_in_totals !== false), [filteredEvents])
+  const excludedCount = filteredEvents.length - totalsEvents.length
+  const filteredIds = useMemo(() => new Set(totalsEvents.map(e => e.id)), [totalsEvents])
   const filteredExpenses = useMemo(() => allExpenses.filter(e => filteredIds.has(e.event_id)), [allExpenses, filteredIds])
   const filteredIncome   = useMemo(() => allIncome.filter(i => filteredIds.has(i.event_id)),   [allIncome, filteredIds])
 
@@ -226,11 +231,11 @@ function FinancialDashboard() {
     return map
   }, [allExpenses, allIncome])
 
-  const barData = useMemo(() => filteredEvents.filter(e => e.date).slice(0, 6).reverse().map(ev => ({
+  const barData = useMemo(() => totalsEvents.filter(e => e.date).slice(0, 6).reverse().map(ev => ({
     name: ev.name.length > 14 ? ev.name.slice(0, 14) + '…' : ev.name,
     příjmy: filteredIncome.filter(i => i.event_id === ev.id).reduce((s, i) => s + i.amount, 0),
     výdaje: filteredExpenses.filter(e => e.event_id === ev.id).reduce((s, e) => s + e.price, 0),
-  })), [filteredEvents, filteredIncome, filteredExpenses])
+  })), [totalsEvents, filteredIncome, filteredExpenses])
 
   const pieData = useMemo(() => {
     const catMap: Record<string, number> = {}
@@ -253,6 +258,7 @@ function FinancialDashboard() {
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Dashboard</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
             {activeFiltersLabel ? `Filtr: ${activeFiltersLabel}` : `${allEvents.length} akcí celkem · přehled financí`}
+            {excludedCount > 0 && ` · ${excludedCount} mimo součty`}
           </p>
         </div>
         <Link href="/akce/nova" style={{ padding: '9px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.05em' }}>
@@ -401,7 +407,9 @@ function FinancialDashboard() {
                 <Link key={event.id} href={`/akce/${event.id}/prehled`} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', textDecoration: 'none', transition: 'border-color 0.15s' }}>
                   {/* Název + datum */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.name}</div>
+                    <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.name}{event.include_in_totals === false && (
+                      <span title="Nezapočítává se do celkových přehledů" style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 6px', borderRadius: '10px', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.4)', verticalAlign: 'middle' }}>mimo součty</span>
+                    )}</div>
                     <div style={{ fontSize: '11px', marginTop: '2px', color: 'var(--text-muted)' }}>
                       {formatDateRange(event.date, event.date_end)}{event.location && ` · ${event.location}`}
                     </div>

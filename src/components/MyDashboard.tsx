@@ -24,7 +24,7 @@ const STATUS_COLORS: Record<string, string> = { todo: '#6b7280', in_progress: '#
 // částky, žádné výdaje/příjmy. Jen co reálně potřebují: na jaké akce mají
 // přístup a co mají udělat.
 export default function MyDashboard() {
-  const { user, role, profile } = useUser()
+  const { user, role, profile, viewAsRoleId } = useUser()
   const [events, setEvents] = useState<EventRow[]>([])
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,15 +34,16 @@ export default function MyDashboard() {
       const [{ data: evts }, { data: tsk }, accessMap] = await Promise.all([
         supabase.from('events').select('id, name, date, date_end, time_start, time_end, location, status, admin_access_mode'),
         supabase.from('tasks').select('id, title, status, priority, due_date, assigned_to_members, event_id'),
-        fetchEventAccessMap(),
+        // Přístup k akcím vynucuje databáze; mapa je potřeba jen pro náhled „Zobrazit jako".
+        viewAsRoleId ? fetchEventAccessMap() : Promise.resolve(null),
       ])
-      const visible = (evts || []).filter(e => canAccessEvent(e, role, user?.id, accessMap, e.id))
+      const visible = (evts || []).filter(e => !accessMap || canAccessEvent(e, role, user?.id, accessMap, e.id))
       setEvents(visible)
       setTasks(tsk || [])
       setLoading(false)
     }
     load()
-  }, [role, user?.id])
+  }, [role, user?.id, viewAsRoleId])
 
   const todayISO = new Date().toISOString().split('T')[0]
   const upcomingEvents = events

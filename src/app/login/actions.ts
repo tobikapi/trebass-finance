@@ -2,7 +2,6 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 
 function makeSupabase(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   return createServerClient(
@@ -21,7 +20,10 @@ function makeSupabase(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   )
 }
 
-export async function signIn(formData: FormData): Promise<{ error: string } | undefined> {
+// Po přihlášení se nepřesměrovává tady (redirect() ze server action), ale
+// v prohlížeči plným načtením — jinak zůstal klientský stav „nepřihlášen"
+// a appka do refreshe ukazovala omezený pohled bez jména.
+export async function signIn(formData: FormData): Promise<{ error?: string; ok?: true }> {
   const username = (formData.get('username') as string).trim().toLowerCase()
   const password = formData.get('password') as string
   const email = `${username}@trebass.cz`
@@ -32,12 +34,12 @@ export async function signIn(formData: FormData): Promise<{ error: string } | un
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return { error: 'Špatné uživatelské jméno nebo heslo.' }
 
-  redirect('/')
+  return { ok: true }
 }
 
 export async function signOut() {
   const cookieStore = await cookies()
   const supabase = makeSupabase(cookieStore)
   await supabase.auth.signOut()
-  redirect('/login')
+  // Přesměrování dělá volající plným načtením (viz signIn výš).
 }

@@ -89,6 +89,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
   const [marginInput, setMarginInput] = useState('')
   const [savingMargin, setSavingMargin] = useState(false)
   const [savingMarginToIncome, setSavingMarginToIncome] = useState(false)
+  const [savingIncludeInTotals, setSavingIncludeInTotals] = useState(false)
 
   async function load() {
     const [{ data: exp }, { data: inc }, { data: ev }] = await Promise.all([
@@ -225,8 +226,45 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
     setSavingMarginToIncome(false)
   }
 
+  async function toggleIncludeInTotals(include: boolean) {
+    setSavingIncludeInTotals(true)
+    const result = await callAction('updateEventIncludeInTotals', id, include)
+    setSavingIncludeInTotals(false)
+    if (result.error) { notify('Chyba: ' + result.error); return }
+    setEvent(prev => prev ? { ...prev, include_in_totals: include } : prev)
+    pushUndo(include ? 'započítání akce do přehledů' : 'vyřazení akce z přehledů', async () => {
+      const r = await callAction('updateEventIncludeInTotals', id, !include)
+      if (r.error) throw new Error(r.error)
+      setEvent(prev => prev ? { ...prev, include_in_totals: !include } : prev)
+    })
+  }
+
+  const includeInTotals = event?.include_in_totals ?? true
+
   return (
     <EventLayout eventId={id}>
+      {/* Započítávat do celkových přehledů (Dashboard) */}
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', padding: '12px 16px',
+        borderRadius: '12px', cursor: savingIncludeInTotals ? 'wait' : 'pointer',
+        backgroundColor: includeInTotals ? 'var(--bg-card-alt)' : 'rgba(251,191,36,0.08)',
+        border: `1px solid ${includeInTotals ? 'var(--border-card)' : 'rgba(251,191,36,0.35)'}`,
+      }}>
+        <input type="checkbox" checked={includeInTotals} disabled={savingIncludeInTotals}
+          onChange={e => toggleIncludeInTotals(e.target.checked)}
+          style={{ width: '18px', height: '18px', flexShrink: 0 }} />
+        <span style={{ flex: 1 }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: includeInTotals ? 'var(--text-primary)' : '#fbbf24' }}>
+            {includeInTotals ? 'Započítává se do celkových přehledů' : 'Nezapočítává se do celkových přehledů'}
+          </span>
+          <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            {includeInTotals
+              ? 'Příjmy a výdaje akce jsou v celkových součtech na Dashboardu.'
+              : 'Soukromá kalkulačka — v celkových součtech na Dashboardu se neobjeví.'}
+          </span>
+        </span>
+      </label>
+
       {/* Poznámky k akci (obecné info) */}
       <div style={{ marginBottom: '24px', padding: '18px 20px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: descEdit || event?.description ? '10px' : 0 }}>

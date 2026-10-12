@@ -87,6 +87,7 @@ export async function createEvent(form: {
   name: string; date: string; date_end: string; time_start: string; time_end: string
   location: string; type: string; status: string; description: string
   admin_access_mode?: 'all' | 'selected'; access_profile_ids?: string[]
+  include_in_totals?: boolean
 }) {
   const supabase = await requireAuth()
   const denied = await denyUnless(supabase, 'canCreate')
@@ -102,6 +103,7 @@ export async function createEvent(form: {
     status: form.status,
     description: form.description || null,
     admin_access_mode: form.admin_access_mode || 'all',
+    include_in_totals: form.include_in_totals ?? true,
   }
   const { data, error } = await supabase.from('events').insert([payload]).select().single()
   if (error) return { error: error.message }
@@ -114,6 +116,7 @@ export async function updateEvent(id: string, form: {
   name: string; date: string; date_end: string; time_start: string; time_end: string
   location: string; type: string; status: string; description: string
   admin_access_mode?: 'all' | 'selected'; access_profile_ids?: string[]
+  include_in_totals?: boolean
 }) {
   const supabase = await requireAuth()
   const denied = await denyUnless(supabase, 'canEdit')
@@ -129,6 +132,7 @@ export async function updateEvent(id: string, form: {
     status: form.status,
     description: form.description || null,
     admin_access_mode: form.admin_access_mode || 'all',
+    include_in_totals: form.include_in_totals ?? true,
   }
   const { error } = await supabase.from('events').update(payload).eq('id', id)
   if (error) return { error: error.message }
@@ -183,6 +187,18 @@ export async function updateEventMargin(id: string, margin_percent: number) {
   if (error) return { error: error.message }
   const syncError = await syncMarginIncome(supabase, id)
   if (syncError) return { error: syncError }
+  return { data: true }
+}
+
+// Akce, které slouží jen jako soukromá kalkulačka, se nemají míchat do
+// celkových součtů na Dashboardu a v Archivu.
+export async function updateEventIncludeInTotals(id: string, include: boolean) {
+  const supabase = await requireAuth()
+  const denied = await denyUnless(supabase, 'canEdit')
+  if (denied) return { error: denied }
+  const { data, error } = await supabase.from('events').update({ include_in_totals: include }).eq('id', id).select('id')
+  if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Akci se nepodařilo uložit (nemáš k ní přístup?).' }
   return { data: true }
 }
 
@@ -501,8 +517,9 @@ export async function deleteEvent(id: string) {
   const supabase = await requireAuth()
   const denied = await denyUnless(supabase, 'canDeleteEvent')
   if (denied) return { error: denied }
-  const { error } = await supabase.from('events').delete().eq('id', id)
+  const { data, error } = await supabase.from('events').delete().eq('id', id).select('id')
   if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Akci se nepodařilo smazat (nemáš k ní přístup?).' }
   return { data: true }
 }
 
@@ -520,9 +537,10 @@ export async function deleteDocument(id: string, filePath: string) {
   const supabase = await requireAuth()
   const denied = await denyUnless(supabase, 'canDelete')
   if (denied) return { error: denied }
-  await supabase.storage.from('documents').remove([filePath])
-  const { error } = await supabase.from('documents').delete().eq('id', id)
+  const { data, error } = await supabase.from('documents').delete().eq('id', id).select('id')
   if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Soubor se nepodařilo smazat (nemáš k němu přístup?).' }
+  await supabase.storage.from('documents').remove([filePath])
   return { data: true }
 }
 
@@ -836,7 +854,9 @@ export async function assignRole(profileId: string, roleId: string | null) {
     return { error: 'Musí zůstat aspoň jeden administrátor. Nejdřív povyš někoho jiného.' }
   }
 
-  const { error } = await supabase.from('profiles').update({ role_id: roleId }).eq('id', profileId)
+  const admin = getAdminClient()
+  if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const { error } = await admin.from('profiles').update({ role_id: roleId }).eq('id', profileId)
   if (error) return { error: error.message }
   return { data: true }
 }
@@ -906,7 +926,7 @@ export async function createUser(name: string, username: string, password: strin
 
   // upsert, ne insert: DB má trigger, který profil založí hned s uživatelem
   // (bez role), takže tady jen doplňujeme jméno/e-mail/roli na existující řádek.
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from('profiles')
     .upsert([{ id: created.user.id, name: trimmedName, email, role_id: roleId, must_change_password: true }])
   if (profileError) return { error: profileError.message }
@@ -940,7 +960,7 @@ export async function updateProfile(profileId: string, name: string, username: s
     return { error: authError.message }
   }
 
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from('profiles')
     .update({ name: trimmedName, email, phone: trimmedPhone || null })
     .eq('id', profileId)
@@ -997,7 +1017,7 @@ export async function resetPassword(profileId: string) {
   const { error: authError } = await admin.auth.admin.updateUserById(profileId, { password: newPassword })
   if (authError) return { error: authError.message }
 
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from('profiles')
     .update({ must_change_password: true })
     .eq('id', profileId)
@@ -1021,7 +1041,9 @@ export async function updateRolePermissions(roleId: string, permissions: Permiss
     }
   }
 
-  const { error } = await supabase.from('roles').update({ permissions }).eq('id', roleId)
+  const admin = getAdminClient()
+  if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const { error } = await admin.from('roles').update({ permissions }).eq('id', roleId)
   if (error) return { error: error.message }
   return { data: true }
 }
@@ -1032,7 +1054,9 @@ export async function renameRole(roleId: string, name: string) {
   if (denied) return { error: denied }
   const trimmedName = name.trim()
   if (!trimmedName) return { error: 'Název role je povinný.' }
-  const { error } = await supabase.from('roles').update({ name: trimmedName }).eq('id', roleId)
+  const admin = getAdminClient()
+  if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const { error } = await admin.from('roles').update({ name: trimmedName }).eq('id', roleId)
   if (error) {
     if (error.message.toLowerCase().includes('duplicate')) return { error: `Role „${trimmedName}" už existuje.` }
     return { error: error.message }
@@ -1046,7 +1070,9 @@ export async function createRole(name: string, color: string) {
   if (denied) return { error: denied }
   const trimmedName = name.trim()
   if (!trimmedName) return { error: 'Název role je povinný.' }
-  const { data, error } = await supabase
+  const admin = getAdminClient()
+  if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const { data, error } = await admin
     .from('roles')
     .insert([{ name: trimmedName, color, permissions: {}, is_system: false }])
     .select()

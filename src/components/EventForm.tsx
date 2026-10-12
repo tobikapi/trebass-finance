@@ -41,6 +41,7 @@ export default function EventForm({ existing }: Props) {
   const [admins, setAdmins] = useState<PersonOption[]>([])
   const [crew, setCrew] = useState<PersonOption[]>([])
   const [adminAccessMode, setAdminAccessMode] = useState<'all' | 'selected'>(existing?.admin_access_mode || 'all')
+  const [includeInTotals, setIncludeInTotals] = useState<boolean>(existing?.include_in_totals ?? true)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export default function EventForm({ existing }: Props) {
       time_start: showTime ? form.time_start : '', time_end: showTime ? form.time_end : '',
       admin_access_mode: adminAccessMode,
       access_profile_ids: Array.from(selectedIds),
+      include_in_totals: includeInTotals,
     }
     const result = existing
       ? await callAction('updateEvent', existing.id, payload)
@@ -177,6 +179,19 @@ export default function EventForm({ existing }: Props) {
       </div>
 
       {/* Kdo má přístup */}
+      <div style={{ borderTop: '1px solid var(--border-card)', paddingTop: '20px' }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={includeInTotals} onChange={e => setIncludeInTotals(e.target.checked)}
+            style={{ marginTop: '3px', width: '18px', height: '18px', flexShrink: 0 }} />
+          <span>
+            <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>Započítávat do celkových přehledů</span>
+            <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Vypni u akcí, které jsou jen tvoje kalkulačka a nemají nic společného s firemními penězi — nebudou se počítat do celkových součtů na Dashboardu.
+            </span>
+          </span>
+        </label>
+      </div>
+
       <div style={{ borderTop: '1px solid var(--border-card)', paddingTop: '20px' }}>
         <label style={labelStyle}>Kdo má k akci přístup</label>
 

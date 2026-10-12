@@ -1,9 +1,10 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { hasPermission, type PermissionKey, type Role } from '@/lib/permissions'
+import type { InitialUser } from '@/lib/server-user'
 
 export interface Profile {
   id: string
@@ -14,10 +15,6 @@ export interface Profile {
 
 const VIEW_AS_COOKIE = 'trebass_view_as'
 
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp('(?:^| )' + name + '=([^;]+)'))
-  return match ? decodeURIComponent(match[1]) : null
-}
 function setCookie(name: string, value: string | null) {
   document.cookie = value === null
     ? `${name}=; path=/; max-age=0`
@@ -41,79 +38,82 @@ const UserContext = createContext<UserContextType>({
   loading: true, can: () => true, viewAsRoleId: null, setViewAs: () => {},
 })
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [realRole, setRealRole] = useState<Role | null>(null)
-  const [allRoles, setAllRoles] = useState<Role[]>([])
-  const [loading, setLoading] = useState(true)
-  const [viewAsRoleId, setViewAsRoleId] = useState<string | null>(null)
+export function UserProvider({ children, initial }: { children: React.ReactNode; initial: InitialUser }) {
+  // Výchozí stav přichází ze serveru (root layout) — první vykreslení tak
+  // rovnou zná jméno i roli a nic neproblikne v omezeném pohledu.
+  const [user, setUser] = useState<User | null>(initial.user)
+  const [profile, setProfile] = useState<Profile | null>(initial.profile)
+  const [realRole, setRealRole] = useState<Role | null>(initial.realRole)
+  const [allRoles, setAllRoles] = useState<Role[]>(initial.allRoles)
+  const [loading, setLoading] = useState(false)
+  const [viewAsRoleId, setViewAsRoleId] = useState<string | null>(initial.viewAsRoleId)
+  const userIdRef = useRef<string | null>(initial.user?.id ?? null)
+  const loadSeq = useRef(0)
 
   useEffect(() => {
     let mounted = true
 
     // Profil a role se načítají zvlášť schválně: kdyby tabulka `roles` ještě
     // neexistovala (nedoběhlá migrace), nesmí to shodit i načtení jména a e-mailu.
+    // loadSeq: když se dvě načtení překryjí, uloží se jen to poslední —
+    // dřív starší (pomalejší) načtení umělo přepsat novější výsledek.
     async function loadFor(currentUser: User | null) {
+      const seq = ++loadSeq.current
+      const isCurrent = () => mounted && seq === loadSeq.current
       if (!currentUser) {
-        if (mounted) { setProfile(null); setRealRole(null) }
+        if (isCurrent()) { setProfile(null); setRealRole(null); setAllRoles([]) }
         return
       }
+      setLoading(true)
       try {
         const { data } = await supabase.from('profiles')
-          .select('id, name, email, role_id').eq('id', currentUser.id).single()
-        if (mounted) setProfile(data)
+          .select('id, name, email, role_id').eq('id', currentUser.id).maybeSingle()
+        let roleRow: Role | null = null
         if (data?.role_id) {
-          const { data: roleRow } = await supabase.from('roles')
-            .select('id, name, color, permissions, is_system').eq('id', data.role_id).single()
-          if (mounted) setRealRole(roleRow)
-        } else if (mounted) {
-          setRealRole(null)
+          const res = await supabase.from('roles')
+            .select('id, name, color, permissions, is_system').eq('id', data.role_id).maybeSingle()
+          roleRow = res.data
         }
+        let roles: Role[] = []
+        if (roleRow?.permissions?.admin === true) {
+          const res = await supabase.from('roles').select('id, name, color, permissions, is_system').order('name')
+          roles = res.data || []
+        }
+        if (isCurrent()) { setProfile(data); setRealRole(roleRow); setAllRoles(roles) }
       } catch {
-        // Role se nenačetla — necháváme null, což znamená plný přístup.
-        // Server má vlastní kontrolu, tohle je jen skrývání v UI.
+        // Role se nenačetla — necháváme předchozí stav.
+        // Server a databáze mají vlastní kontrolu, tohle je jen skrývání v UI.
+      } finally {
+        if (isCurrent()) setLoading(false)
       }
     }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Znovu načítat jen při skutečné změně přihlášeného člověka. Obnovení
+    // tokenu (TOKEN_REFRESHED) ani úvodní INITIAL_SESSION pro stejného
+    // uživatele nic nemění — data už přišla ze serveru.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return
       const currentUser = session?.user ?? null
+      const newId = currentUser?.id ?? null
+      if (newId === userIdRef.current) return
+      userIdRef.current = newId
+      if (!currentUser) {
+        // Odhlášení (i v jiné záložce) — plné načtení vyčistí vše v paměti.
+        window.location.assign('/login')
+        return
+      }
       setUser(currentUser)
-      await loadFor(currentUser)
-      if (mounted) setLoading(false)
+      // Supabase doporučuje v callbacku nevolat další dotazy synchronně.
+      setTimeout(() => { loadFor(currentUser) }, 0)
     })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted) return
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      await loadFor(currentUser)
-      if (mounted) setLoading(false)
-    })
-
-    const timeout = setTimeout(() => { if (mounted) setLoading(false) }, 2000)
 
     return () => {
       mounted = false
       subscription.unsubscribe()
-      clearTimeout(timeout)
     }
   }, [])
 
   const isRealAdmin = realRole?.permissions?.admin === true
-
-  // Jen skuteční admini smí mít aktivní náhled jiné role — `effectiveViewAsId`
-  // níž na tom trvá bez ohledu na tenhle state, takže ho stačí jen nastavit
-  // pro adminy a nikdy explicitně resetovat (odvozená hodnota to ohlídá sama).
-  useEffect(() => {
-    if (!isRealAdmin) return
-    supabase.from('roles').select('id, name, color, permissions, is_system').order('name')
-      .then(({ data }) => setAllRoles(data || []))
-    const saved = getCookie(VIEW_AS_COOKIE)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- jednorázové obnovení z cookie při mountu, ne odvozený stav
-    if (saved) setViewAsRoleId(saved)
-  }, [isRealAdmin])
 
   const setViewAs = useCallback((roleId: string | null) => {
     setViewAsRoleId(roleId)

@@ -97,13 +97,20 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
 
   async function handleDelete(doc: Document) {
     if (!confirm(`Smazat "${doc.name}"?`)) return
-    await callAction('deleteDocument', doc.id, doc.file_path)
+    const result = await callAction('deleteDocument', doc.id, doc.file_path)
+    if (result.error) notify('Chyba: ' + result.error)
     await load()
   }
 
-  function getPublicUrl(filePath: string) {
-    const { data } = supabase.storage.from('documents').getPublicUrl(filePath)
-    return data.publicUrl
+  // Úložiště je soukromé — místo trvalého veřejného odkazu se při kliknutí
+  // vyrobí podepsaný odkaz platný 5 minut. Okno se otevře hned (synchronně
+  // v kliknutí), jinak by ho Safari po await zablokoval jako pop-up.
+  async function handleOpen(doc: Document) {
+    const win = window.open('', '_blank')
+    const { data, error } = await supabase.storage.from('documents').createSignedUrl(doc.file_path, 300)
+    if (error || !data) { win?.close(); notify('Soubor se nepodařilo otevřít.'); return }
+    if (win) win.location.replace(data.signedUrl)
+    else window.location.assign(data.signedUrl)
   }
 
   async function handleDownload(doc: Document) {
@@ -175,10 +182,10 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginLeft: '16px' }}>
-                <a href={getPublicUrl(doc.file_path)} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: '12px', color: '#f4978e', textDecoration: 'none', padding: '4px 12px', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                <button onClick={() => handleOpen(doc)}
+                  style={{ fontSize: '12px', color: '#f4978e', background: 'none', cursor: 'pointer', padding: '4px 12px', border: '1px solid var(--border)', borderRadius: '6px' }}>
                   Otevřít
-                </a>
+                </button>
                 <button onClick={() => handleDownload(doc)}
                   style={{ fontSize: '12px', color: '#60a5fa', background: 'none', border: '1px solid #1e2d3d', borderRadius: '6px', cursor: 'pointer', padding: '4px 12px' }}>
                   ⬇ Stáhnout

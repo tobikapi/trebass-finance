@@ -147,7 +147,7 @@ export default function Navigation() {
                 {userName}
               </span>
             </div>
-            <button disabled={isPending} onClick={() => startTransition(() => signOut())}
+            <button disabled={isPending} onClick={() => startTransition(async () => { await signOut(); window.location.assign('/login') })}
               style={{ fontSize: '12px', color: '#e05555', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 14px', transition: 'all 0.15s' }}>
               Odhlásit
             </button>
@@ -191,7 +191,7 @@ export default function Navigation() {
                 {isLight ? '🌙' : '☀️'}
               </button>
             </div>
-            <button disabled={isPending} onClick={() => startTransition(() => signOut())}
+            <button disabled={isPending} onClick={() => startTransition(async () => { await signOut(); window.location.assign('/login') })}
               style={{ width: '100%', padding: '13px', backgroundColor: '#1a0808', color: '#e05555', border: '1px solid #3d1515', borderRadius: '10px', cursor: 'pointer', fontSize: '15px', fontWeight: '600', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
               {isPending ? 'Odhlašuji...' : 'Odhlásit se'}
             </button>

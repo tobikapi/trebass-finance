@@ -319,3 +319,6 @@ button:not(:disabled):active { transform: scale(0.96); }
   .page-main { padding: 0 !important; margin: 0 !important; max-width: none !important; }
   .print-page { color: #111; }
 }
+
+/* Splash jen jednou za relaci — viz SplashScreen.tsx */
+html[data-splash-seen] .splash-screen { display: none !important; }

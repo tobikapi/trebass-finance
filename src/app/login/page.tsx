@@ -14,6 +14,7 @@ export default function LoginPage() {
     startTransition(async () => {
       const result = await signIn(formData)
       if (result?.error) setError(result.error)
+      else window.location.assign('/')
     })
   }
 

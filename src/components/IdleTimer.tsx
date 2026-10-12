@@ -17,7 +17,7 @@ export default function IdleTimer() {
     const reset = () => {
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => {
-        startTransition(() => signOut())
+        startTransition(async () => { await signOut(); window.location.assign('/login') })
       }, IDLE_MS)
     }
 

@@ -26,17 +26,35 @@ const TABS = (id: string): { href: string; label: string; permission: Permission
   { href: `/akce/${id}/soubory`,  label: '📎 Soubory',   permission: 'viewSoubory'  },
 ]
 
+// Hlavička akce se při každém přepnutí záložky montuje znovu (je uvnitř
+// každé stránky). Bez paměti by se pokaždé znovu stahovala a název by
+// na chvíli ukazoval „...". Paměť žije jen do plného načtení stránky.
+const eventCache = new Map<string, Event>()
+
 export default function EventLayout({ eventId, children }: Props) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, role, can, loading } = useUser()
-  const [event, setEvent] = useState<Event | null>(null)
+  const { user, role, can, loading, viewAsRoleId } = useUser()
+  const [event, setEvent] = useState<Event | null>(() => eventCache.get(eventId) ?? null)
   const [accessMap, setAccessMap] = useState<Map<string, Set<string>> | null>(null)
 
+  // Přístup k akci hlídá databáze (RLS): akci, na kterou člověk nemá, prostě
+  // nevrátí → zpět na seznam. Mapa přístupů je potřeba jen při náhledu
+  // „Zobrazit jako", o kterém databáze neví.
   useEffect(() => {
-    supabase.from('events').select('*').eq('id', eventId).single().then(({ data }) => setEvent(data))
+    let active = true
+    supabase.from('events').select('*').eq('id', eventId).maybeSingle().then(({ data, error }) => {
+      if (!active) return
+      if (data) { eventCache.set(eventId, data); setEvent(data) }
+      else if (!error) { eventCache.delete(eventId); router.replace('/akce') }
+    })
+    return () => { active = false }
+  }, [eventId, router])
+
+  useEffect(() => {
+    if (!viewAsRoleId) return
     fetchEventAccessMap().then(setAccessMap)
-  }, [eventId])
+  }, [viewAsRoleId])
 
   const visibleTabs = TABS(eventId).filter(tab => can(tab.permission))
 
@@ -44,8 +62,8 @@ export default function EventLayout({ eventId, children }: Props) {
   // dokud nejsou načtená data (role, event, access mapa), nic neblokujeme,
   // ať se stránka po refreshi na zlomek sekundy nezablikne pryč.
   useEffect(() => {
-    if (loading || !event || !accessMap) return
-    if (!canAccessEvent(event, role, user?.id, accessMap, eventId)) {
+    if (loading || !event) return
+    if (accessMap && !canAccessEvent(event, role, user?.id, accessMap, eventId)) {
       router.replace('/akce')
       return
     }

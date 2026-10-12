@@ -4,12 +4,13 @@ import "./globals.css"
 import AppShell from "@/components/AppShell"
 import SplashScreen from "@/components/SplashScreen"
 import { UserProvider } from "@/lib/user-context"
+import { getInitialUser } from "@/lib/server-user"
 import { ThemeProvider } from "@/lib/theme-context"
 import { UndoProvider } from "@/lib/undo-context"
 import { DialogProvider } from "@/lib/dialog-context"
 
 const awakenning = localFont({
-  src: '../../public/fonts/AWAKENNING.ttf',
+  src: '../../public/fonts/AWAKENNING.woff2',
   variable: '--font-awakenning',
   display: 'swap',
 })
@@ -28,15 +29,16 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const initialUser = await getInitialUser()
   return (
-    <html lang="cs" className={awakenning.variable} data-theme="dark">
+    <html lang="cs" className={awakenning.variable} data-theme="dark" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);try{if(sessionStorage.getItem('trebass_splash_seen')==='1')document.documentElement.setAttribute('data-splash-seen','')}catch(e){}})();` }} />
       </head>
       <body style={{ margin: 0, minHeight: '100vh' }}>
         <ThemeProvider>
-          <UserProvider>
+          <UserProvider initial={initialUser}>
             <DialogProvider>
               <UndoProvider>
                 <SplashScreen />

@@ -3,26 +3,42 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 
+export const SPLASH_KEY = 'trebass_splash_seen'
+
 export default function SplashScreen() {
   const [phase, setPhase] = useState<'in' | 'hold' | 'out' | 'gone'>('in')
 
+  // Splash jen jednou za relaci (záložka/okno appky) a kratší — dřív při
+  // každém načtení stránky natvrdo blokoval 2,5 s. Jestli už se ukázal, pozná
+  // inline skript v layout.tsx ještě před prvním vykreslením (atribut
+  // data-splash-seen na <html> ho schová CSS), tady se jen uklidí.
   useEffect(() => {
+    let seen = false
+    try { seen = sessionStorage.getItem(SPLASH_KEY) === '1' } catch {}
+    if (seen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- jednorázové rozhodnutí při mountu podle sessionStorage
+      setPhase('gone')
+      return
+    }
+    try { sessionStorage.setItem(SPLASH_KEY, '1') } catch {}
+    const timers: ReturnType<typeof setTimeout>[] = []
     document.fonts.ready.then(() => {
       // logo fade-in → hold → fade-out
-      setTimeout(() => setPhase('hold'), 100)
-      setTimeout(() => setPhase('out'), 1800)
-      setTimeout(() => setPhase('gone'), 2500)
+      timers.push(setTimeout(() => setPhase('hold'), 50))
+      timers.push(setTimeout(() => setPhase('out'), 700))
+      timers.push(setTimeout(() => setPhase('gone'), 1150))
     })
+    return () => timers.forEach(clearTimeout)
   }, [])
 
   if (phase === 'gone') return null
 
   return (
-    <div style={{
+    <div className="splash-screen" style={{
       position: 'fixed', inset: 0, zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       opacity: phase === 'out' ? 0 : 1,
-      transition: phase === 'out' ? 'opacity 0.7s ease' : 'none',
+      transition: phase === 'out' ? 'opacity 0.45s ease' : 'none',
       pointerEvents: 'none',
       overflow: 'hidden',
     }}>

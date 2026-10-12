@@ -307,3 +307,10 @@ alter table profiles add column if not exists must_change_password boolean not n
 -- externí dodavatele/umělce — upravuje se v Role → Upravit.
 -- ---------------------------------------------------------------------------
 alter table profiles add column if not exists phone text;
+
+-- ---------------------------------------------------------------------------
+-- Bezpečnost: skutečné RLS místo „allow all" + soukromé úložiště (12.10.2026)
+-- Celé v sql/2026-10-12_bezpecnost_rls.sql (nouzový návrat v *_NAVRAT.sql).
+-- Přidává i events.created_by a events.include_in_totals.
+-- Výše uvedené politiky „allow all" tím přestávají platit.
+-- ---------------------------------------------------------------------------

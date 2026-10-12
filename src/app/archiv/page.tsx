@@ -21,19 +21,17 @@ export default function ArchivPage() {
       const evts = data || []
       setEvents(evts)
 
+      // Dva dotazy pro všechny akce najednou místo dvou na každou akci —
+      // každý dotaz z prohlížeče do Supabase stojí ~150 ms.
+      const ids = evts.map(ev => ev.id)
+      const [{ data: exp }, { data: inc }] = ids.length ? await Promise.all([
+        supabase.from('expenses').select('event_id, price').in('event_id', ids),
+        supabase.from('income').select('event_id, amount').in('event_id', ids),
+      ]) : [{ data: [] }, { data: [] }]
       const statsMap: Record<string, { expenses: number; income: number }> = {}
-      await Promise.all(
-        evts.map(async (ev) => {
-          const [{ data: exp }, { data: inc }] = await Promise.all([
-            supabase.from('expenses').select('price').eq('event_id', ev.id),
-            supabase.from('income').select('amount').eq('event_id', ev.id),
-          ])
-          statsMap[ev.id] = {
-            expenses: exp?.reduce((s, e) => s + e.price, 0) || 0,
-            income: inc?.reduce((s, i) => s + i.amount, 0) || 0,
-          }
-        })
-      )
+      for (const id of ids) statsMap[id] = { expenses: 0, income: 0 }
+      for (const e of exp || []) statsMap[e.event_id].expenses += e.price
+      for (const i of inc || []) statsMap[i.event_id].income += i.amount
       setStats(statsMap)
       setLoading(false)
     }
@@ -67,7 +65,9 @@ export default function ArchivPage() {
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{event.name}</div>
+                    <div className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{event.name}{event.include_in_totals === false && (
+                      <span title="Nezapočítává se do celkových přehledů" style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 6px', borderRadius: '10px', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.4)', verticalAlign: 'middle' }}>mimo součty</span>
+                    )}</div>
                     <div className="flex gap-4 mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
                       <span>📅 {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}</span>
                       {event.location && <span>📍 {event.location}</span>}
