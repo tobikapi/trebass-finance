@@ -14,7 +14,7 @@ import { useEventPermissions } from '@/lib/event-permissions'
 import { useRealtime } from '@/lib/use-realtime'
 import { netOf } from '@/lib/settlement'
 import {
-  LEDGER_KIND_COLORS, LEDGER_KIND_HINTS, LEDGER_KIND_LABELS, LEDGER_SELECT, sortLedger, type LedgerPerson, type LedgerRow,
+  LEDGER_KIND_COLORS, LEDGER_KIND_HINTS, LEDGER_KIND_LABELS, LEDGER_SELECT, sortLedger, todayPrague, type LedgerPerson, type LedgerRow,
 } from '@/lib/ledger'
 
 // Záložka Tým = pohyby z Knihy majitelů pro tuhle akci (vklady, výběry,
@@ -94,7 +94,7 @@ export default function TymClient({ id, initialLedger, people }: Props) {
   }, [rows])
 
   function openAdd(kind: TymKind = 'vklad') {
-    setForm({ ...emptyForm, kind, date: new Date().toISOString().slice(0, 10) })
+    setForm({ ...emptyForm, kind, date: todayPrague() })
     setEditId(null); setShowForm(true)
   }
 

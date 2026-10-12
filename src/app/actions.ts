@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { todayPrague } from '@/lib/ledger'
 import { EVENT_PERMISSION_KEYS, hasPermission, type PermissionKey, type Permissions } from '@/lib/permissions'
 
 async function requireAuth() {
@@ -671,7 +672,7 @@ export async function closeLedger(closedOn: string | null, note: string | null) 
   const { count } = await supabase.from('owner_ledger').select('id', { count: 'exact', head: true }).is('closing_id', null)
   if (!count) return { error: 'Není co uzavřít — žádné otevřené pohyby.' }
   const { data: closing, error } = await supabase.from('ledger_closings')
-    .insert([{ closed_on: closedOn || new Date().toISOString().slice(0, 10), note: note || null }]).select().single()
+    .insert([{ closed_on: closedOn || todayPrague(), note: note || null }]).select().single()
   if (error) return { error: error.message }
   const { data: updated, error: updError } = await supabase.from('owner_ledger')
     .update({ closing_id: closing.id }).is('closing_id', null).select('id')
@@ -705,7 +706,7 @@ export async function setCompanyBalance(amount: number, asOf: string, note: stri
   const denied = await denyUnless(supabase, 'viewFirma') ?? await denyUnless(supabase, 'canCreate')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('company_balance')
-    .insert([{ amount: roundMoney(amount), as_of: asOf || new Date().toISOString().slice(0, 10), note: note || null }]).select().single()
+    .insert([{ amount: roundMoney(amount), as_of: asOf || todayPrague(), note: note || null }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }

@@ -95,3 +95,10 @@ export function toContributionRows(
     }
   })
 }
+
+// Dnešní datum (YYYY-MM-DD) podle českého času. toISOString() dává UTC —
+// mezi půlnocí a 2:00 by vracelo včerejšek. Funguje stejně v prohlížeči
+// i na serveru (Vercel běží v UTC).
+export function todayPrague(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Prague', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}

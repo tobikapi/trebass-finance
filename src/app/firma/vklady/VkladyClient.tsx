@@ -13,7 +13,7 @@ import Collapse from '@/components/Collapse'
 import LedgerStyles from '@/components/LedgerStyles'
 import { computeSettlement, type LedgerKind } from '@/lib/settlement'
 import {
-  LEDGER_KIND_COLORS, LEDGER_KIND_HINTS, LEDGER_KIND_LABELS, LEDGER_SELECT, LEDGER_SOURCE_LABELS, isPairKind, sortLedger,
+  LEDGER_KIND_COLORS, LEDGER_KIND_HINTS, LEDGER_KIND_LABELS, LEDGER_SELECT, LEDGER_SOURCE_LABELS, isPairKind, sortLedger, todayPrague,
   type CompanyBalanceRow, type LedgerClosing, type LedgerPerson, type LedgerRow,
 } from '@/lib/ledger'
 
@@ -36,7 +36,7 @@ type Scope = 'all' | 'firma' | string
 
 const fmt = (n: number) => Math.round(n).toLocaleString('cs-CZ') + ' Kč'
 const signed = (n: number) => (Math.round(n) > 0 ? '+' : '') + fmt(n)
-const today = () => new Date().toISOString().slice(0, 10)
+const today = todayPrague
 const fmtDate = (d: string | null) => {
   if (!d) return '—'
   const [y, m, day] = d.split('-').map(Number)
@@ -555,7 +555,7 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={labelStyle}>Poznámka</label>
-              <input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="např. vklad z vlastních úspor, Makro, ploty…" style={inputStyle} />
+              <input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder={{ vklad: 'např. vklad z vlastních úspor, Makro, ploty…', vyber: 'např. výplata zisku, vrácení vkladu…', dluh: 'např. podíl na ztrátě Spring Edition…', vyrovnani: 'např. splacení dluhu za Spring Edition…' }[form.kind]} style={inputStyle} />
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="submit" disabled={saving} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#e05555', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
