@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import TiskClient from './TiskClient'
 import { LINEUP_SELECT, toArtist } from '@/lib/lineup'
+import { toContributionRows } from '@/lib/ledger'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,10 +22,14 @@ export default async function TiskPage({ params }: Props) {
     supabase.from('expenses').select('*').eq('event_id', id).order('category'),
     supabase.from('income').select('*').eq('event_id', id),
     supabase.from('lineup').select(LINEUP_SELECT).eq('event_id', id).order('set_time'),
-    supabase.from('team_contributions').select('*').eq('event_id', id),
+    supabase.from('owner_ledger').select('id, profile_id, kind, amount, event_id, date, note, created_at').eq('event_id', id),
     supabase.from('notes').select('*').eq('event_id', id).order('created_at', { ascending: false }),
     supabase.from('event_equipment').select('*').eq('event_id', id).eq('elektrina_extra', false).order('created_at'),
   ])
+  // Tým = vklady a výběry z Knihy majitelů (vyrovnání mezi lidmi se netiskne)
+  const { data: people } = await supabase.from('profiles').select('id, name')
+  const team = toContributionRows(tm || [], people || [], ev ? [ev] : [])
+    .map(c => ({ id: c.id, event_id: id, name: c.name, amount: c.amount, note: c.note, created_at: '' }))
 
   const vendors = (ex || []).filter(e => e.category === 'TECHNIKA')
 
@@ -35,7 +40,7 @@ export default async function TiskPage({ params }: Props) {
       expenses={ex || []}
       income={inc || []}
       lineup={(lin || []).map(toArtist)}
-      team={tm || []}
+      team={team}
       notes={nt || []}
       equipment={eq || []}
       vendors={vendors}

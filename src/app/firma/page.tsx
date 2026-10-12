@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import FirmaClient from './FirmaClient'
+import { toContributionRows } from '@/lib/ledger'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,22 +18,15 @@ export default async function FirmaPage() {
     }
   )
 
-  const [{ data: expenses }, { data: income }, { data: contrib }, { data: events }] = await Promise.all([
+  const [{ data: expenses }, { data: income }, { data: ledger }, { data: events }, { data: people }] = await Promise.all([
     supabase.from('company_expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('company_income').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-    supabase.from('team_contributions').select('*'),
+    supabase.from('owner_ledger').select('id, profile_id, kind, amount, event_id, date, note, created_at'),
     supabase.from('events').select('id, name, date'),
+    supabase.from('profiles').select('id, name'),
   ])
 
-  const eventsById = new Map((events || []).map(e => [e.id, e]))
-  const contributions = (contrib || []).map(c => {
-    const ev = eventsById.get(c.event_id)
-    return {
-      id: c.id, name: c.name, amount: c.amount, note: c.note,
-      event_name: ev?.name || 'Neznámá akce',
-      year: ev?.date ? ev.date.split('-')[0] : c.created_at.split('-')[0],
-    }
-  })
+  const contributions = toContributionRows(ledger || [], people || [], events || [])
 
   return (
     <FirmaClient

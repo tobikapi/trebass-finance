@@ -9,6 +9,8 @@ import {
 import { callAction } from '@/lib/call-action'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
+import { toContributionRows, type ContributionRow } from '@/lib/ledger'
+import Link from 'next/link'
 import PermissionGuard from '@/components/PermissionGuard'
 import Collapse from '@/components/Collapse'
 import { useUser } from '@/lib/user-context'
@@ -20,14 +22,6 @@ const emptyIncForm = {
   source: COMPANY_INCOME_SOURCES[0], name: '', amount: '', note: '', date: '',
 }
 
-interface ContributionRow {
-  id: string
-  name: string
-  amount: number
-  note: string | null
-  event_name: string
-  year: string
-}
 
 const inputStyle: CSSProperties = {
   backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)',
@@ -78,23 +72,16 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
   const [savingInc, setSavingInc] = useState(false)
 
   async function load() {
-    const [{ data: exp }, { data: inc }, { data: contrib }, { data: events }] = await Promise.all([
+    const [{ data: exp }, { data: inc }, { data: ledger }, { data: events }, { data: people }] = await Promise.all([
       supabase.from('company_expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('company_income').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-      supabase.from('team_contributions').select('*'),
+      supabase.from('owner_ledger').select('id, profile_id, kind, amount, event_id, date, note, created_at'),
       supabase.from('events').select('id, name, date'),
+      supabase.from('profiles').select('id, name'),
     ])
     setExpenses(exp || [])
     setIncome(inc || [])
-    const eventsById = new Map((events || []).map(e => [e.id, e]))
-    setContributions((contrib || []).map(c => {
-      const ev = eventsById.get(c.event_id)
-      return {
-        id: c.id, name: c.name, amount: c.amount, note: c.note,
-        event_name: ev?.name || 'Neznámá akce',
-        year: ev?.date ? ev.date.split('-')[0] : c.created_at.split('-')[0],
-      }
-    }))
+    setContributions(toContributionRows(ledger || [], people || [], events || []))
   }
 
   const availableYears = useMemo(() => {
@@ -275,6 +262,20 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
         </p>
       </div>
 
+      <Link href="/firma/vklady" className="card-hover" style={{
+        display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', padding: '16px 20px', borderRadius: '12px',
+        textDecoration: 'none', backgroundColor: 'rgba(224,85,85,0.08)', border: '1px solid rgba(224,85,85,0.35)',
+      }}>
+        <span style={{ fontSize: '26px' }}>🧮</span>
+        <span style={{ flex: 1 }}>
+          <span style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Vklady a vyrovnání</span>
+          <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            Kolik kdo vložil a vybral, kdo komu kolik pošle a kolik kdo má ve firmě
+          </span>
+        </span>
+        <span style={{ color: '#e05555', fontSize: '18px' }}>→</span>
+      </Link>
+
       {/* Year filter */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '12px 20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>ROK</span>
@@ -445,19 +446,19 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
         {/* ===== VKLADY ===== */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Vklady do firmy</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Ostatní příjmy firmy</h2>
             {canCreate && (<button
               onClick={() => { setIncForm(emptyIncForm); setEditIncId(null); setShowIncForm(v => !v) }}
               style={{ padding: '7px 16px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer' }}
             >
-              + Přidat vklad
+              + Přidat příjem
             </button>)}
           </div>
 
           {showIncForm && (
             <form onSubmit={handleIncSave} style={{ marginBottom: '16px', padding: '18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid #16a34a' }}>
               <div style={{ fontSize: '13px', fontWeight: '600', color: '#34d399', marginBottom: '14px' }}>
-                {editIncId ? 'Upravit vklad' : 'Nový vklad mimo akce'}
+                {editIncId ? 'Upravit příjem' : 'Nový příjem mimo akce'}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 <div>
@@ -544,13 +545,13 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
       {/* ===== VKLADY Z AKCÍ (auto, ze sekce Tým) ===== */}
       <div style={{ marginTop: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Vklady z akcí</h2>
-          <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Přidávají se v sekci Tým u jednotlivé akce</span>
+          <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Vklady a výběry majitelů</h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Z Knihy — přidávají se v Týmu u akce nebo ve <Link href="/firma/vklady" style={{ color: '#f4978e' }}>Vklady a vyrovnání</Link></span>
         </div>
 
         {groupedContrib.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '32px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '13px' }}>
-            Zatím žádné vklady z akcí pro vybraný rok.
+            Zatím žádné vklady pro vybraný rok.
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
@@ -574,7 +575,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 16px', borderRadius: '8px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', fontSize: '12px', gridColumn: '1 / -1' }}>
               <span style={{ color: 'var(--text-muted)' }}>
-                Celkem z akcí: <strong style={{ color: '#38bdf8' }}>{fmt(totalContrib)}</strong>
+                Celkem čistě: <strong style={{ color: '#38bdf8' }}>{fmt(totalContrib)}</strong>
               </span>
             </div>
           </div>

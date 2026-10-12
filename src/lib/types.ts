@@ -156,7 +156,7 @@ export const CATEGORY_COLORS: Record<string, { color: string; bg: string; border
 export const INCOME_SOURCES = ['VSTUPNÉ', 'BAR', 'SPONZOR', 'DOTACE', 'JINÉ']
 
 export const COMPANY_CATEGORIES = [
-  'DANĚ A ODVODY', 'MZDY A ODMĚNY', 'POJISTNÉ', 'SOFTWARE A SLUŽBY', 'SPLATKY MAJITELŮ', 'JINÉ',
+  'DANĚ A ODVODY', 'MZDY A ODMĚNY', 'POJISTNÉ', 'SOFTWARE A SLUŽBY', 'JINÉ',
 ]
 
 export const COMPANY_CATEGORY_COLORS: Record<string, { color: string; bg: string; border: string }> = {
@@ -168,7 +168,8 @@ export const COMPANY_CATEGORY_COLORS: Record<string, { color: string; bg: string
   'JINÉ':              { color: '#9ca3af', bg: '#1a1a1a', border: '#2d2d2d' },
 }
 
-export const COMPANY_INCOME_SOURCES = ['VKLAD Z ÚSPOR', 'JINÉ']
+// Vklady a splátky majitelů jsou v Knize majitelů (owner_ledger), ne tady.
+export const COMPANY_INCOME_SOURCES = ['JINÉ']
 
 export interface CompanyExpense {
   id: string

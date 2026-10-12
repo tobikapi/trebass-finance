@@ -563,27 +563,112 @@ export async function toggleArtistPaid(id: string, paid: boolean) {
   return { data: true }
 }
 
-// TEAM
-export async function createContribution(payload: {
-  event_id: string; name: string; amount: number; note: string | null
-}) {
+// KNIHA MAJITELŮ (vklady, výběry, vyrovnání) — viz sql/2026-10-13_kniha_majitelu.sql
+// Nahrazuje team_contributions (záložka Tým) a vklady/splátky majitelů ve Firmě.
+type LedgerKind = 'vklad' | 'vyber' | 'vyrovnani'
+interface LedgerPayload {
+  profile_id: string; counterparty_id?: string | null; kind: LedgerKind; amount: number
+  event_id: string | null; date: string | null; note: string | null
+}
+
+// Pohyby akce smí měnit i kdo má Tým v akci, pohyby Firmy jen kdo má Firmu.
+// Stejné pravidlo jako can_ledger() v databázi (ta ho vynucuje i sama).
+async function denyLedger(supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string | null, action: PermissionKey) {
+  const { data, error } = await supabase.rpc('can_ledger', { eid: eventId, action })
+  if (error) return error.message
+  return data === true ? null : 'Na tuhle akci nemáš oprávnění.'
+}
+
+function invalidLedger(p: LedgerPayload): string | null {
+  if (!p.profile_id) return 'Vyber, kdo peníze vložil nebo dostal.'
+  if (!['vklad', 'vyber', 'vyrovnani'].includes(p.kind)) return 'Neplatný typ pohybu.'
+  if (!Number.isFinite(p.amount) || p.amount <= 0) return 'Částka musí být kladné číslo.'
+  if (p.kind === 'vyrovnani' && !p.counterparty_id) return 'U vyrovnání vyber, komu se peníze poslaly.'
+  if (p.kind === 'vyrovnani' && p.counterparty_id === p.profile_id) return 'Nejde poslat peníze sám sobě.'
+  return null
+}
+
+function cleanLedger(p: LedgerPayload) {
+  return {
+    profile_id: p.profile_id,
+    counterparty_id: p.kind === 'vyrovnani' ? p.counterparty_id ?? null : null,
+    kind: p.kind,
+    amount: roundMoney(p.amount),
+    event_id: p.event_id || null,
+    date: p.date || null,
+    note: p.note || null,
+  }
+}
+
+export async function createLedgerEntry(payload: LedgerPayload) {
+  const invalid = invalidLedger(payload)
+  if (invalid) return { error: invalid }
   const supabase = await requireAuth()
-  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
+  const denied = await denyLedger(supabase, payload.event_id || null, 'canCreate')
   if (denied) return { error: denied }
-  const { data, error } = await supabase.from('team_contributions').insert([payload]).select().single()
+  const { data, error } = await supabase.from('owner_ledger').insert([{ ...cleanLedger(payload), source: 'rucne' }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }
 
-export async function updateContribution(id: string, payload: {
-  name: string; amount: number; note: string | null
-}) {
+export async function updateLedgerEntry(id: string, payload: LedgerPayload) {
+  const invalid = invalidLedger(payload)
+  if (invalid) return { error: invalid }
   const supabase = await requireAuth()
-  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'team_contributions', id), 'canEdit')
+  const { data: prev } = await supabase.from('owner_ledger').select('event_id').eq('id', id).maybeSingle()
+  if (!prev) return { error: 'Pohyb neexistuje nebo k němu nemáš přístup.' }
+  // Přesun mezi akcemi / Firmou: smět upravit v původním i v novém místě
+  const denied = await denyLedger(supabase, prev.event_id, 'canEdit')
+    ?? await denyLedger(supabase, payload.event_id || null, 'canEdit')
   if (denied) return { error: denied }
-  const { error } = await supabase.from('team_contributions').update(payload).eq('id', id)
+  const { data, error } = await supabase.from('owner_ledger').update(cleanLedger(payload)).eq('id', id).select('id')
   if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Pohyb se nepodařilo uložit.' }
   return { data: true }
+}
+
+export async function deleteLedgerEntry(id: string) {
+  const supabase = await requireAuth()
+  const { data: prev } = await supabase.from('owner_ledger').select('event_id').eq('id', id).maybeSingle()
+  if (!prev) return { error: 'Pohyb neexistuje nebo k němu nemáš přístup.' }
+  const denied = await denyLedger(supabase, prev.event_id, 'canDelete')
+  if (denied) return { error: denied }
+  const { data, error } = await supabase.from('owner_ledger').delete().eq('id', id).select('id')
+  if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Pohyb se nepodařilo smazat.' }
+  return { data: true }
+}
+
+// Zapíše navržené převody z kalkulačky jako provedené: „firma → X" = výběr X,
+// „A → B" = vyrovnání. Jedním insertem, ať se nezapíše jen půlka.
+export async function recordSettlement(eventId: string | null, transfers: { from: string; to: string; amount: number }[], date: string | null, note: string | null) {
+  if (!transfers.length) return { error: 'Není co zapsat.' }
+  const rows: LedgerPayload[] = transfers.map(t => t.from === 'firma'
+    ? { profile_id: t.to, kind: 'vyber', amount: t.amount, event_id: eventId, date, note }
+    : { profile_id: t.from, counterparty_id: t.to, kind: 'vyrovnani', amount: t.amount, event_id: eventId, date, note })
+  for (const r of rows) {
+    const invalid = invalidLedger(r)
+    if (invalid) return { error: invalid }
+  }
+  const supabase = await requireAuth()
+  const denied = await denyLedger(supabase, eventId, 'canCreate')
+  if (denied) return { error: denied }
+  const { data, error } = await supabase.from('owner_ledger')
+    .insert(rows.map(r => ({ ...cleanLedger(r), source: 'kalkulacka' }))).select('id')
+  if (error) return { error: error.message }
+  return { data: (data || []).map(d => d.id as string) }
+}
+
+// Zůstatek na účtu firmy zadaný ručně z bankovnictví (s datem, ke kdy platí).
+export async function setCompanyBalance(amount: number, asOf: string, note: string | null) {
+  if (!Number.isFinite(amount)) return { error: 'Zůstatek musí být číslo.' }
+  const supabase = await requireAuth()
+  const denied = await denyUnless(supabase, 'viewFirma') ?? await denyUnless(supabase, 'canCreate')
+  if (denied) return { error: denied }
+  const { data, error } = await supabase.from('company_balance')
+    .insert([{ amount: roundMoney(amount), as_of: asOf || new Date().toISOString().slice(0, 10), note: note || null }]).select().single()
+  if (error) return { error: error.message }
+  return { data }
 }
 
 export async function deleteEvent(id: string) {
@@ -593,15 +678,6 @@ export async function deleteEvent(id: string) {
   const { data, error } = await supabase.from('events').delete().eq('id', id).select('id')
   if (error) return { error: error.message }
   if (!data?.length) return { error: 'Akci se nepodařilo smazat (nemáš k ní přístup?).' }
-  return { data: true }
-}
-
-export async function deleteContribution(id: string) {
-  const supabase = await requireAuth()
-  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'team_contributions', id), 'canDelete')
-  if (denied) return { error: denied }
-  const { error } = await supabase.from('team_contributions').delete().eq('id', id)
-  if (error) return { error: error.message }
   return { data: true }
 }
 
@@ -839,7 +915,7 @@ export async function deleteEquipment(id: string) {
 // UNDO
 const RESTORABLE_TABLES = [
   'expenses', 'income', 'contacts', 'notes', 'tasks',
-  'team_contributions', 'company_expenses', 'company_income', 'event_equipment',
+  'owner_ledger', 'company_expenses', 'company_income', 'event_equipment',
 ] as const
 type RestorableTable = typeof RESTORABLE_TABLES[number]
 

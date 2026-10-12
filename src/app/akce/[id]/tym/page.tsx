@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import TymClient from './TymClient'
+import { LEDGER_SELECT } from '@/lib/ledger'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,13 +16,16 @@ export default async function TymPage({ params }: Props) {
     { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
   )
 
-  const { data: contributions } = await supabase
-    .from('team_contributions').select('*').eq('event_id', id).order('amount', { ascending: false })
+  const [{ data: ledger }, { data: people }] = await Promise.all([
+    supabase.from('owner_ledger').select(LEDGER_SELECT).eq('event_id', id),
+    supabase.from('profiles').select('id, name, is_owner').order('name'),
+  ])
 
   return (
     <TymClient
       id={id}
-      initialContributions={contributions || []}
+      initialLedger={ledger || []}
+      people={(people || []).map(p => ({ id: p.id, name: p.name || '(bez jména)', is_owner: p.is_owner === true }))}
     />
   )
 }
