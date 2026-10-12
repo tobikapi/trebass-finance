@@ -565,7 +565,8 @@ export async function toggleArtistPaid(id: string, paid: boolean) {
 
 // KNIHA MAJITELŮ (vklady, výběry, vyrovnání) — viz sql/2026-10-13_kniha_majitelu.sql
 // Nahrazuje team_contributions (záložka Tým) a vklady/splátky majitelů ve Firmě.
-type LedgerKind = 'vklad' | 'vyber' | 'vyrovnani'
+type LedgerKind = 'vklad' | 'vyber' | 'vyrovnani' | 'dluh'
+const isPairKind = (k: LedgerKind) => k === 'vyrovnani' || k === 'dluh'
 interface LedgerPayload {
   profile_id: string; counterparty_id?: string | null; kind: LedgerKind; amount: number
   event_id: string | null; date: string | null; note: string | null
@@ -581,17 +582,18 @@ async function denyLedger(supabase: Awaited<ReturnType<typeof requireAuth>>, eve
 
 function invalidLedger(p: LedgerPayload): string | null {
   if (!p.profile_id) return 'Vyber, kdo peníze vložil nebo dostal.'
-  if (!['vklad', 'vyber', 'vyrovnani'].includes(p.kind)) return 'Neplatný typ pohybu.'
+  if (!['vklad', 'vyber', 'vyrovnani', 'dluh'].includes(p.kind)) return 'Neplatný typ pohybu.'
   if (!Number.isFinite(p.amount) || p.amount <= 0) return 'Částka musí být kladné číslo.'
   if (p.kind === 'vyrovnani' && !p.counterparty_id) return 'U vyrovnání vyber, komu se peníze poslaly.'
-  if (p.kind === 'vyrovnani' && p.counterparty_id === p.profile_id) return 'Nejde poslat peníze sám sobě.'
+  if (p.kind === 'dluh' && !p.counterparty_id) return 'U dluhu vyber, komu se dluží.'
+  if (isPairKind(p.kind) && p.counterparty_id === p.profile_id) return 'Druhá strana musí být jiný člověk.'
   return null
 }
 
 function cleanLedger(p: LedgerPayload) {
   return {
     profile_id: p.profile_id,
-    counterparty_id: p.kind === 'vyrovnani' ? p.counterparty_id ?? null : null,
+    counterparty_id: isPairKind(p.kind) ? p.counterparty_id ?? null : null,
     kind: p.kind,
     amount: roundMoney(p.amount),
     event_id: p.event_id || null,
@@ -657,6 +659,43 @@ export async function recordSettlement(eventId: string | null, transfers: { from
     .insert(rows.map(r => ({ ...cleanLedger(r), source: 'kalkulacka' }))).select('id')
   if (error) return { error: error.message }
   return { data: (data || []).map(d => d.id as string) }
+}
+
+// Uzávěrka „Jsme vyrovnaní": všechny dosud otevřené pohyby se označí jako
+// uzavřené. Zůstanou v historii, kalkulačka je ale už nepočítá. Smazání
+// uzávěrky je zase otevře (closing_id on delete set null).
+export async function closeLedger(closedOn: string | null, note: string | null) {
+  const supabase = await requireAuth()
+  const denied = await denyUnless(supabase, 'viewFirma') ?? await denyUnless(supabase, 'canEdit')
+  if (denied) return { error: denied }
+  const { count } = await supabase.from('owner_ledger').select('id', { count: 'exact', head: true }).is('closing_id', null)
+  if (!count) return { error: 'Není co uzavřít — žádné otevřené pohyby.' }
+  const { data: closing, error } = await supabase.from('ledger_closings')
+    .insert([{ closed_on: closedOn || new Date().toISOString().slice(0, 10), note: note || null }]).select().single()
+  if (error) return { error: error.message }
+  const { data: updated, error: updError } = await supabase.from('owner_ledger')
+    .update({ closing_id: closing.id }).is('closing_id', null).select('id')
+  if (updError) {
+    await supabase.from('ledger_closings').delete().eq('id', closing.id)
+    return { error: updError.message }
+  }
+  // Kdyby RLS některé řádky tiše přeskočila (nemám k nim právo), uzávěrka
+  // by byla jen částečná — to nechceme, vrátit zpět.
+  if ((updated?.length ?? 0) !== count) {
+    await supabase.from('ledger_closings').delete().eq('id', closing.id)
+    return { error: 'Některé pohyby nemáš právo uzavřít — uzávěrku musí udělat admin.' }
+  }
+  return { data: { id: closing.id as string, count } }
+}
+
+export async function reopenLedgerClosing(closingId: string) {
+  const supabase = await requireAuth()
+  const denied = await denyUnless(supabase, 'viewFirma') ?? await denyUnless(supabase, 'canDelete')
+  if (denied) return { error: denied }
+  const { data, error } = await supabase.from('ledger_closings').delete().eq('id', closingId).select('id')
+  if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Uzávěrku se nepodařilo zrušit.' }
+  return { data: true }
 }
 
 // Zůstatek na účtu firmy zadaný ručně z bankovnictví (s datem, ke kdy platí).

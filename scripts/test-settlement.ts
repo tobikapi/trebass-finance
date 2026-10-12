@@ -71,5 +71,26 @@ check('po výběru 40k Jakubem vyrovnáno', tx(r), [])
 r = computeSettlement(people, [{ profile_id: J, counterparty_id: null, kind: 'vyber', amount: 30000 }], 0, null)
 check('nerovný výběr zisku', tx(r), ['jakub→metodej 10000', 'jakub→tobias 10000'])
 
+// 9) Po uzávěrce (vše na nule): Artur a Metoděj dluží Jakubovi za Spring Edition
+const d = (from: string, to: string, amount: number): LedgerEntry => ({ profile_id: from, counterparty_id: to, kind: 'dluh', amount })
+r = computeSettlement(people, [d(A, J, 15000), d(M, J, 8000)], 0, null)
+check('dluhy: převody', tx(r), ['artur→jakub 15000', 'metodej→jakub 8000'])
+// ...a po splacení vyrovnáním je vše na nule
+r = computeSettlement(people, [d(A, J, 15000), d(M, J, 8000),
+  { profile_id: A, counterparty_id: J, kind: 'vyrovnani', amount: 15000 },
+  { profile_id: M, counterparty_id: J, kind: 'vyrovnani', amount: 8000 }], 0, null)
+check('dluhy splacené', tx(r), [])
+// dluh se nesmí míchat s výplatou z účtu: firma dluh nesplácí
+r = computeSettlement(people, [d(A, J, 15000)], computeSettlement(people, [d(A, J, 15000)], 0, null).suggestedPayout, 99999)
+check('dluh + účet: firma nic nevyplácí', tx(r), ['artur→jakub 15000'])
+
+// 10) Tobiáš si vybral 60 000 — Jakub a Metoděj mají nárok na stejně
+const vy = (id: string, amount: number): LedgerEntry => ({ profile_id: id, counterparty_id: null, kind: 'vyber', amount })
+r = computeSettlement(people, [vy(T, 60000)], 0, null)
+check('výběr 60k mezi sebou', tx(r), ['tobias→jakub 20000', 'tobias→metodej 20000'])
+check('výběr 60k: z účtu stačí', r.suggestedPayout, 120000)
+r = computeSettlement(people, [vy(T, 60000)], 120000, 200000)
+check('výběr 60k z účtu', tx(r), ['firma→jakub 60000', 'firma→metodej 60000'])
+
 console.log(fails ? `\n${fails} chyb` : '\nVše sedí.')
 process.exit(fails ? 1 : 0)

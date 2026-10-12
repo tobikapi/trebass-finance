@@ -14,7 +14,7 @@ export default async function VkladyPage({ searchParams }: { searchParams: Promi
     { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
   )
 
-  const [{ data: ledger }, { data: people }, { data: events }, { data: balance }, { data: expenses }, { data: income }] = await Promise.all([
+  const [{ data: ledger }, { data: people }, { data: events }, { data: balance }, { data: expenses }, { data: income }, { data: closings }] = await Promise.all([
     supabase.from('owner_ledger').select(LEDGER_SELECT),
     supabase.from('profiles').select('id, name, is_owner').order('name'),
     supabase.from('events').select('id, name, date').order('date', { ascending: false }),
@@ -22,6 +22,7 @@ export default async function VkladyPage({ searchParams }: { searchParams: Promi
     // Hospodaření akcí jen jako kontext ke kalkulačce (příjmy − výdaje)
     supabase.from('expenses').select('event_id, price'),
     supabase.from('income').select('event_id, amount'),
+    supabase.from('ledger_closings').select('id, closed_on, note').order('closed_on', { ascending: false }).order('created_at', { ascending: false }),
   ])
 
   const result: Record<string, number> = {}
@@ -36,6 +37,7 @@ export default async function VkladyPage({ searchParams }: { searchParams: Promi
       initialBalance={balance?.[0] ?? null}
       eventResults={result}
       initialScope={akce || null}
+      initialClosings={closings || []}
     />
   )
 }

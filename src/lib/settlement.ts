@@ -6,7 +6,7 @@
 // patří všem majitelům stejně — výplata z účtu proto snižuje „spravedlivý
 // díl" všech a dostane ji ten, kdo vložil nejvíc.
 
-export type LedgerKind = 'vklad' | 'vyber' | 'vyrovnani'
+export type LedgerKind = 'vklad' | 'vyber' | 'vyrovnani' | 'dluh'
 
 export interface LedgerEntry {
   profile_id: string
@@ -29,7 +29,9 @@ export interface PersonBalance {
   withdrawn: number   // výběry
   settledOut: number  // poslal ostatním při vyrovnání
   settledIn: number   // dostal od ostatních při vyrovnání
-  net: number         // čistě ve firmě = vklady − výběry + poslal − dostal
+  owes: number        // dluží ostatním (zapsané dluhy)
+  owed: number        // ostatní dluží jemu
+  net: number         // čistě = vklady − výběry + poslal − dostal − dluží + má dostat
   target: number      // spravedlivý díl (po případné výplatě z účtu)
   diff: number        // net − target; + = dostane, − = má doplatit
 }
@@ -51,14 +53,19 @@ export interface SettlementResult {
 const round = (n: number) => Math.round(n)
 
 export function netOf(entries: LedgerEntry[], id: string) {
-  let deposited = 0, withdrawn = 0, settledOut = 0, settledIn = 0
+  let deposited = 0, withdrawn = 0, settledOut = 0, settledIn = 0, owes = 0, owed = 0
   for (const e of entries) {
     if (e.kind === 'vklad' && e.profile_id === id) deposited += e.amount
     if (e.kind === 'vyber' && e.profile_id === id) withdrawn += e.amount
     if (e.kind === 'vyrovnani' && e.profile_id === id) settledOut += e.amount
     if (e.kind === 'vyrovnani' && e.counterparty_id === id) settledIn += e.amount
+    // Dluh = vyrovnání, které teprve proběhne opačným směrem: dlužník je
+    // „pod" o dlužnou částku, věřitel „nad". Splacení (vyrovnání dlužník →
+    // věřitel) ho přesně vynuluje.
+    if (e.kind === 'dluh' && e.profile_id === id) owes += e.amount
+    if (e.kind === 'dluh' && e.counterparty_id === id) owed += e.amount
   }
-  return { deposited, withdrawn, settledOut, settledIn, net: deposited - withdrawn + settledOut - settledIn }
+  return { deposited, withdrawn, settledOut, settledIn, owes, owed, net: deposited - withdrawn + settledOut - settledIn - owes + owed }
 }
 
 /**
@@ -85,11 +92,11 @@ export function computeSettlement(
     ? round(Math.max(0, total - ownersCount * Math.min(...ownerNets)))
     : round(base.reduce((s, p) => s + Math.max(0, p.net), 0))
 
-  // Výplata nesmí být záporná, vyšší než zůstatek ani vyšší než celkový vklad
-  // (víc, než se vložilo, vrátit nejde).
+  // Výplata nesmí být záporná ani vyšší než zůstatek. Může být vyšší než
+  // součet vkladů — pak jde o rozdělení zisku (např. ostatní si vyberou
+  // stejně, jako si už vybral jeden z nich).
   let payout = Math.max(0, wantedPayout)
   if (accountBalance !== null) payout = Math.min(payout, Math.max(0, accountBalance))
-  payout = Math.min(payout, Math.max(0, total))
 
   const ownerTarget = ownersCount > 0 ? (total - payout) / ownersCount : 0
 

@@ -13,8 +13,8 @@ import Collapse from '@/components/Collapse'
 import LedgerStyles from '@/components/LedgerStyles'
 import { computeSettlement, type LedgerKind } from '@/lib/settlement'
 import {
-  LEDGER_KIND_COLORS, LEDGER_KIND_LABELS, LEDGER_SELECT, LEDGER_SOURCE_LABELS, sortLedger,
-  type CompanyBalanceRow, type LedgerPerson, type LedgerRow,
+  LEDGER_KIND_COLORS, LEDGER_KIND_HINTS, LEDGER_KIND_LABELS, LEDGER_SELECT, LEDGER_SOURCE_LABELS, isPairKind, sortLedger,
+  type CompanyBalanceRow, type LedgerClosing, type LedgerPerson, type LedgerRow,
 } from '@/lib/ledger'
 
 interface EventOption { id: string; name: string; date: string | null }
@@ -26,7 +26,10 @@ interface Props {
   initialBalance: CompanyBalanceRow | null
   eventResults: Record<string, number>
   initialScope: string | null
+  initialClosings: LedgerClosing[]
 }
+
+const KINDS: LedgerKind[] = ['vklad', 'vyber', 'dluh', 'vyrovnani']
 
 // 'all' = celá firma (všechny akce + Firma obecně), 'firma' = jen pohyby mimo akce
 type Scope = 'all' | 'firma' | string
@@ -46,7 +49,7 @@ const card = { backgroundColor: 'var(--bg-card)', border: '1px solid var(--borde
 const inputStyle = { backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px', padding: '9px 12px', outline: 'none', fontSize: '14px', width: '100%' } as const
 const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block', marginBottom: '4px' } as const
 
-export default function VkladyClient({ initialLedger, people, events, initialBalance, eventResults, initialScope }: Props) {
+export default function VkladyClient({ initialLedger, people, events, initialBalance, eventResults, initialScope, initialClosings }: Props) {
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
   const { can } = useUser()
@@ -69,14 +72,22 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [showAllRows, setShowAllRows] = useState(false)
+  const [closings, setClosings] = useState<LedgerClosing[]>(initialClosings)
+  const [showClosed, setShowClosed] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
+  const [closingBusy, setClosingBusy] = useState(false)
 
   const loadingRef = useRef(false)
   async function load() {
     if (loadingRef.current) return
     loadingRef.current = true
     try {
-      const { data } = await supabase.from('owner_ledger').select(LEDGER_SELECT)
+      const [{ data }, { data: cl }] = await Promise.all([
+        supabase.from('owner_ledger').select(LEDGER_SELECT),
+        supabase.from('ledger_closings').select('id, closed_on, note').order('closed_on', { ascending: false }).order('created_at', { ascending: false }),
+      ])
       setLedger((data || []) as LedgerRow[])
+      setClosings((cl || []) as LedgerClosing[])
     } finally {
       loadingRef.current = false
     }
@@ -93,9 +104,14 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
   const scopeLabel = (s: Scope) => s === 'all' ? 'Celá firma' : s === 'firma' ? 'Firma obecně (mimo akce)' : (eventById.get(s)?.name || 'Akce')
   const placeLabel = (eventId: string | null) => eventId ? (eventById.get(eventId)?.name || 'Akce') : 'Firma obecně'
 
-  // Pohyby v rozsahu
-  const scopeRows = useMemo(() => sortLedger(ledger.filter(r =>
+  // Pohyby v rozsahu. Kalkulačka počítá jen otevřené (po poslední uzávěrce),
+  // uzavřené jsou jen historie.
+  const allScopeRows = useMemo(() => sortLedger(ledger.filter(r =>
     scope === 'all' ? true : scope === 'firma' ? r.event_id === null : r.event_id === scope)), [ledger, scope])
+  const scopeRows = useMemo(() => allScopeRows.filter(r => !r.closing_id), [allScopeRows])
+  const closedScopeRows = useMemo(() => allScopeRows.filter(r => r.closing_id), [allScopeRows])
+  const openCountAll = ledger.filter(r => !r.closing_id).length
+  const lastClosing = closings[0] ?? null
 
   // Akce, které v knize něco mají, nahoře v nabídce
   const eventsWithRows = useMemo(() => {
@@ -125,8 +141,8 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
   const eventResult = scope !== 'all' && scope !== 'firma' ? eventResults[scope] ?? 0 : null
 
   // ---- Pohyby: přidat / upravit / smazat ----
-  function openAdd() {
-    setForm({ ...emptyForm, event_id: scope !== 'all' && scope !== 'firma' ? scope : '', date: today() })
+  function openAdd(kind: LedgerKind) {
+    setForm({ ...emptyForm, kind, event_id: scope !== 'all' && scope !== 'firma' ? scope : '', date: today() })
     setEditId(null); setShowForm(true)
   }
 
@@ -140,7 +156,7 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
 
   function payloadOf(f: typeof emptyForm) {
     return {
-      kind: f.kind, profile_id: f.profile_id, counterparty_id: f.kind === 'vyrovnani' ? f.counterparty_id || null : null,
+      kind: f.kind, profile_id: f.profile_id, counterparty_id: isPairKind(f.kind) ? f.counterparty_id || null : null,
       amount: parseFloat(f.amount), event_id: f.event_id || null, date: f.date || null, note: f.note.trim() || null,
     }
   }
@@ -182,7 +198,7 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
     pushUndo('smazání pohybu', async () => {
       const x = await callAction('restoreRow', 'owner_ledger', {
         id: r.id, profile_id: r.profile_id, counterparty_id: r.counterparty_id, kind: r.kind, amount: r.amount,
-        event_id: r.event_id, date: r.date, note: r.note, source: r.source,
+        event_id: r.event_id, date: r.date, note: r.note, source: r.source, closing_id: r.closing_id,
       })
       if (x.error) throw new Error(x.error)
       await load()
@@ -221,6 +237,61 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
     await load()
   }
 
+  // ---- Uzávěrka ----
+  async function closeAll() {
+    setClosingBusy(true)
+    const res = await callAction('closeLedger', today(), 'Jsme vyrovnaní')
+    setClosingBusy(false)
+    setConfirmClose(false)
+    if (res.error) { notify('Chyba: ' + res.error); return }
+    const { id: closingId } = res.data as { id: string; count: number }
+    pushUndo('uzávěrka', async () => {
+      const r = await callAction('reopenLedgerClosing', closingId)
+      if (r.error) throw new Error(r.error)
+      await load()
+    })
+    setPayoutInput(null)
+    await load()
+  }
+
+  async function reopenClosing(c: LedgerClosing) {
+    if (!confirm(`Zrušit uzávěrku z ${fmtDate(c.closed_on)}? Její pohyby se zase začnou počítat do vyrovnání.`)) return
+    const res = await callAction('reopenLedgerClosing', c.id)
+    if (res.error) { notify('Chyba: ' + res.error); return }
+    await load()
+  }
+
+  function renderRow(r: LedgerRow) {
+    return (
+      <div key={r.id} className="vk-move">
+        <div className="vk-move-main">
+          <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', color: '#0c0c0c', backgroundColor: LEDGER_KIND_COLORS[r.kind], flexShrink: 0 }}>
+            {LEDGER_KIND_LABELS[r.kind]}
+          </span>
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+            {nameOf(r.profile_id)}
+            {r.kind === 'vyrovnani' && <> → {nameOf(r.counterparty_id)}</>}
+            {r.kind === 'dluh' && <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}> dluží {nameOf(r.counterparty_id)}</span>}
+          </span>
+          <span style={{ marginLeft: 'auto', fontWeight: 700, color: LEDGER_KIND_COLORS[r.kind], whiteSpace: 'nowrap' }}>
+            {r.kind === 'vyber' ? '−' : ''}{fmt(r.amount)}
+          </span>
+        </div>
+        <div className="vk-move-meta">
+          <span>{fmtDate(r.date)}</span>
+          {scope === 'all' && <span>· {placeLabel(r.event_id)}</span>}
+          {r.note && <span style={{ color: 'var(--text-secondary)' }}>· {r.note}</span>}
+          <span style={{ color: 'var(--text-faint)' }}>· {LEDGER_SOURCE_LABELS[r.source]}</span>
+          {r.closing_id && <span style={{ color: 'var(--text-faint)' }}>· 🔒 uzavřeno</span>}
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
+            {canEdit && <button type="button" onClick={() => startEdit(r)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>}
+            {canDelete && <button type="button" onClick={() => handleDelete(r)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
   const owners = people.filter(p => p.is_owner)
   const others = people.filter(p => !p.is_owner)
   const visibleRows = showAllRows ? scopeRows : scopeRows.slice(0, 30)
@@ -237,6 +308,38 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
           Kolik kdo vložil a vybral a kdo komu kolik pošle, aby do toho {ownersCount === 3 ? 'všichni tři majitelé' : 'všichni majitelé'} dali stejně.
           {' '}Majitelé: {owners.map(o => o.name.split(' ')[0]).join(', ') || '—'}.
         </p>
+      </div>
+
+      {/* Uzávěrka */}
+      <div style={{ ...card, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+        ...(lastClosing ? {} : { backgroundColor: 'rgba(251,191,36,0.06)', borderColor: 'rgba(251,191,36,0.35)' }) }}>
+        <span style={{ fontSize: '20px' }}>{lastClosing ? '🔒' : '🧾'}</span>
+        <span style={{ flex: 1, minWidth: '220px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+          {lastClosing ? (
+            <>Počítá se od uzávěrky <strong style={{ color: 'var(--text-primary)' }}>{fmtDate(lastClosing.closed_on)}</strong>
+              {' '}— starší pohyby jsou jen historie. Otevřených pohybů: <strong style={{ color: 'var(--text-primary)' }}>{openCountAll}</strong>.</>
+          ) : (
+            <>Jste teď vyrovnaní? <strong style={{ color: 'var(--text-primary)' }}>Uzavřete dosavadní historii</strong> — kalkulačka pak bude počítat jen to, co zapíšete od teď (vklady, výběry, dluhy). Historie zůstane vidět.</>
+          )}
+        </span>
+        {canEdit && openCountAll > 0 && (confirmClose ? (
+          <span style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Uzavřít {openCountAll} pohybů k dnešku?</span>
+            <button type="button" disabled={closingBusy} onClick={closeAll} style={{ padding: '7px 14px', borderRadius: '8px', border: 'none', backgroundColor: '#fbbf24', color: '#0c0c0c', fontWeight: 700, cursor: 'pointer' }}>
+              {closingBusy ? 'Uzavírám…' : 'Ano, jsme vyrovnaní'}
+            </button>
+            <button type="button" onClick={() => setConfirmClose(false)} style={{ padding: '7px 14px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Zrušit</button>
+          </span>
+        ) : (
+          <button type="button" onClick={() => setConfirmClose(true)} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #fbbf24', backgroundColor: 'transparent', color: '#fbbf24', fontWeight: 600, cursor: 'pointer' }}>
+            🔒 Jsme vyrovnaní — uzavřít
+          </button>
+        ))}
+        {lastClosing && canDelete && (
+          <button type="button" onClick={() => reopenClosing(lastClosing)} style={{ fontSize: '12px', color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            Zrušit uzávěrku
+          </button>
+        )}
       </div>
 
       {/* Rozsah */}
@@ -261,15 +364,18 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
 
       {/* Kdo jak stojí */}
       <div style={{ ...card, marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px' }}>Kdo jak stojí</h2>
+        <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px' }}>
+          Kdo jak stojí{lastClosing && <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text-muted)' }}> · od {fmtDate(lastClosing.closed_on)}</span>}
+        </h2>
         <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 14px' }}>
-          Čistě = vklady − výběry ± vyrovnání. Spravedlivý díl = celkem{mode === 'ucet' && result.payout > 0 ? ' (po výplatě z účtu)' : ''} ÷ {ownersCount || '?'} majitelé; kdo není majitel, dostane zpět vše.
+          Čistě = vklady − výběry ± dluhy ± vyrovnání. Spravedlivý díl = celkem{mode === 'ucet' && result.payout > 0 ? ' (po výplatě z účtu)' : ''} ÷ {ownersCount || '?'} majitelé; kdo není majitel, dostane zpět vše.
         </p>
         <div className="vk-grid vk-head">
-          <div>Kdo</div><div>Vloženo</div><div>Vybráno</div><div>Vyrovnání</div><div>Čistě</div><div>Spravedlivý díl</div><div>Rozdíl</div>
+          <div>Kdo</div><div>Vloženo</div><div>Vybral si</div><div>Dluhy</div><div>Vyrovnání</div><div>Čistě</div><div>Spravedlivý díl</div><div>Rozdíl</div>
         </div>
         {result.people.map(p => {
           const settled = p.settledOut - p.settledIn
+          const debts = p.owed - p.owes
           const d = Math.round(p.diff)
           return (
             <div key={p.id} className="vk-grid vk-row">
@@ -278,7 +384,10 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
                 {!p.isOwner && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--text-dim)', fontWeight: 400 }}>není majitel</span>}
               </div>
               <div data-label="Vloženo">{fmt(p.deposited)}</div>
-              <div data-label="Vybráno">{p.withdrawn ? fmt(p.withdrawn) : '—'}</div>
+              <div data-label="Vybral si">{p.withdrawn ? fmt(p.withdrawn) : '—'}</div>
+              <div data-label="Dluhy" title={p.owes || p.owed ? `dluží ${fmt(p.owes)} · má dostat ${fmt(p.owed)}` : undefined}>
+                {debts ? <span style={{ color: debts > 0 ? '#34d399' : '#fbbf24' }}>{debts > 0 ? `má dostat ${fmt(debts)}` : `dluží ${fmt(-debts)}`}</span> : '—'}
+              </div>
               <div data-label="Vyrovnání">{settled ? signed(settled) : '—'}</div>
               <div data-label="Čistě" style={{ fontWeight: 600 }}>{fmt(p.net)}</div>
               <div data-label="Spravedlivý díl" style={{ color: 'var(--text-muted)' }}>{p.isOwner ? fmt(p.target) : '0 Kč'}</div>
@@ -381,19 +490,24 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
           <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Pohyby <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '13px' }}>· {scopeLabel(scope)} · {scopeRows.length}</span>
+            Pohyby <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '13px' }}>· {scopeLabel(scope)} · {scopeRows.length}{lastClosing ? ' otevřených' : ''}</span>
           </h2>
           {canCreate && (
-            <button type="button" onClick={() => (showForm && !editId ? setShowForm(false) : openAdd())} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#e05555', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-              {showForm && !editId ? '× Zrušit' : '+ Přidat pohyb'}
-            </button>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {KINDS.map(k => (
+                <button key={k} type="button" onClick={() => openAdd(k)} style={{
+                  padding: '7px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                  border: `1px solid ${LEDGER_KIND_COLORS[k]}`, backgroundColor: 'transparent', color: LEDGER_KIND_COLORS[k],
+                }}>+ {LEDGER_KIND_LABELS[k]}</button>
+              ))}
+            </div>
           )}
         </div>
 
         <Collapse open={showForm}>
           <form onSubmit={handleSave} style={{ padding: '14px', borderRadius: '10px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', marginBottom: '14px' }}>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-              {(['vklad', 'vyber', 'vyrovnani'] as const).map(k => (
+              {KINDS.map(k => (
                 <button key={k} type="button" onClick={() => setForm({ ...form, kind: k })} style={{
                   padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   border: `1px solid ${LEDGER_KIND_COLORS[k]}`,
@@ -403,22 +517,20 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
               ))}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px' }}>
-              {form.kind === 'vklad' && 'Poslal peníze na účet firmy, nebo něco za firmu zaplatil ze svého.'}
-              {form.kind === 'vyber' && 'Firma mu poslala peníze (vrácení vkladu, výplata zisku).'}
-              {form.kind === 'vyrovnani' && 'Poslal peníze přímo jinému člověku, aby se vyrovnali.'}
+              {LEDGER_KIND_HINTS[form.kind]}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '12px' }}>
               <div>
-                <label style={labelStyle}>{form.kind === 'vyrovnani' ? 'Kdo poslal' : form.kind === 'vklad' ? 'Kdo vložil' : 'Kdo dostal'} *</label>
+                <label style={labelStyle}>{{ vklad: 'Kdo vložil', vyber: 'Kdo si vybral', dluh: 'Kdo dluží', vyrovnani: 'Kdo poslal' }[form.kind]} *</label>
                 <select required value={form.profile_id} onChange={e => setForm({ ...form, profile_id: e.target.value })} style={inputStyle}>
                   <option value="">— vyber —</option>
                   <optgroup label="Majitelé">{owners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
                   <optgroup label="Ostatní">{others.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
                 </select>
               </div>
-              {form.kind === 'vyrovnani' && (
+              {isPairKind(form.kind) && (
                 <div>
-                  <label style={labelStyle}>Komu *</label>
+                  <label style={labelStyle}>{form.kind === 'dluh' ? 'Komu dluží' : 'Komu'} *</label>
                   <select required value={form.counterparty_id} onChange={e => setForm({ ...form, counterparty_id: e.target.value })} style={inputStyle}>
                     <option value="">— vyber —</option>
                     {people.filter(p => p.id !== form.profile_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -430,7 +542,7 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
                 <input required inputMode="decimal" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Kam</label>
+                <label style={labelStyle}>{form.kind === 'dluh' ? 'Za co (akce)' : 'Kam'}</label>
                 <select value={form.event_id} onChange={e => setForm({ ...form, event_id: e.target.value })} style={inputStyle}>
                   <option value="">Firma obecně (mimo akce)</option>
                   {events.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -455,39 +567,30 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
         </Collapse>
 
         {scopeRows.length === 0 ? (
-          <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>Zatím žádné pohyby.</div>
+          <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+            {lastClosing ? 'Od uzávěrky zatím žádné pohyby — vše je vyrovnané.' : 'Zatím žádné pohyby.'}
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {visibleRows.map(r => (
-              <div key={r.id} className="vk-move">
-                <div className="vk-move-main">
-                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', color: '#0c0c0c', backgroundColor: LEDGER_KIND_COLORS[r.kind], flexShrink: 0 }}>
-                    {LEDGER_KIND_LABELS[r.kind]}
-                  </span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {nameOf(r.profile_id)}{r.kind === 'vyrovnani' && <> → {nameOf(r.counterparty_id)}</>}
-                  </span>
-                  <span style={{ marginLeft: 'auto', fontWeight: 700, color: LEDGER_KIND_COLORS[r.kind], whiteSpace: 'nowrap' }}>
-                    {r.kind === 'vyber' ? '−' : ''}{fmt(r.amount)}
-                  </span>
-                </div>
-                <div className="vk-move-meta">
-                  <span>{fmtDate(r.date)}</span>
-                  {scope === 'all' && <span>· {placeLabel(r.event_id)}</span>}
-                  {r.note && <span style={{ color: 'var(--text-secondary)' }}>· {r.note}</span>}
-                  <span style={{ color: 'var(--text-faint)' }}>· {LEDGER_SOURCE_LABELS[r.source]}</span>
-                  <span style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
-                    {canEdit && <button type="button" onClick={() => startEdit(r)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>}
-                    {canDelete && <button type="button" onClick={() => handleDelete(r)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>}
-                  </span>
-                </div>
-              </div>
-            ))}
+            {visibleRows.map(r => renderRow(r))}
             {scopeRows.length > visibleRows.length && (
               <button type="button" onClick={() => setShowAllRows(true)} style={{ marginTop: '6px', padding: '8px', borderRadius: '8px', border: '1px dashed var(--border)', background: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 Zobrazit všech {scopeRows.length}
               </button>
             )}
+          </div>
+        )}
+
+        {closedScopeRows.length > 0 && (
+          <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+            <button type="button" onClick={() => setShowClosed(v => !v)} style={{ fontSize: '13px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              {showClosed ? '▾' : '▸'} 🔒 Uzavřená historie ({closedScopeRows.length}) — do vyrovnání se nepočítá
+            </button>
+            <Collapse open={showClosed}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px', opacity: 0.75 }}>
+                {closedScopeRows.map(r => renderRow(r))}
+              </div>
+            </Collapse>
           </div>
         )}
       </div>

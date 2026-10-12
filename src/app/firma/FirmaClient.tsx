@@ -42,9 +42,10 @@ interface Props {
   initialExpenses: CompanyExpense[]
   initialIncome: CompanyIncome[]
   initialContributions: ContributionRow[]
+  ledgerStatus: { openCount: number; transfers: { from: string; to: string; amount: number }[] }
 }
 
-export default function FirmaClient({ initialExpenses, initialIncome, initialContributions }: Props) {
+export default function FirmaClient({ initialExpenses, initialIncome, initialContributions, ledgerStatus }: Props) {
   // Tlačítka podle role. Vynucuje to server a databáze — tady jde jen o to,
   // aby člověk neklikal na něco, co neprojde.
   const { can } = useUser()
@@ -270,7 +271,12 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
         <span style={{ flex: 1 }}>
           <span style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Vklady a vyrovnání</span>
           <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Kolik kdo vložil a vybral, kdo komu kolik pošle a kolik kdo má ve firmě
+            Vklady, výběry a dluhy majitelů · kdo komu kolik pošle
+          </span>
+          <span style={{ display: 'block', fontSize: '13px', marginTop: '6px', color: ledgerStatus.transfers.length ? '#fbbf24' : '#34d399', fontWeight: 600 }}>
+            {ledgerStatus.transfers.length === 0
+              ? '✓ Vyrovnáno — nikdo nikomu nic nedluží'
+              : 'Otevřené: ' + ledgerStatus.transfers.map(t => `${t.from} → ${t.to} ${Math.round(t.amount).toLocaleString('cs-CZ')} Kč`).join(' · ')}
           </span>
         </span>
         <span style={{ color: '#e05555', fontSize: '18px' }}>→</span>

@@ -4,7 +4,7 @@ export default function LedgerStyles() {
   return <style>{`
 .vk-grid {
   display: grid;
-  grid-template-columns: 1.3fr repeat(5, 1fr) 1.3fr;
+  grid-template-columns: 1.1fr repeat(6, 1fr) 1.3fr;
   gap: 8px;
   align-items: center;
   font-size: 13px;

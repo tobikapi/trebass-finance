@@ -10,7 +10,14 @@ export interface LedgerRow {
   date: string | null
   note: string | null
   source: 'rucne' | 'tym' | 'firma' | 'kalkulacka' | 'vypis'
+  closing_id: string | null  // null = otevřený (počítá se do vyrovnání)
   created_at: string
+}
+
+export interface LedgerClosing {
+  id: string
+  closed_on: string
+  note: string | null
 }
 
 export interface LedgerPerson {
@@ -27,18 +34,29 @@ export interface CompanyBalanceRow {
 }
 
 export const LEDGER_KIND_LABELS: Record<LedgerKind, string> = {
-  vklad: 'Vklad', vyber: 'Výběr', vyrovnani: 'Vyrovnání',
+  vklad: 'Vklad', vyber: 'Výběr', vyrovnani: 'Vyrovnání', dluh: 'Dluh',
 }
 
 export const LEDGER_KIND_COLORS: Record<LedgerKind, string> = {
-  vklad: '#34d399', vyber: '#f87171', vyrovnani: '#60a5fa',
+  vklad: '#34d399', vyber: '#f87171', vyrovnani: '#60a5fa', dluh: '#fbbf24',
 }
 
 export const LEDGER_SOURCE_LABELS: Record<LedgerRow['source'], string> = {
   rucne: 'ručně', tym: 'ze záložky Tým', firma: 'z Firmy', kalkulacka: 'z kalkulačky', vypis: 'z výpisu',
 }
 
-export const LEDGER_SELECT = 'id, profile_id, counterparty_id, kind, amount, event_id, date, note, source, created_at'
+export const LEDGER_SELECT = 'id, profile_id, counterparty_id, kind, amount, event_id, date, note, source, closing_id, created_at'
+
+// Krátké vysvětlení typu do formuláře a nápovědy
+export const LEDGER_KIND_HINTS: Record<LedgerKind, string> = {
+  vklad: 'Poslal peníze na účet firmy, nebo něco za firmu zaplatil ze svého.',
+  vyber: 'Firma mu poslala peníze (vrácení vkladu, výplata zisku). Ostatní pak mají nárok na stejně.',
+  dluh: 'Někdo někomu dluží (např. Artur Jakubovi za akci). Firmou to neprochází; splatí se vyrovnáním.',
+  vyrovnani: 'Poslal peníze přímo jinému člověku — splacení dluhu nebo dorovnání.',
+}
+
+// Pohyby se dvěma lidmi (kdo → komu)
+export const isPairKind = (k: LedgerKind) => k === 'vyrovnani' || k === 'dluh'
 
 // Řazení: nejnovější nahoře; bez data podle toho, kdy se zapsal.
 export function sortLedger(rows: LedgerRow[]) {
@@ -48,7 +66,7 @@ export function sortLedger(rows: LedgerRow[]) {
 }
 
 // Pro stránku Firma: vklady (+) a výběry (−) majitelů z Knihy, s názvem akce.
-// Vyrovnání mezi lidmi se nepočítá — peníze firmou neprošly.
+// Vyrovnání a dluhy mezi lidmi se nepočítají — peníze firmou neprošly.
 export interface ContributionRow {
   id: string
   name: string
@@ -65,7 +83,7 @@ export function toContributionRows(
 ): ContributionRow[] {
   const nameById = new Map(people.map(p => [p.id, (p.name || '?').split(' ')[0]]))
   const eventById = new Map(events.map(e => [e.id, e]))
-  return ledger.filter(r => r.kind !== 'vyrovnani').map(r => {
+  return ledger.filter(r => r.kind === 'vklad' || r.kind === 'vyber').map(r => {
     const ev = r.event_id ? eventById.get(r.event_id) : null
     return {
       id: r.id,

@@ -14,7 +14,7 @@ import { useEventPermissions } from '@/lib/event-permissions'
 import { useRealtime } from '@/lib/use-realtime'
 import { netOf } from '@/lib/settlement'
 import {
-  LEDGER_KIND_COLORS, LEDGER_KIND_LABELS, LEDGER_SELECT, sortLedger, type LedgerPerson, type LedgerRow,
+  LEDGER_KIND_COLORS, LEDGER_KIND_HINTS, LEDGER_KIND_LABELS, LEDGER_SELECT, sortLedger, type LedgerPerson, type LedgerRow,
 } from '@/lib/ledger'
 
 // Záložka Tým = pohyby z Knihy majitelů pro tuhle akci (vklady, výběry,
@@ -22,7 +22,9 @@ import {
 // owner_ledger, ať se nic nezadává dvakrát. Výpočet „kdo komu kolik" je na
 // stránce Firma → Vklady a vyrovnání.
 
-const emptyForm = { kind: 'vklad' as 'vklad' | 'vyber', profile_id: '', amount: '', note: '', date: '' }
+type TymKind = 'vklad' | 'vyber' | 'dluh'
+const TYM_KINDS: TymKind[] = ['vklad', 'vyber', 'dluh']
+const emptyForm = { kind: 'vklad' as TymKind, profile_id: '', counterparty_id: '', amount: '', note: '', date: '' }
 
 interface Props {
   id: string
@@ -65,30 +67,45 @@ export default function TymClient({ id, initialLedger, people }: Props) {
   const nameOf = (pid: string | null) => (pid && personById.get(pid)?.name.split(' ')[0]) || '?'
   const sorted = useMemo(() => sortLedger(rows), [rows])
 
-  // Souhrn po lidech (čistě = vklady − výběry ± vyrovnání)
+  // Souhrn po lidech: kolik kdo do akce vložil (vklady − výběry), včetně
+  // uzavřené historie — tohle je přehled akce, ne vyrovnání. Kdo komu kolik
+  // (jen otevřené pohyby) je ve Firmě → Vklady a vyrovnání.
+  const moneyRows = useMemo(() => rows.filter(r => r.kind === 'vklad' || r.kind === 'vyber'), [rows])
   const summary = useMemo(() => {
-    const ids = new Set<string>()
-    for (const r of rows) { ids.add(r.profile_id); if (r.counterparty_id) ids.add(r.counterparty_id) }
-    return [...ids].map(pid => ({ id: pid, name: nameOf(pid), isOwner: personById.get(pid)?.is_owner === true, ...netOf(rows, pid) }))
-      .sort((a, b) => b.net - a.net)
+    const ids = new Set(moneyRows.map(r => r.profile_id))
+    return [...ids].map(pid => {
+      const n = netOf(moneyRows, pid)
+      return { id: pid, name: nameOf(pid), isOwner: personById.get(pid)?.is_owner === true, ...n }
+    }).sort((a, b) => b.net - a.net)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, personById])
+  }, [moneyRows, personById])
   const total = summary.reduce((s, p) => s + p.net, 0)
   const maxNet = Math.max(0, ...summary.map(p => p.net))
+  // Otevřené dluhy v akci (po splacení vyrovnáním mezi stejnými lidmi zmizí)
+  const openDebts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of rows) {
+      if (r.closing_id || !r.counterparty_id) continue
+      if (r.kind === 'dluh') m.set(`${r.profile_id}>${r.counterparty_id}`, (m.get(`${r.profile_id}>${r.counterparty_id}`) || 0) + r.amount)
+      if (r.kind === 'vyrovnani') m.set(`${r.profile_id}>${r.counterparty_id}`, (m.get(`${r.profile_id}>${r.counterparty_id}`) || 0) - r.amount)
+    }
+    return [...m].filter(([k, v]) => v > 0.5 && rows.some(r => r.kind === 'dluh' && `${r.profile_id}>${r.counterparty_id}` === k))
+      .map(([k, v]) => ({ from: k.split('>')[0], to: k.split('>')[1], amount: v }))
+  }, [rows])
 
-  function openAdd() {
-    setForm({ ...emptyForm, date: new Date().toISOString().slice(0, 10) })
+  function openAdd(kind: TymKind = 'vklad') {
+    setForm({ ...emptyForm, kind, date: new Date().toISOString().slice(0, 10) })
     setEditId(null); setShowForm(true)
   }
 
   function startEdit(r: LedgerRow) {
     if (r.kind === 'vyrovnani') { notify('Vyrovnání se upravuje ve Firmě → Vklady a vyrovnání.'); return }
-    setForm({ kind: r.kind, profile_id: r.profile_id, amount: String(r.amount), note: r.note || '', date: r.date || '' })
+    setForm({ kind: r.kind, profile_id: r.profile_id, counterparty_id: r.counterparty_id || '', amount: String(r.amount), note: r.note || '', date: r.date || '' })
     setEditId(r.id); setShowForm(true)
   }
 
   const payloadOf = (f: typeof emptyForm) => ({
-    kind: f.kind, profile_id: f.profile_id, counterparty_id: null, amount: parseFloat(f.amount),
+    kind: f.kind, profile_id: f.profile_id, counterparty_id: f.kind === 'dluh' ? f.counterparty_id || null : null, amount: parseFloat(f.amount),
     event_id: id, date: f.date || null, note: f.note.trim() || null,
   })
 
@@ -100,7 +117,7 @@ export default function TymClient({ id, initialLedger, people }: Props) {
     setSaving(false)
     if (result.error) { notify('Chyba: ' + result.error); return }
     if (editId && prev && prev.kind !== 'vyrovnani') {
-      const prevPayload = payloadOf({ kind: prev.kind, profile_id: prev.profile_id, amount: String(prev.amount), note: prev.note || '', date: prev.date || '' })
+      const prevPayload = payloadOf({ kind: prev.kind, profile_id: prev.profile_id, counterparty_id: prev.counterparty_id || '', amount: String(prev.amount), note: prev.note || '', date: prev.date || '' })
       pushUndo(`úprava pohybu (${nameOf(prev.profile_id)})`, async () => {
         const res = await callAction('updateLedgerEntry', editId, prevPayload)
         if (res.error) throw new Error(res.error)
@@ -125,7 +142,7 @@ export default function TymClient({ id, initialLedger, people }: Props) {
     pushUndo(`smazání pohybu (${nameOf(r.profile_id)})`, async () => {
       const x = await callAction('restoreRow', 'owner_ledger', {
         id: r.id, profile_id: r.profile_id, counterparty_id: r.counterparty_id, kind: r.kind, amount: r.amount,
-        event_id: r.event_id, date: r.date, note: r.note, source: r.source,
+        event_id: r.event_id, date: r.date, note: r.note, source: r.source, closing_id: r.closing_id,
       })
       if (x.error) throw new Error(x.error)
       await load()
@@ -159,18 +176,18 @@ export default function TymClient({ id, initialLedger, people }: Props) {
               🧮 Kdo komu kolik →
             </Link>
           )}
-          {canCreate && (
-            <button onClick={() => (showForm && !editId ? setShowForm(false) : openAdd())} style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, border: 'none', backgroundColor: '#7c3aed', color: '#fff', cursor: 'pointer' }}>
-              {showForm && !editId ? '× Zrušit' : '+ Přidat vklad'}
+          {canCreate && TYM_KINDS.map(k => (
+            <button key={k} onClick={() => openAdd(k)} style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, border: `1px solid ${LEDGER_KIND_COLORS[k]}`, backgroundColor: 'transparent', color: LEDGER_KIND_COLORS[k], cursor: 'pointer' }}>
+              + {LEDGER_KIND_LABELS[k]}
             </button>
-          )}
+          ))}
         </div>
       </div>
 
       <Collapse open={showForm}>
         <form onSubmit={handleSave} style={{ marginBottom: '16px', padding: '16px', borderRadius: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid #7c3aed' }}>
           <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
-            {(['vklad', 'vyber'] as const).map(k => (
+            {TYM_KINDS.map(k => (
               <button key={k} type="button" onClick={() => setForm({ ...form, kind: k })} style={{
                 padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                 border: `1px solid ${LEDGER_KIND_COLORS[k]}`,
@@ -179,15 +196,25 @@ export default function TymClient({ id, initialLedger, people }: Props) {
               }}>{LEDGER_KIND_LABELS[k]}</button>
             ))}
           </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px' }}>{LEDGER_KIND_HINTS[form.kind]}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', marginBottom: '12px' }}>
             <div>
-              <label style={labelStyle}>{form.kind === 'vklad' ? 'Kdo vložil / zaplatil' : 'Kdo dostal'} *</label>
+              <label style={labelStyle}>{{ vklad: 'Kdo vložil / zaplatil', vyber: 'Kdo si vybral', dluh: 'Kdo dluží' }[form.kind]} *</label>
               <select required value={form.profile_id} onChange={e => setForm({ ...form, profile_id: e.target.value })} style={inputStyle}>
                 <option value="">— vyber —</option>
                 <optgroup label="Majitelé">{owners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
                 <optgroup label="Ostatní">{others.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
               </select>
             </div>
+            {form.kind === 'dluh' && (
+              <div>
+                <label style={labelStyle}>Komu dluží *</label>
+                <select required value={form.counterparty_id} onChange={e => setForm({ ...form, counterparty_id: e.target.value })} style={inputStyle}>
+                  <option value="">— vyber —</option>
+                  {people.filter(p => p.id !== form.profile_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
             <div>
               <label style={labelStyle}>Částka (Kč) *</label>
               <input required inputMode="decimal" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0" style={inputStyle} />
@@ -210,7 +237,19 @@ export default function TymClient({ id, initialLedger, people }: Props) {
         </form>
       </Collapse>
 
-      {summary.length === 0 ? (
+      {openDebts.length > 0 && (
+        <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '12px', backgroundColor: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: '#fbbf24', marginBottom: '6px' }}>Otevřené dluhy v akci</div>
+          {openDebts.map(d => (
+            <div key={d.from + d.to} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: 'var(--text-primary)', padding: '2px 0' }}>
+              <span><strong>{nameOf(d.from)}</strong> dluží <strong>{nameOf(d.to)}</strong></span>
+              <strong style={{ color: '#fbbf24' }}>{fmt(d.amount)}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {summary.length === 0 && rows.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px', borderRadius: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           Zatím žádné vklady.{canCreate && ' Klikni + Přidat vklad.'}
         </div>
@@ -251,6 +290,7 @@ export default function TymClient({ id, initialLedger, people }: Props) {
                   </span>
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                     {nameOf(r.profile_id)}{r.kind === 'vyrovnani' && <> → {nameOf(r.counterparty_id)}</>}
+                    {r.kind === 'dluh' && <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}> dluží {nameOf(r.counterparty_id)}</span>}
                   </span>
                   <span style={{ marginLeft: 'auto', fontWeight: 700, color: LEDGER_KIND_COLORS[r.kind], whiteSpace: 'nowrap' }}>
                     {r.kind === 'vyber' ? '−' : ''}{fmt(r.amount)}
@@ -259,6 +299,7 @@ export default function TymClient({ id, initialLedger, people }: Props) {
                 <div className="vk-move-meta">
                   {r.date && <span>{r.date.split('-').reverse().map(Number).join('. ')}</span>}
                   {r.note && <span style={{ color: 'var(--text-secondary)' }}>· {r.note}</span>}
+                  {r.closing_id && <span style={{ color: 'var(--text-faint)' }}>· 🔒 uzavřeno</span>}
                   <span style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
                     {canEdit && r.kind !== 'vyrovnani' && <button type="button" onClick={() => startEdit(r)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>}
                     {canDelete && <button type="button" onClick={() => handleDelete(r)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>}
