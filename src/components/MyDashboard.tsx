@@ -90,7 +90,7 @@ export default function MyDashboard() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
+      <div className="m-stack" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
         {/* Nadcházející akce */}
         <div>
           <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 12px' }}>Nadcházející akce</h2>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import localFont from 'next/font/local'
 import "./globals.css"
 import AppShell from "@/components/AppShell"
@@ -16,6 +16,22 @@ const awakenning = localFont({
   display: 'swap',
 })
 
+// iPhone: viewport-fit=cover, aby šlo ve standalone PWA (průhledný status bar)
+// odsadit obsah od výřezu přes env(safe-area-inset-*). Zoom necháváme povolený
+// (přístupnost) — nechtěnému přibližování brání 16px písmo v polích.
+export function generateViewport(): Viewport {
+  return {
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover',
+    themeColor: [
+      { media: '(prefers-color-scheme: dark)', color: '#111111' },
+      { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    ],
+    colorScheme: 'dark light',
+  }
+}
+
 // Titulek záložky podle aktivní firmy (cookie hlídá proxy).
 export async function generateMetadata(): Promise<Metadata> {
   const brand = brandOf(await getActiveOrgId())
@@ -26,6 +42,7 @@ const metadata: Metadata = {
   title: "Třebass Finance",
   description: "Finanční systém pro hudební festivaly",
   manifest: "/manifest.json",
+  icons: { apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }] },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -39,7 +56,9 @@ const metadata: Metadata = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const initialUser = await getInitialUser()
   return (
-    <html lang="cs" className={awakenning.variable} data-theme="dark" data-org={brandOf(initialUser.activeOrgId).slug} suppressHydrationWarning>
+    <html lang="cs" className={awakenning.variable} data-theme="dark" data-org={brandOf(initialUser.activeOrgId).slug}
+      style={{ ['--accent' as string]: brandOf(initialUser.activeOrgId).accent, ['--accent-soft' as string]: brandOf(initialUser.activeOrgId).accentSoft }}
+      suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',t);try{if(sessionStorage.getItem('trebass_splash_seen')==='1')document.documentElement.setAttribute('data-splash-seen','')}catch(e){}})();` }} />
       </head>

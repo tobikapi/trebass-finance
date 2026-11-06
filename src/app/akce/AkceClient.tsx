@@ -66,7 +66,7 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="chip-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {filters.map((f) => (
             <button key={f.value} onClick={() => setFilter(f.value)} style={{
               padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '500',

@@ -59,7 +59,7 @@ const CustomPieTooltip = ({ active, payload }: CustomTooltipProps) => {
 
 function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{
+    <button className="chip" onClick={onClick} style={{
       padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
       border: 'none', cursor: 'pointer', transition: 'all 0.15s',
       backgroundColor: active ? '#e05555' : 'var(--bg-badge)',
@@ -111,6 +111,13 @@ export default function Dashboard() {
       {!userLoading && !can('viewFirma') ? <MyDashboard /> : <FinancialDashboard />}
     </>
   )
+}
+
+// 1 923 210 → „1.92M“, 56 000 → „56k“ (jen do středu donutu)
+function compactKc(n: number) {
+  if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(2).replace(/\.?0+$/, '') + 'M'
+  if (Math.abs(n) >= 10_000) return Math.round(n / 1000) + 'k'
+  return n.toLocaleString('cs-CZ')
 }
 
 function FinancialDashboard() {
@@ -269,14 +276,14 @@ function FinancialDashboard() {
       </div>
 
       {/* Filtry */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', padding: '14px 20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+      <div className="dash-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', padding: '14px 20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', alignItems: 'center' }}>
+        <div className="chip-row">
           <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>ROK</span>
           <FilterChip label="Vše" active={yearFilter === 'vse'} onClick={() => setYearFilter('vse')} />
           {availableYears.map(y => <FilterChip key={y} label={y} active={yearFilter === y} onClick={() => setYearFilter(y)} />)}
         </div>
-        <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border)', flexShrink: 0 }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="dash-filters-divider" style={{ width: '1px', height: '20px', backgroundColor: 'var(--border)', flexShrink: 0 }} />
+        <div className="chip-row">
           <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>STATUS</span>
           {STATUS_OPTS.map(opt => <FilterChip key={opt.value} label={opt.label} active={statusFilter === opt.value} onClick={() => setStatusFilter(opt.value)} />)}
         </div>
@@ -355,7 +362,8 @@ function FinancialDashboard() {
           {pieData.length > 0 && (
             <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
               <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Výdaje dle kategorie</h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="pie-wrap" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className="pie-chart" style={{ position: 'relative', width: 150, height: 150, flexShrink: 0 }}>
                 <ResponsiveContainer width={150} height={150}>
                   <PieChart>
                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" paddingAngle={2}>
@@ -367,7 +375,13 @@ function FinancialDashboard() {
                     <Tooltip content={<CustomPieTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px', overflow: 'hidden' }}>
+                {/* Celkem uprostřed donutu */}
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                  <span style={{ fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>Celkem</span>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{compactKc(totalExpenses)}</span>
+                </div>
+                </div>
+                <div className="pie-legend" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px', overflow: 'hidden' }}>
                   {pieData.map((c, i) => {
                     const cc = CATEGORY_COLORS[c.name]
                     const color = cc ? cc.color : PIE_COLORS[i % PIE_COLORS.length]
@@ -406,10 +420,10 @@ function FinancialDashboard() {
               const sum = eventSummary[event.id]
               const evBalance = (sum?.income || 0) - (sum?.expenses || 0)
               return (
-                <Link key={event.id} href={`/akce/${event.id}/prehled`} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', textDecoration: 'none', transition: 'border-color 0.15s' }}>
+                <Link key={event.id} href={`/akce/${event.id}/prehled`} className="dash-event" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', textDecoration: 'none', transition: 'border-color 0.15s' }}>
                   {/* Název + datum */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.name}{event.include_in_totals === false && (
+                  <div className="de-info" style={{ flex: 1, minWidth: 0 }}>
+                    <div className="de-name" style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.name}{event.include_in_totals === false && (
                       <span title="Nezapočítává se do celkových přehledů" style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 6px', borderRadius: '10px', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.4)', verticalAlign: 'middle' }}>mimo součty</span>
                     )}</div>
                     <div style={{ fontSize: '11px', marginTop: '2px', color: 'var(--text-muted)' }}>
@@ -418,7 +432,7 @@ function FinancialDashboard() {
                   </div>
                   {/* Financials */}
                   {sum && (
-                    <div style={{ display: 'flex', gap: '16px', flexShrink: 0, fontSize: '12px' }}>
+                    <div className="de-fin" style={{ display: 'flex', gap: '16px', flexShrink: 0, fontSize: '12px' }}>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ color: 'var(--text-dim)', fontSize: '10px' }}>příjmy</div>
                         <div style={{ color: '#34d399', fontWeight: '600' }}>{(sum.income).toLocaleString('cs-CZ')}</div>
@@ -435,7 +449,7 @@ function FinancialDashboard() {
                       </div>
                     </div>
                   )}
-                  <span className={STATUS_COLORS[event.status]} style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', flexShrink: 0 }}>
+                  <span className={`de-status ${STATUS_COLORS[event.status]}`} style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', flexShrink: 0 }}>
                     {STATUS_LABELS[event.status]}
                   </span>
                 </Link>

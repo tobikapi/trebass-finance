@@ -155,7 +155,7 @@ export default function EventForm({ existing }: Props) {
       </div>
 
       {/* Dates */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+      <div className="m-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
         <div>
           <label style={labelStyle}>Datum od</label>
           <input type="date" value={form.date} onChange={f('date')} style={inputStyle} />

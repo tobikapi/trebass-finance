@@ -267,7 +267,7 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
           <div style={{ fontSize: '13px', fontWeight: '600', color: '#f4978e', marginBottom: '14px' }}>
             {editExtraId ? 'Upravit položku' : 'Nová položka mimo techniku'}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+          <div className="m-2col" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div style={{ gridColumn: '1 / 3' }}>
               <label style={labelStyle}>Název *</label>
               <input required value={extraForm.name} onChange={e => setExtraForm({ ...extraForm, name: e.target.value })} placeholder="např. Food truck" style={inputStyle} />

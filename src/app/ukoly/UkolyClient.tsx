@@ -215,7 +215,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
       {showForm && (
         <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #e05555', borderRadius: '12px' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '600', color: '#f4978e' }}>{editId ? 'Upravit úkol' : 'Nový úkol'}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div className="m-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div>
               <label style={labelStyle}>Název *</label>
               <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Co je potřeba udělat..." style={inputStyle} />
@@ -249,7 +249,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
               <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} style={inputStyle} />
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+          <div className="m-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
             <div>
               <label style={labelStyle}>Poznámka</label>
               <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Podrobnosti, poznámky..." style={inputStyle} />
@@ -279,7 +279,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
         </form>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+      <div className="m-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
         {STATUSES.map((col) => {
           const colTasks = grouped[col.value as keyof typeof grouped]
           return (

@@ -370,7 +370,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '32px' }}>
         <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)' }}>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>Celkové příjmy</div>
           <div style={{ fontSize: '22px', fontWeight: '700', color: '#34d399' }}>{fmt(totalIncome)}</div>

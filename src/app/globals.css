@@ -57,6 +57,38 @@ h1, h2, h3, .font-awakenning {
   box-sizing: border-box;
 }
 
+/* ===== iPhone / dotyk ===== */
+html {
+  /* iOS nezvětšuje písmo po otočení na šířku */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* barva firmy pro CSS (přepisuje se v layout.tsx podle aktivní firmy) */
+  --accent: #e05555;
+  --accent-soft: rgba(224,85,85,0.12);
+}
+body {
+  /* šedý záblesk při klepnutí na odkaz/tlačítko */
+  -webkit-tap-highlight-color: transparent;
+  /* spodní lišta iPhonu (home indicator) */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Na dotykových zařízeních: pole formulářů aspoň 16 px, jinak Safari při
+   klepnutí přiblíží celou stránku; rozumná výška pro prst. */
+@media (pointer: coarse), (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select {
+    min-height: 44px;
+  }
+  input[type="checkbox"], input[type="radio"] {
+    width: 20px; height: 20px;
+  }
+}
+
 /* --- Responsive layout --- */
 
 .page-main {
@@ -87,8 +119,6 @@ h1, h2, h3, .font-awakenning {
   font-family: var(--font-awakenning), sans-serif; font-size: 24px; font-weight: 800;
   font-style: italic; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1;
 }
-.nav-hamburger { display: none; }
-.nav-mobile-dropdown { display: none; }
 
 /* EventLayout tabs */
 .event-tabs-wrap {
@@ -135,50 +165,48 @@ h1, h2, h3, .font-awakenning {
     grid-template-columns: 1fr;
   }
 
-  /* Nav */
-  .nav-desktop { display: none; }
-  .nav-user-desktop { display: none; }
-  .nav-hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .nav-mobile-dropdown {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 64px;
-    left: 0;
-    right: 0;
-    bottom: 0;
+}
+
+/* Navigace pod 1100 px (mobil, tablet): horní řádek s logem a účtem, pruh
+   s odpočtem a pod tím vodorovně posuvné záložky sekcí přilepené nahoře.
+   Desktopová lišta s 8 položkami se pod ~1100 px nevejde. */
+.nav-bar-mobile { display: none; }
+.nav-m-tabs { display: none; }
+@media (max-width: 1100px) {
+  .nav-bar-desktop { display: none !important; }
+  .nav-bar-mobile { display: block; }
+  .site-header { position: static !important; }
+  .nav-m-tabs {
+    display: block;
+    position: sticky;
+    top: env(safe-area-inset-top);
+    z-index: 50;
     background-color: var(--bg-nav);
-    border-top: 1px solid var(--border-subtle);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    z-index: 49;
+    border-bottom: 1px solid var(--border-subtle);
   }
-  .nav-mobile-link {
+  .nav-m-tabs-inner {
     display: flex;
-    align-items: center;
-    padding: 15px 12px;
-    border-radius: 10px;
-    font-size: 17px;
-    font-family: var(--font-awakenning), sans-serif;
-    letter-spacing: 0.08em;
-    color: var(--text-secondary);
-    text-decoration: none;
-    min-height: 52px;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 6px max(14px, env(safe-area-inset-left)) 6px 14px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
   }
-  .nav-mobile-link.active {
-    background-color: rgba(224,85,85,0.12);
-    color: #e05555;
+  .nav-m-tabs-inner::-webkit-scrollbar { display: none; }
+  /* Pruh pod výřezem / status barem v režimu appky (PWA), ať pod ním
+     neprosvítá posouvaný obsah. V Safari je výška 0. */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: env(safe-area-inset-top);
+    background-color: var(--bg-nav);
+    z-index: 60;
   }
-  .nav-mobile-divider {
-    height: 1px;
-    background-color: var(--border-subtle);
-    margin: 8px 0;
-  }
+}
+
+@media (max-width: 768px) {
 
   /* EventLayout header */
   .event-header-row {
@@ -195,6 +223,50 @@ h1, h2, h3, .font-awakenning {
   .event-tabs-inner {
     min-width: max-content;
   }
+}
+
+/* === Sdílené mobilní pomocníky (přidávají se jako className) === */
+.chip-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 768px) {
+  .m-stack { grid-template-columns: 1fr !important; }
+  .m-2col { grid-template-columns: 1fr 1fr !important; }
+  .m-full { width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
+  .m-hide { display: none !important; }
+  .m-wrap { flex-wrap: wrap !important; }
+  .m-wrap > input:not([type="checkbox"]) { flex: 1 1 140px !important; width: auto !important; }
+  /* řada čipů / tlačítek: místo zalamování posouvat do strany */
+  .chip-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-right: -16px;
+    padding-right: 16px;
+  }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip-row > * { flex-shrink: 0; }
+  .chip { min-height: 36px; padding-left: 14px !important; padding-right: 14px !important; font-size: 13px !important; }
+
+  /* Dashboard */
+  .dash-filters { flex-direction: column; align-items: stretch !important; gap: 10px !important; padding: 12px 14px !important; }
+  .dash-filters-divider { display: none; }
+  .dash-event {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "info status" "fin fin";
+    gap: 10px 10px !important;
+    align-items: start !important;
+    padding: 14px !important;
+  }
+  .dash-event .de-info { grid-area: info; }
+  .dash-event .de-status { grid-area: status; }
+  .dash-event .de-fin { grid-area: fin; justify-content: space-between; width: 100%; }
+  .dash-event .de-fin > div { text-align: left !important; }
+  .dash-event .de-name { white-space: normal !important; font-size: 15px !important; font-weight: 700 !important; }
+  .pie-wrap { flex-direction: column; align-items: stretch !important; }
+  .pie-wrap .pie-chart { align-self: center; }
+  .pie-legend > div > span { font-size: 13px !important; }
+  .pie-legend { gap: 9px !important; }
 }
 
 /* === Animations === */
@@ -217,17 +289,18 @@ h1, h2, h3, .font-awakenning {
 
 .page-main { animation: fadeUp 0.3s ease both; }
 
-.nav-mobile-dropdown { animation: slideFromTop 0.22s ease both; }
 
 .collapse-content { animation: slideDown 0.18s ease both; }
 
 .card-hover {
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
-.card-hover:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 24px rgba(224, 85, 85, 0.12);
-  border-color: rgba(224,85,85,0.4) !important;
+@media (hover: hover) {
+  .card-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 24px var(--accent-soft);
+    border-color: var(--accent) !important;
+  }
 }
 
 button:not(:disabled):active { transform: scale(0.96); }

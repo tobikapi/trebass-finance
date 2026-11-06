@@ -178,8 +178,8 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
       {/* Search + filters */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Hledat jméno, email, poznámku..."
-          style={{ ...inputStyle, width: '260px' }} />
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          className="m-full" style={{ ...inputStyle, width: '260px' }} />
+        <div className="chip-row" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           {['vse', ...TYPES].map(t => (
             <button key={t} onClick={() => setFilterType(t)}
               style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer',
@@ -197,7 +197,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
           <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '600', color: '#f4978e' }}>
             {editId ? 'Upravit kontakt' : 'Nový kontakt'}
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div className="m-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div>
               <label style={labelStyle}>Jméno / název *</label>
               <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Jméno nebo firma" style={inputStyle} />
@@ -244,7 +244,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
           {search || filterType !== 'vse' ? 'Žádné výsledky.' : 'Zatím žádné kontakty. Přidej první →'}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '12px' }}>
           {filtered.map(c => {
             const tc = TYPE_COLORS[c.type] || TYPE_COLORS.jiné
             return (

@@ -396,7 +396,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
         <div style={{ fontSize: '13px', fontWeight: '600', color: '#38bdf8', marginBottom: '14px' }}>
           {editId ? 'Upravit položku' : 'Nová technika'}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+        <div className="m-2col" style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
           <div style={{ gridColumn: '1 / 3' }}>
             <label style={labelStyle}>Název *</label>
             <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="např. GrandMa3 compact" style={inputStyle} />
@@ -659,7 +659,7 @@ export default function TechnikaClient({ id, initialEquipment }: Props) {
       )}
 
       {showVendorForm && (
-        <form onSubmit={handleCreateVendor} style={{ display: 'flex', gap: '8px', marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <form onSubmit={handleCreateVendor} className="m-wrap" style={{ display: 'flex', gap: '8px', marginBottom: '20px', padding: '14px 18px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
           <input autoFocus value={vendorName} onChange={e => setVendorName(e.target.value)} placeholder="Název pronajímatele, např. AudioLighty s.r.o." style={{ ...inputStyle, flex: 1 }} />
           <input type="number" min="0" max="100" value={vendorDiscount} onChange={e => setVendorDiscount(e.target.value)} placeholder="Sleva %" title="Sleva v % (0–100)" style={{ ...inputStyle, width: '100px', flex: 'none' }} />
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0, cursor: 'pointer' }}>

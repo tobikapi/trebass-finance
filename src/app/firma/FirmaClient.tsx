@@ -283,7 +283,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
       </Link>
 
       {/* Year filter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '12px 20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', flexWrap: 'wrap' }}>
+      <div className="chip-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '12px 20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>ROK</span>
         {['vse', ...availableYears].map(y => (
           <button key={y} onClick={() => setYearFilter(y)} style={{
@@ -315,7 +315,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
       </div>
 
       {/* Main two-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+      <div className="m-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
 
         {/* ===== VÝDAJE ===== */}
         <div>
@@ -560,7 +560,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
             Zatím žádné vklady pro vybraný rok.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '12px' }}>
             {groupedContrib.map(([name, { total, items }]) => (
               <div key={name} style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(56,189,248,0.35)' }}>
                 <div style={{ backgroundColor: 'rgba(56,189,248,0.06)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

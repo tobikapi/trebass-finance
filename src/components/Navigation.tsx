@@ -28,9 +28,8 @@ const MEMBER_COLORS: Record<string, string> = {
 
 export default function Navigation() {
   const pathname = usePathname()
-  const [menuOpen, setMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const { user, profile, can, orgId, orgs, brand, switchOrg } = useUser()
+  const { user, profile, can, orgId, orgs, brand } = useUser()
   const { theme, toggleTheme } = useTheme()
 
   const visibleNavItems = NAV_ITEMS.filter(item => can(item.permission))
@@ -50,7 +49,7 @@ export default function Navigation() {
     if (!orgId) return
     supabase.from('events').select('name, date, time_start')
       .eq('org_id', orgId ?? '').eq('status', 'pripravuje_se').not('date', 'is', null)
-      .order('date', { ascending: true }).limit(1).single()
+      .order('date', { ascending: true }).limit(1).maybeSingle()
       .then(({ data }) => setNextEvent(data ?? null))
   }, [refetchKey, orgId])
 
@@ -79,8 +78,10 @@ export default function Navigation() {
 
   return (
     <>
-    <header style={{ backgroundColor: 'var(--bg-nav)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 50, transition: 'background-color 0.2s' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', height: '64px', gap: '32px' }}>
+    <header className="site-header" style={{ backgroundColor: 'var(--bg-nav)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 50, transition: 'background-color 0.2s',
+      // iPhone v režimu appky: obsah nesmí pod výřez / status bar
+      paddingTop: 'env(safe-area-inset-top)', paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}>
+      <div className="nav-bar-desktop" style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', height: '64px', gap: '32px' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center' }}>
@@ -163,83 +164,70 @@ export default function Navigation() {
           </div>
         )}
 
-        <div className="nav-hamburger">
-          <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', fontSize: '22px', color: menuOpen ? '#f4978e' : 'var(--text-secondary)', background: 'none', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
-            {menuOpen ? '✕' : '☰'}
+      </div>
+
+      {/* ===== Mobil a tablet (≤1100 px) — podle návrhu z iPhonu ===== */}
+      <div className="nav-bar-mobile">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', minHeight: '56px' }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} aria-label={`${brand.name} – Dashboard`}>
+            {brand.logo ? (
+              <Image src={brand.logo} alt={brand.name} width={96} height={36}
+                style={{ objectFit: 'contain', height: '30px', width: 'auto', filter: isLight ? 'brightness(0.85)' : 'none' }} />
+            ) : (
+              <span className="org-wordmark" style={{ color: brand.accent, fontSize: '21px' }}>{brand.name}</span>
+            )}
+          </Link>
+          {orgs.length > 1 && <OrgSwitcher compact />}
+          <div style={{ flex: 1 }} />
+          <button onClick={toggleTheme} aria-label={isLight ? 'Tmavý režim' : 'Světlý režim'}
+            style={{ width: '44px', height: '44px', borderRadius: '10px', flexShrink: 0, backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '17px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {isLight ? '🌙' : '☀️'}
           </button>
+          {user && (
+            <>
+              <div title={userName} aria-label={userName} style={{ width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0, backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
+                {initials}
+              </div>
+              <button disabled={isPending} onClick={() => startTransition(async () => { await signOut(); window.location.assign('/login') })}
+                style={{ minHeight: '44px', padding: '0 12px', fontSize: '13px', color: brand.accent, background: 'none', border: `1px solid ${brand.accent}55`, borderRadius: '10px', cursor: 'pointer', flexShrink: 0 }}>
+                {isPending ? '…' : 'Odhlásit'}
+              </button>
+            </>
+          )}
         </div>
+
+        {nextEvent && cdParts && (
+          <div style={{ padding: '0 14px 10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)' }}>
+              <div style={{ flex: 1, minWidth: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {nextEvent.name}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', flexShrink: 0, fontFamily: "'Courier New', monospace", fontWeight: 800, color: brand.accent, fontSize: '15px' }} aria-label="Odpočet do akce">
+                {(cdParts.d > 0
+                  ? [{ v: cdParts.d, u: 'd' }, { v: cdParts.h, u: 'h' }, { v: cdParts.m, u: 'm' }, { v: cdParts.s, u: 's' }]
+                  : [{ v: cdParts.h, u: 'h' }, { v: cdParts.m, u: 'm' }, { v: cdParts.s, u: 's' }]
+                ).map(({ v, u }, i, arr) => (
+                  <span key={u} style={{ display: 'inline-flex', alignItems: 'baseline', gap: '1px' }}>
+                    {String(v).padStart(2, '0')}<span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: 600 }}>{u}</span>
+                    {i < arr.length - 1 && <span style={{ color: 'var(--text-dim)', margin: '0 1px' }}>:</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </header>
 
-    {menuOpen && (
-      <div className="nav-mobile-dropdown">
-        {orgs.length > 1 && (
-          <div style={{ padding: '14px 16px 4px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>Firma</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {orgs.map(o => {
-                const b = ORG_BRANDS[o.slug]
-                const active = o.id === orgId
-                return (
-                  <button key={o.id} onClick={() => { if (!active) switchOrg(o.id) }} aria-pressed={active}
-                    style={{
-                      flex: 1, minHeight: '48px', borderRadius: '10px', fontSize: '15px', fontWeight: 700,
-                      fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em',
-                      cursor: active ? 'default' : 'pointer',
-                      color: active ? '#fff' : 'var(--text-secondary)',
-                      backgroundColor: active ? b.accent : 'var(--bg-card-alt)',
-                      border: `1px solid ${active ? b.accent : 'var(--border)'}`,
-                    }}>
-                    {o.name}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-        <div style={{ padding: '8px 16px', flex: 1 }}>
-          {visibleNavItems.map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
-                className={`nav-mobile-link${isActive ? ' active' : ''}`}>
-                {item.label}
-              </Link>
-            )
-          })}
-        </div>
-
-        {user && (
-          <div style={{ padding: '16px', borderTop: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700' }}>
-                {initials}
-              </div>
-              <div style={{ fontSize: '15px', color: 'var(--text-primary)', fontWeight: '500', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
-                {userName}
-              </div>
-              <button onClick={toggleTheme}
-                style={{ marginLeft: 'auto', width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {isLight ? '🌙' : '☀️'}
-              </button>
-            </div>
-            <button disabled={isPending} onClick={() => startTransition(async () => { await signOut(); window.location.assign('/login') })}
-              style={{ width: '100%', padding: '13px', backgroundColor: '#1a0808', color: '#e05555', border: '1px solid #3d1515', borderRadius: '10px', cursor: 'pointer', fontSize: '15px', fontWeight: '600', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em' }}>
-              {isPending ? 'Odhlašuji...' : 'Odhlásit se'}
-            </button>
-            <div style={{ height: 'env(safe-area-inset-bottom, 8px)' }} />
-          </div>
-        )}
-      </div>
-    )}
+    {/* Záložky sekcí — na mobilu místo hamburgeru, přilepené nahoře */}
+    <MobileTabs items={visibleNavItems} pathname={pathname} />
     </>
   )
 }
 
 // Přepínač firmy (jen pro lidi ve více firmách). Přepnutí = plné načtení
 // appky v nové firmě (seznamy, role, vzhled i undo patří k firmě).
-function OrgSwitcher() {
+function OrgSwitcher({ compact = false }: { compact?: boolean }) {
   const { orgs, orgId, brand, switchOrg } = useUser()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -254,19 +242,20 @@ function OrgSwitcher() {
   }, [open])
 
   return (
-    <div ref={ref} className="nav-user-desktop" style={{ position: 'relative' }}>
+    <div ref={ref} style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
       <button onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open}
         title="Přepnout firmu"
         style={{
-          display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '8px',
-          fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: '6px', padding: compact ? '0 10px' : '5px 10px', borderRadius: '8px',
+          minHeight: compact ? '36px' : undefined, textTransform: compact ? 'uppercase' : undefined,
+          fontSize: compact ? '11px' : '12px', fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer',
           color: brand.accent, backgroundColor: brand.accentSoft, border: `1px solid ${brand.accent}55`,
         }}>
         {brand.name} <span style={{ fontSize: '10px', opacity: 0.8 }}>⇄</span>
       </button>
       {open && (
         <div role="menu" style={{
-          position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '180px', zIndex: 60,
+          position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '200px', zIndex: 60,
           backgroundColor: 'var(--bg-nav)', border: '1px solid var(--border)', borderRadius: '10px',
           boxShadow: 'var(--shadow)', padding: '6px',
         }}>
@@ -277,7 +266,7 @@ function OrgSwitcher() {
               <button key={o.id} role="menuitemradio" aria-checked={active}
                 onClick={() => { setOpen(false); if (!active) switchOrg(o.id) }}
                 style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px',
+                  width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', minHeight: '44px',
                   borderRadius: '7px', border: 'none', cursor: active ? 'default' : 'pointer', textAlign: 'left',
                   fontSize: '14px', fontWeight: 600,
                   color: active ? b.accent : 'var(--text-primary)',
@@ -292,5 +281,40 @@ function OrgSwitcher() {
         </div>
       )}
     </div>
+  )
+}
+
+// Vodorovně posuvné záložky sekcí (mobil/tablet). Aktivní se po načtení
+// posune do viditelné části, ať je vidět, kde člověk je.
+function MobileTabs({ items, pathname }: { items: { href: string; label: string }[]; pathname: string }) {
+  const { brand } = useUser()
+  const ref = useRef<HTMLDivElement>(null)
+  const isActive = (href: string) => href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
+  useEffect(() => {
+    const el = ref.current?.querySelector('[aria-current="page"]') as HTMLElement | null
+    el?.scrollIntoView({ block: 'nearest', inline: 'center' })
+  }, [pathname])
+  if (items.length === 0) return null
+  return (
+    <nav className="nav-m-tabs" aria-label="Sekce">
+      <div ref={ref} className="nav-m-tabs-inner">
+        {items.map(item => {
+          const active = isActive(item.href)
+          return (
+            <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined}
+              style={{
+                display: 'inline-flex', alignItems: 'center', minHeight: '40px', padding: '0 14px', borderRadius: '10px',
+                fontSize: '14px', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em',
+                textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+                color: active ? brand.accent : 'var(--text-secondary)',
+                backgroundColor: active ? brand.accentSoft : 'transparent',
+                border: `1px solid ${active ? brand.accent + '66' : 'transparent'}`,
+              }}>
+              {item.label}
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
   )
 }
