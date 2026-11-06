@@ -122,7 +122,7 @@ export default function EventLayout({ eventId, children }: Props) {
               <Link key={tab.href} href={tab.href} style={{
                 padding: '8px 18px', borderRadius: '7px', fontSize: '13px',
                 fontWeight: isActive ? '600' : '400',
-                backgroundColor: isActive ? '#e05555' : 'transparent',
+                backgroundColor: isActive ? '#d15c49' : 'transparent',
                 color: isActive ? '#fff' : 'var(--text-secondary)',
                 textDecoration: 'none', transition: 'all 0.15s',
               }}>

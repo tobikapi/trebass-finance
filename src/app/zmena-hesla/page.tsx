@@ -107,7 +107,7 @@ export default function ZmenaHeslaPage() {
             type="submit" disabled={isPending}
             style={{
               marginTop: '6px', padding: '14px',
-              backgroundColor: isPending ? '#7a2e2e' : '#e05555',
+              backgroundColor: isPending ? '#7a2e2e' : '#d15c49',
               color: '#fff', border: 'none', borderRadius: '10px',
               fontSize: '14px', fontFamily: 'var(--font-awakenning), sans-serif',
               letterSpacing: '0.14em', cursor: isPending ? 'not-allowed' : 'pointer',

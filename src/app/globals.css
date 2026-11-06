@@ -2,23 +2,24 @@
 
 /* ===== THEME VARIABLES ===== */
 :root, [data-theme="dark"] {
-  --bg-base:       #0c0c0c;
-  --bg-nav:        #111111;
-  --bg-card:       #111118;
-  --bg-card-alt:   #161616;
-  --bg-card-dark:  #1e1e1e;
-  --bg-badge:      #1e1e2e;
-  --bg-input:      #0a0a0f;
-  --border:        #2a2a3e;
-  --border-subtle: #2d2d2d;
-  --border-card:   #1e1e2e;
-  --text-primary:  #f1f5f9;
-  --text-secondary:#9ca3af;
-  --text-muted:    #6b7280;
-  --text-dim:      #4b5563;
-  --text-faint:    #374151;
-  --overlay:       rgba(12,12,12,0.82);
-  --shadow:        0 4px 24px rgba(0,0,0,0.4);
+  /* Tmavý motiv podle návrhu z iPhonu (listopad 2026): tmavě modrá místo černé */
+  --bg-base:       #090c13;
+  --bg-nav:        #121624;
+  --bg-card:       #111727;
+  --bg-card-alt:   #141a2d;
+  --bg-card-dark:  #1a2133;
+  --bg-badge:      #202737;
+  --bg-input:      #0f1321;
+  --border:        #1e2637;
+  --border-subtle: #171d30;
+  --border-card:   #1b2332;
+  --text-primary:  #e8edf5;
+  --text-secondary:#9aa3b2;
+  --text-muted:    #757f90;
+  --text-dim:      #566074;
+  --text-faint:    #3a4356;
+  --overlay:       rgba(9,12,19,0.82);
+  --shadow:        0 4px 24px rgba(0,0,0,0.45);
 }
 
 [data-theme="light"] {
@@ -63,8 +64,8 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   /* barva firmy pro CSS (přepisuje se v layout.tsx podle aktivní firmy) */
-  --accent: #e05555;
-  --accent-soft: rgba(224,85,85,0.12);
+  --accent: #d15c49;
+  --accent-soft: rgba(209,92,73,0.12);
 }
 body {
   /* šedý záblesk při klepnutí na odkaz/tlačítko */
@@ -181,7 +182,7 @@ body {
     position: sticky;
     top: env(safe-area-inset-top);
     z-index: 50;
-    background-color: var(--bg-nav);
+    background-color: var(--bg-base);
     border-bottom: 1px solid var(--border-subtle);
   }
   .nav-m-tabs-inner {
@@ -283,8 +284,8 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes pulse-glow {
-  0%, 100% { text-shadow: 0 0 0px #e05555; }
-  50%       { text-shadow: 0 0 10px #e0555588; }
+  0%, 100% { text-shadow: 0 0 0px #d15c49; }
+  50%       { text-shadow: 0 0 10px #d15c4988; }
 }
 
 .page-main { animation: fadeUp 0.3s ease both; }

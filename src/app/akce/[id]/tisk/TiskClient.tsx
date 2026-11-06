@@ -347,7 +347,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         borderRadius: '12px',
       }}>
         <button onClick={() => window.print()} style={{
-          padding: '10px 22px', backgroundColor: '#e05555', color: '#fff',
+          padding: '10px 22px', backgroundColor: '#d15c49', color: '#fff',
           borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: '6px',
         }}>
@@ -426,7 +426,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Header */}
         <div style={{ marginBottom: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #e05555', paddingBottom: '16px', marginBottom: '0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #d15c49', paddingBottom: '16px', marginBottom: '0' }}>
             <div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {brand.logo
@@ -536,12 +536,12 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
         {/* Výdaje */}
         {sections.vydaje && expensesByCategory.length > 0 && (
           <section style={{ marginBottom: '28px' }}>
-            <SectionHeader color="#e05555" icon="💸" title="Výdaje" />
+            <SectionHeader color="#d15c49" icon="💸" title="Výdaje" />
             {expensesByCategory.map(({ cat, items }) => {
               const catTotal = items.reduce((s, e) => s + e.price, 0)
               return (
                 <div key={cat} style={{ marginBottom: '16px', pageBreakInside: 'avoid' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '700', color: '#e05555', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0', borderBottom: '1px dashed #f9d0d0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '700', color: '#d15c49', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0', borderBottom: '1px dashed #f9d0d0' }}>
                     <span>{cat}</span>
                     {showAmounts && <span>{fmt(catTotal)}</span>}
                   </div>

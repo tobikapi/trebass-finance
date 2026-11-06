@@ -60,7 +60,7 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Akce</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Všechny festivaly a události</p>
         </div>
-        {can('canCreate') && <Link href="/akce/nova" style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
+        {can('canCreate') && <Link href="/akce/nova" style={{ padding: '10px 20px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
           + Nová akce
         </Link>}
       </div>
@@ -71,7 +71,7 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
             <button key={f.value} onClick={() => setFilter(f.value)} style={{
               padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '500',
               border: 'none', cursor: 'pointer',
-              backgroundColor: filter === f.value ? '#e05555' : 'var(--bg-card-dark)',
+              backgroundColor: filter === f.value ? '#d15c49' : 'var(--bg-card-dark)',
               color: filter === f.value ? '#fff' : 'var(--text-secondary)',
             }}>
               {f.label}
@@ -94,7 +94,7 @@ export default function AkceClient({ initialEvents }: { initialEvents: Event[] }
 
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-          Žádné akce.{can('canCreate') && <> <Link href="/akce/nova" style={{ color: '#e05555' }}>Vytvoř první →</Link></>}
+          Žádné akce.{can('canCreate') && <> <Link href="/akce/nova" style={{ color: '#d15c49' }}>Vytvoř první →</Link></>}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

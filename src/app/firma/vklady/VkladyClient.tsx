@@ -410,7 +410,7 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
             <button key={m} type="button" onClick={() => { setMode(m); setConfirmSettle(false) }} style={{
               padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
               border: '1px solid var(--border)',
-              backgroundColor: mode === m ? '#e05555' : 'transparent', color: mode === m ? '#fff' : 'var(--text-secondary)',
+              backgroundColor: mode === m ? '#d15c49' : 'transparent', color: mode === m ? '#fff' : 'var(--text-secondary)',
             }}>{label}</button>
           ))}
         </div>
@@ -424,7 +424,7 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
                   <input autoFocus inputMode="decimal" value={balanceInput} onChange={e => setBalanceInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') saveBalance(); if (e.key === 'Escape') setBalanceEdit(false) }}
                     placeholder="např. 40000" style={inputStyle} />
-                  <button type="button" onClick={saveBalance} style={{ padding: '0 14px', borderRadius: '8px', border: 'none', backgroundColor: '#e05555', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Uložit</button>
+                  <button type="button" onClick={saveBalance} style={{ padding: '0 14px', borderRadius: '8px', border: 'none', backgroundColor: '#d15c49', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Uložit</button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
@@ -558,7 +558,7 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
               <input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder={{ vklad: 'např. vklad z vlastních úspor, Makro, ploty…', vyber: 'např. výplata zisku, vrácení vkladu…', dluh: 'např. podíl na ztrátě Spring Edition…', vyrovnani: 'např. splacení dluhu za Spring Edition…' }[form.kind]} style={inputStyle} />
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="submit" disabled={saving} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#e05555', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+              <button type="submit" disabled={saving} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#d15c49', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
                 {saving ? 'Ukládám…' : editId ? 'Uložit změny' : 'Přidat'}
               </button>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Zrušit</button>

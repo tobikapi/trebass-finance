@@ -89,7 +89,7 @@ export function UndoProvider({ children }: { children: React.ReactNode }) {
           <div key={t.id} style={{
             padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '500',
             backgroundColor: t.isError ? '#2d1515' : 'var(--bg-card-alt, #1a1a1a)',
-            border: `1px solid ${t.isError ? '#e05555' : 'var(--border-card, #2d2d2d)'}`,
+            border: `1px solid ${t.isError ? '#d15c49' : 'var(--border-card, #2d2d2d)'}`,
             color: t.isError ? '#f87171' : 'var(--text-primary, #fff)',
             boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
             opacity: t.phase === 'show' ? 1 : 0,

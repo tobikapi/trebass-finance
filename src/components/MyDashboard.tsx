@@ -131,14 +131,14 @@ export default function MyDashboard() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{t.title}</span>
-                    <span style={{ fontSize: '10px', color: STATUS_COLORS[t.status], backgroundColor: '#0c0c0c', padding: '2px 6px', borderRadius: '4px' }}>
+                    <span style={{ fontSize: '10px', color: STATUS_COLORS[t.status], backgroundColor: 'var(--bg-base)', padding: '2px 6px', borderRadius: '4px' }}>
                       {STATUS_LABELS[t.status]}
                     </span>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {t.event_id && eventName(t.event_id) && <span>🎪 {eventName(t.event_id)}</span>}
                     {t.due_date && (
-                      <span style={{ color: isOverdue(t) ? '#e05555' : 'var(--text-muted)' }}>
+                      <span style={{ color: isOverdue(t) ? '#d15c49' : 'var(--text-muted)' }}>
                         {isOverdue(t) ? '⚠️' : '📅'} {new Date(t.due_date).toLocaleDateString('cs-CZ')}
                       </span>
                     )}

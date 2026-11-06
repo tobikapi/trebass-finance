@@ -99,7 +99,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
               <button key={m} type="button" onClick={() => setAuthor(m)} style={{
                 padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
                 border: 'none', cursor: 'pointer',
-                backgroundColor: author === m ? (MEMBER_COLORS[m] || '#e05555') : 'var(--bg-card-dark)',
+                backgroundColor: author === m ? (MEMBER_COLORS[m] || '#d15c49') : 'var(--bg-card-dark)',
                 color: author === m ? '#0c0c0c' : 'var(--text-secondary)',
               }}>{m}</button>
             ))}
@@ -111,7 +111,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
           style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px', padding: '10px 14px', width: '100%', outline: 'none', fontSize: '14px', resize: 'vertical', marginBottom: '12px' }}
         />
         <button type="submit" disabled={saving || !content.trim()} style={{
-          padding: '8px 20px', backgroundColor: '#e05555', color: '#fff',
+          padding: '8px 20px', backgroundColor: '#d15c49', color: '#fff',
           borderRadius: '8px', fontSize: '13px', fontWeight: '600',
           border: 'none', cursor: 'pointer', opacity: saving || !content.trim() ? 0.5 : 1,
         }}>
@@ -131,7 +131,7 @@ export default function PoznamkyClient({ id, initialNotes, initialAuthor }: Prop
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{
                     width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: MEMBER_COLORS[note.author] || '#e05555',
+                    backgroundColor: MEMBER_COLORS[note.author] || '#d15c49',
                     color: '#0c0c0c', fontSize: '11px', fontWeight: '700', flexShrink: 0,
                   }}>
                     {note.author.slice(0, 2).toUpperCase()}

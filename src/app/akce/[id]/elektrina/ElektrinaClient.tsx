@@ -236,7 +236,7 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
             {refreshing ? '...' : '↻'}
           </button>
           {canCreate && (<button onClick={openAddExtra}
-            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', backgroundColor: '#e05555', color: '#fff', border: 'none', cursor: 'pointer' }}>
+            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', backgroundColor: '#d15c49', color: '#fff', border: 'none', cursor: 'pointer' }}>
             + Přidat mimo techniku
           </button>)}
         </div>
@@ -245,11 +245,11 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Rozdělit podle (lze zaškrtnout obojí):</span>
         <button onClick={() => setByCategory(v => !v)}
-          style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: byCategory ? '#e05555' : 'var(--bg-card)', color: byCategory ? '#fff' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
+          style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: byCategory ? '#d15c49' : 'var(--bg-card)', color: byCategory ? '#fff' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer' }}>
           {byCategory ? '✓ ' : ''}Kategorie
         </button>
         <button onClick={() => setByLocation(v => !v)} disabled={locations.length === 0}
-          style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: byLocation ? '#e05555' : 'var(--bg-card)', color: byLocation ? '#fff' : locations.length === 0 ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: locations.length === 0 ? 'not-allowed' : 'pointer' }}>
+          style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: byLocation ? '#d15c49' : 'var(--bg-card)', color: byLocation ? '#fff' : locations.length === 0 ? 'var(--text-dim)' : 'var(--text-secondary)', border: '1px solid var(--border)', cursor: locations.length === 0 ? 'not-allowed' : 'pointer' }}>
           {byLocation ? '✓ ' : ''}Místa
         </button>
         {locations.length === 0 && (
@@ -263,7 +263,7 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
       </p>
 
       {showExtraForm && (
-        <form onSubmit={handleSaveExtra} style={{ marginBottom: '20px', padding: '18px 20px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid #e05555' }}>
+        <form onSubmit={handleSaveExtra} style={{ marginBottom: '20px', padding: '18px 20px', borderRadius: '10px', backgroundColor: 'var(--bg-card)', border: '1px solid #d15c49' }}>
           <div style={{ fontSize: '13px', fontWeight: '600', color: '#f4978e', marginBottom: '14px' }}>
             {editExtraId ? 'Upravit položku' : 'Nová položka mimo techniku'}
           </div>
@@ -300,7 +300,7 @@ export default function ElektrinaClient({ id, initialEquipment, initialLocations
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button type="submit" disabled={savingExtra} style={{ padding: '7px 18px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: '#e05555', color: '#fff', border: 'none', cursor: 'pointer' }}>
+            <button type="submit" disabled={savingExtra} style={{ padding: '7px 18px', borderRadius: '7px', fontSize: '13px', fontWeight: '600', backgroundColor: '#d15c49', color: '#fff', border: 'none', cursor: 'pointer' }}>
               {savingExtra ? 'Ukládám...' : 'Uložit'}
             </button>
             <button type="button" onClick={() => { setShowExtraForm(false); setEditExtraId(null) }} style={{ padding: '7px 18px', borderRadius: '7px', fontSize: '13px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer' }}>

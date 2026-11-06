@@ -17,7 +17,7 @@ interface Contact { id: string; name: string; type: string; fee: number }
 
 const emptyForm = { artist_name: '', fee: '', deposit: '', travel_cost: '', paid: false, date: '', set_time: '', stage: '', notes: '' }
 
-const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' } as const
+const inputStyle = { backgroundColor: 'var(--bg-base)', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' } as const
 const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
 
 const STAGE_PALETTE = [
@@ -373,7 +373,7 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               {canEdit && (<button onClick={() => startEdit(art)} style={{ fontSize: '12px', color: sc.main, background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>)}
-              {canDelete && (<button onClick={() => handleDelete(art.id)} style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>)}
+              {canDelete && (<button onClick={() => handleDelete(art.id)} style={{ fontSize: '12px', color: '#d15c49', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>)}
             </div>
           </div>
         ))}

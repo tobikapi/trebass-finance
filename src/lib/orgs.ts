@@ -23,12 +23,12 @@ export interface OrgBrand {
 export const ORG_BRANDS: Record<OrgSlug, OrgBrand> = {
   trebass: {
     slug: 'trebass', name: 'Třebass', appTitle: 'Třebass Finance',
-    logo: '/logo.png', accent: '#e05555', accentSoft: 'rgba(224,85,85,0.12)',
+    logo: '/logo.png', accent: '#d15c49', accentSoft: 'rgba(209,92,73,0.12)',
   },
   horizon: {
-    // Vzhled podle plakátu 2026 (modrá DnB stage) — doladí se s jejich logem.
+    // Barvy podle návrhu z iPhonu: světle modrý text na tmavě modrém poli.
     slug: 'horizon', name: 'Horizon', appTitle: 'Horizon Finance',
-    logo: null, accent: '#6f8cff', accentSoft: 'rgba(111,140,255,0.14)',
+    logo: null, accent: '#7db5dd', accentSoft: 'rgba(37,64,138,0.55)',
   },
 }
 

@@ -38,7 +38,7 @@ export default function Navigation() {
   // se vezme aspoň přihlašovací jméno z e-mailu, ať odhlašovací tlačítko
   // nezmizí úplně jen kvůli prázdnému poli.
   const userName = profile?.name || profile?.email?.replace(/@trebass\.cz$/, '') || ''
-  const avatarColor = MEMBER_COLORS[userName] || '#e05555'
+  const avatarColor = MEMBER_COLORS[userName] || '#d15c49'
   const initials = userName.slice(0, 2).toUpperCase()
 
   const [nextEvent, setNextEvent] = useState<{ name: string; date: string; time_start: string | null } | null>(null)
@@ -158,7 +158,7 @@ export default function Navigation() {
               </span>
             </div>
             <button disabled={isPending} onClick={() => startTransition(async () => { await signOut(); window.location.assign('/login') })}
-              style={{ fontSize: '12px', color: '#e05555', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 14px', transition: 'all 0.15s' }}>
+              style={{ fontSize: '12px', color: '#d15c49', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 14px', transition: 'all 0.15s' }}>
               Odhlásit
             </button>
           </div>

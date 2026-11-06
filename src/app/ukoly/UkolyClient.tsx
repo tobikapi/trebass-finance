@@ -15,7 +15,7 @@ const STATUSES = [
 const PRIORITIES = [
   { value: 'low', label: 'Nízká', color: '#6b7280' },
   { value: 'medium', label: 'Střední', color: '#f4978e' },
-  { value: 'high', label: 'Vysoká', color: '#e05555' },
+  { value: 'high', label: 'Vysoká', color: '#d15c49' },
 ]
 
 interface Task {
@@ -152,7 +152,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
     done: byPriority(filtered.filter((t) => t.status === 'done')),
   }
 
-  const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
+  const inputStyle = { backgroundColor: 'var(--bg-base)', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
   const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
 
   const getPriorityColor = (p: string) => PRIORITIES.find((x) => x.value === p)?.color || '#6b7280'
@@ -171,7 +171,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Úkoly</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Task management pro celý tým</p>
         </div>
-        {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
+        {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }} style={{ padding: '10px 20px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
           + Nový úkol
         </button>)}
       </div>
@@ -181,7 +181,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>Člen:</span>
           {['vse', ...members].map((m) => (
-            <button key={m} onClick={() => setFilterUser(m)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterUser === m ? '#e05555' : 'var(--bg-card-dark)', color: filterUser === m ? '#fff' : 'var(--text-secondary)' }}>
+            <button key={m} onClick={() => setFilterUser(m)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterUser === m ? '#d15c49' : 'var(--bg-card-dark)', color: filterUser === m ? '#fff' : 'var(--text-secondary)' }}>
               {m === 'vse' ? 'Vše' : m}
             </button>
           ))}
@@ -189,7 +189,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>Status:</span>
           {[{ value: 'vse', label: 'Vše' }, ...STATUSES].map((s) => (
-            <button key={s.value} onClick={() => setFilterStatus(s.value)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterStatus === s.value ? '#e05555' : 'var(--bg-card-dark)', color: filterStatus === s.value ? '#fff' : 'var(--text-secondary)' }}>
+            <button key={s.value} onClick={() => setFilterStatus(s.value)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', backgroundColor: filterStatus === s.value ? '#d15c49' : 'var(--bg-card-dark)', color: filterStatus === s.value ? '#fff' : 'var(--text-secondary)' }}>
               {s.label}
             </button>
           ))}
@@ -200,7 +200,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
             value={filterEvent} onChange={e => setFilterEvent(e.target.value)}
             style={{
               padding: '4px 10px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer',
-              backgroundColor: filterEvent === 'vse' ? 'var(--bg-card-dark)' : '#e05555',
+              backgroundColor: filterEvent === 'vse' ? 'var(--bg-card-dark)' : '#d15c49',
               color: filterEvent === 'vse' ? 'var(--text-secondary)' : '#fff', outline: 'none',
             }}
           >
@@ -213,7 +213,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
 
       {/* Form */}
       {showForm && (
-        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #e05555', borderRadius: '12px' }}>
+        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #d15c49', borderRadius: '12px' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '600', color: '#f4978e' }}>{editId ? 'Upravit úkol' : 'Nový úkol'}</h3>
           <div className="m-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div>
@@ -230,7 +230,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
                       padding: '6px 13px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
                       border: '1px solid', transition: 'all 0.15s',
                       backgroundColor: selected ? '#2d1515' : '#0c0c0c',
-                      borderColor: selected ? '#e05555' : '#2d1515',
+                      borderColor: selected ? '#d15c49' : '#2d1515',
                       color: selected ? '#f4978e' : 'var(--text-muted)',
                       fontWeight: selected ? '600' : '400',
                     }}>{m}</button>
@@ -269,7 +269,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button type="submit" disabled={saving} style={{ padding: '8px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
+            <button type="submit" disabled={saving} style={{ padding: '8px 20px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
               {saving ? 'Ukládám...' : 'Uložit'}
             </button>
             <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} style={{ padding: '8px 20px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
@@ -304,7 +304,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
                     <div key={task.id} className="card-hover" style={{ backgroundColor: 'var(--bg-card-alt)', border: `1px solid ${overdue ? '#4a1515' : '#2d1515'}`, borderRadius: '10px', padding: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', flex: 1, marginRight: '8px' }}>{task.title}</span>
-                        <span style={{ fontSize: '11px', color: getPriorityColor(task.priority), backgroundColor: '#0c0c0c', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '11px', color: getPriorityColor(task.priority), backgroundColor: 'var(--bg-base)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
                           {PRIORITIES.find((p) => p.value === task.priority)?.label}
                         </span>
                       </div>
@@ -320,7 +320,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
                           </span>
                         ))}
                         {task.due_date && (
-                          <span style={{ fontSize: '11px', color: overdue ? '#e05555' : 'var(--text-muted)' }}>
+                          <span style={{ fontSize: '11px', color: overdue ? '#d15c49' : 'var(--text-muted)' }}>
                             {overdue ? '⚠️' : '📅'} {new Date(task.due_date).toLocaleDateString('cs-CZ')}
                           </span>
                         )}
@@ -341,7 +341,7 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
                         </select>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {canEdit && (<button onClick={() => startEdit(task)} style={{ fontSize: '11px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
-                          {canDelete && (<button onClick={() => handleDelete(task.id)} style={{ fontSize: '11px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
+                          {canDelete && (<button onClick={() => handleDelete(task.id)} style={{ fontSize: '11px', color: '#d15c49', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                         </div>
                       </div>
                     </div>

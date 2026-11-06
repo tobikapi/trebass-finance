@@ -4,8 +4,8 @@
   "description": "Finanční systém pro Třebass",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0c0c0c",
-  "theme_color": "#e05555",
+  "background_color": "#090c13",
+  "theme_color": "#121624",
   "orientation": "portrait-primary",
   "icons": [
     {

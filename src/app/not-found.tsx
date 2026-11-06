@@ -8,8 +8,8 @@ export default function NotFound() {
     }}>
       <div style={{
         fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.1em',
-        fontSize: '96px', color: '#e05555', lineHeight: 1, marginBottom: '8px',
-        textShadow: '0 0 40px rgba(224,85,85,0.35)',
+        fontSize: '96px', color: '#d15c49', lineHeight: 1, marginBottom: '8px',
+        textShadow: '0 0 40px rgba(209,92,73,0.35)',
       }}>
         404
       </div>
@@ -23,7 +23,7 @@ export default function NotFound() {
         Stránka, kterou hledáš, neexistuje nebo se přesunula. Zkontroluj adresu, nebo se vrať zpátky.
       </p>
       <Link href="/" style={{
-        padding: '10px 24px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px',
+        padding: '10px 24px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px',
         fontSize: '14px', fontWeight: 600, textDecoration: 'none',
       }}>
         Zpět na Dashboard

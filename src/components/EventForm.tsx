@@ -177,7 +177,7 @@ export default function EventForm({ existing }: Props) {
             onClick={() => setShowTime(v => !v)}
             style={{
               width: '36px', height: '20px', borderRadius: '10px', position: 'relative', flexShrink: 0,
-              backgroundColor: showTime ? '#e05555' : 'var(--bg-card-dark)',
+              backgroundColor: showTime ? '#d15c49' : 'var(--bg-card-dark)',
               transition: 'background-color 0.2s',
               cursor: 'pointer',
             }}
@@ -317,7 +317,7 @@ export default function EventForm({ existing }: Props) {
                               <button key={String(editor)} type="button" onClick={() => setEditMode(p.id, editor)} style={{
                                 fontSize: '11px', padding: '3px 10px', borderRadius: '10px', cursor: 'pointer',
                                 border: '1px solid var(--border-card)',
-                                backgroundColor: active ? (editor ? '#e05555' : 'var(--text-secondary)') : 'transparent',
+                                backgroundColor: active ? (editor ? '#d15c49' : 'var(--text-secondary)') : 'transparent',
                                 color: active ? (editor ? '#fff' : 'var(--bg-card-alt)') : 'var(--text-muted)',
                               }}>{editor ? 'Editor' : 'Čtenář'}</button>
                             )
@@ -344,7 +344,7 @@ export default function EventForm({ existing }: Props) {
       </>}
 
       <div style={{ display: 'flex', gap: '12px', paddingTop: '4px' }}>
-        <button type="submit" disabled={loading} style={{ padding: '10px 24px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+        <button type="submit" disabled={loading} style={{ padding: '10px 24px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
           {loading ? 'Ukládám...' : existing ? 'Uložit změny' : 'Vytvořit akci'}
         </button>
         <button type="button" onClick={() => router.back()} style={{ padding: '10px 24px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '14px', border: 'none', cursor: 'pointer' }}>

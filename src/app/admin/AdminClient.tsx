@@ -28,7 +28,7 @@ interface Props {
   rolesByOrg: Record<string, Role[]>
 }
 
-const ROLE_COLORS = ['#e05555', '#34d399', '#60a5fa', '#f59e0b', '#a78bfa', '#f472b6']
+const ROLE_COLORS = ['#d15c49', '#34d399', '#60a5fa', '#f59e0b', '#a78bfa', '#f472b6']
 
 function RoleEditorCard({ role, onSaved }: { role: Role; onSaved: (updated: Role) => void }) {
   const { notify } = useDialog()
@@ -103,7 +103,7 @@ function RoleEditorCard({ role, onSaved }: { role: Role; onSaved: (updated: Role
             onClick={save} disabled={saving}
             style={{
               marginLeft: 'auto', padding: '5px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600,
-              backgroundColor: saving ? '#7a2e2e' : '#e05555', color: '#fff', border: 'none',
+              backgroundColor: saving ? '#7a2e2e' : '#d15c49', color: '#fff', border: 'none',
               cursor: saving ? 'not-allowed' : 'pointer',
             }}
           >
@@ -134,7 +134,7 @@ function RoleEditorCard({ role, onSaved }: { role: Role; onSaved: (updated: Role
                     <button type="button" onClick={() => applyPreset('editor')} style={{
                       fontSize: '10px', padding: '2px 8px', borderRadius: '10px', cursor: 'pointer',
                       border: '1px solid var(--border-card)',
-                      backgroundColor: !isReader ? '#e05555' : 'transparent',
+                      backgroundColor: !isReader ? '#d15c49' : 'transparent',
                       color: !isReader ? '#fff' : 'var(--text-muted)',
                     }}>Editor</button>
                   </div>
@@ -300,14 +300,14 @@ function PersonRow({ profile, worlds, rolesByOrg, isMe, onUpdated, onDeleted }: 
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
         {editing ? (
           <>
-            <button onClick={saveEdit} disabled={busy} style={actionBtnStyle('#e05555')}>Uložit</button>
+            <button onClick={saveEdit} disabled={busy} style={actionBtnStyle('#d15c49')}>Uložit</button>
             <button onClick={() => setEditing(false)} disabled={busy} style={actionBtnStyle()}>Zpět</button>
           </>
         ) : (
           <>
             <button onClick={() => setEditing(true)} disabled={busy} style={actionBtnStyle()}>Upravit</button>
             <button onClick={resetPassword} disabled={busy} style={actionBtnStyle()}>Reset heslo</button>
-            {!isMe && <button onClick={del} disabled={busy} style={actionBtnStyle('#e05555')}>Smazat účet</button>}
+            {!isMe && <button onClick={del} disabled={busy} style={actionBtnStyle('#d15c49')}>Smazat účet</button>}
           </>
         )}
       </div>
@@ -442,7 +442,7 @@ export default function AdminClient({ initialProfiles, initialRoles, worlds, rol
         ))}
         <button type="submit" disabled={creating} style={{
           padding: '9px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-          backgroundColor: creating ? '#7a2e2e' : '#e05555', color: '#fff', border: 'none',
+          backgroundColor: creating ? '#7a2e2e' : '#d15c49', color: '#fff', border: 'none',
           cursor: creating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
         }}>
           {creating ? 'Zakládám…' : '+ Založit'}

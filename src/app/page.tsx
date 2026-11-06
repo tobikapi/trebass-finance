@@ -20,7 +20,7 @@ interface RawExpense { event_id: string; price: number; category: string; paid: 
 interface RawIncome  { event_id: string; amount: number }
 interface ActivityItem { type: 'expense' | 'income' | 'lineup' | 'note'; event_id: string; icon: string; label: string; amount?: number; created_at: string }
 
-const PIE_COLORS = ['#e05555','#f4978e','#f59e0b','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#4ade80','#38bdf8','#c084fc','#fbbf24','#2dd4bf','#f87171','#94a3b8','#e879f9']
+const PIE_COLORS = ['#d15c49','#f4978e','#f59e0b','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#4ade80','#38bdf8','#c084fc','#fbbf24','#2dd4bf','#f87171','#94a3b8','#e879f9']
 
 const STATUS_OPTS: { value: EventStatus | 'vse'; label: string }[] = [
   { value: 'vse',           label: 'Vše' },
@@ -62,7 +62,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
     <button className="chip" onClick={onClick} style={{
       padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
       border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-      backgroundColor: active ? '#e05555' : 'var(--bg-badge)',
+      backgroundColor: active ? '#d15c49' : 'var(--bg-badge)',
       color: active ? '#fff' : 'var(--text-muted)',
     }}>
       {label}
@@ -270,7 +270,7 @@ function FinancialDashboard() {
             {excludedCount > 0 && ` · ${excludedCount} mimo součty`}
           </p>
         </div>
-        {can('canCreate') && <Link href="/akce/nova" style={{ padding: '9px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.05em' }}>
+        {can('canCreate') && <Link href="/akce/nova" style={{ padding: '9px 20px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.05em' }}>
           + Nová akce
         </Link>}
       </div>
@@ -323,7 +323,7 @@ function FinancialDashboard() {
                   <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: '10px', padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', lineHeight: 1.3 }}>{ev.name}</div>
-                      {cd && <span style={{ fontSize: '11px', fontWeight: '700', color: '#e05555', backgroundColor: 'rgba(224,85,85,0.12)', padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap', marginLeft: '8px' }}>{cd}</span>}
+                      {cd && <span style={{ fontSize: '11px', fontWeight: '700', color: '#d15c49', backgroundColor: 'rgba(209,92,73,0.12)', padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap', marginLeft: '8px' }}>{cd}</span>}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                       {formatDateRange(ev.date, ev.date_end)} {ev.location && `· ${ev.location}`}
@@ -354,7 +354,7 @@ function FinancialDashboard() {
                 <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? Math.round(v / 1000) + 'k' : v} width={36} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-badge)', opacity: 0.5 }} />
                 <Bar dataKey="příjmy" fill="#34d399" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="výdaje" fill="#e05555" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="výdaje" fill="#d15c49" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -408,7 +408,7 @@ function FinancialDashboard() {
           <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Akce{activeFiltersLabel ? ` — ${activeFiltersLabel}` : ''}
           </h2>
-          <Link href="/akce" style={{ fontSize: '13px', color: '#e05555', textDecoration: 'none' }}>Zobrazit vše →</Link>
+          <Link href="/akce" style={{ fontSize: '13px', color: '#d15c49', textDecoration: 'none' }}>Zobrazit vše →</Link>
         </div>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Načítám...</div>

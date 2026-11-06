@@ -172,7 +172,7 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
             const srcTotal = items.reduce((s, i) => s + i.amount, 0)
             return (
               <div key={source} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-                <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: '#1a1a2e' }}>
+                <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: 'var(--bg-card-alt)' }}>
                   <span className="text-xs font-semibold tracking-wider" style={{ color: '#34d399' }}>{source}</span>
                   <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{srcTotal.toLocaleString('cs-CZ')} Kč</span>
                 </div>
@@ -186,7 +186,7 @@ export default function PrijmyClient({ id, initialIncome, initialExpenses }: Pro
                   </thead>
                   <tbody>
                     {items.map((inc) => (
-                      <tr key={inc.id} style={{ borderBottom: '1px solid #1a1a2e' }}>
+                      <tr key={inc.id} style={{ borderBottom: '1px solid var(--bg-card-alt)' }}>
                         <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{inc.note || '—'}</td>
                         <td className="px-4 py-2.5 font-semibold" style={{ color: '#34d399' }}>{inc.amount.toLocaleString('cs-CZ')} Kč</td>
                         <td className="px-4 py-2.5">

@@ -265,7 +265,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
 
       <Link href="/firma/vklady" className="card-hover" style={{
         display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', padding: '16px 20px', borderRadius: '12px',
-        textDecoration: 'none', backgroundColor: 'rgba(224,85,85,0.08)', border: '1px solid rgba(224,85,85,0.35)',
+        textDecoration: 'none', backgroundColor: 'rgba(209,92,73,0.08)', border: '1px solid rgba(209,92,73,0.35)',
       }}>
         <span style={{ fontSize: '26px' }}>🧮</span>
         <span style={{ flex: 1 }}>
@@ -279,7 +279,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
               : 'Otevřené: ' + ledgerStatus.transfers.map(t => `${t.from} → ${t.to} ${Math.round(t.amount).toLocaleString('cs-CZ')} Kč`).join(' · ')}
           </span>
         </span>
-        <span style={{ color: '#e05555', fontSize: '18px' }}>→</span>
+        <span style={{ color: '#d15c49', fontSize: '18px' }}>→</span>
       </Link>
 
       {/* Year filter */}
@@ -289,7 +289,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
           <button key={y} onClick={() => setYearFilter(y)} style={{
             padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
             border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-            backgroundColor: yearFilter === y ? '#e05555' : 'var(--bg-badge)',
+            backgroundColor: yearFilter === y ? '#d15c49' : 'var(--bg-badge)',
             color: yearFilter === y ? '#fff' : 'var(--text-muted)',
           }}>
             {y === 'vse' ? 'Vše' : y}

@@ -293,7 +293,7 @@ export default function PrehledClient({ id, initialExpenses, initialIncome, init
             />
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={saveDescription} disabled={savingDesc}
-                style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#e05555', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', backgroundColor: '#d15c49', color: '#fff', border: 'none', cursor: 'pointer' }}>
                 {savingDesc ? 'Ukládám...' : 'Uložit'}
               </button>
               <button onClick={() => setDescEdit(false)}

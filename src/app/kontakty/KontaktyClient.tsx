@@ -117,7 +117,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
     return true
   })
 
-  const inputStyle = { backgroundColor: '#0c0c0c', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
+  const inputStyle = { backgroundColor: 'var(--bg-base)', border: '1px solid #2d1515', color: 'var(--text-primary)', borderRadius: '6px', padding: '8px 12px', outline: 'none', fontSize: '13px', width: '100%' }
   const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 'block' as const, marginBottom: '4px' }
 
   return (
@@ -128,7 +128,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Lidé z {brand.name} a externí kontakty</p>
         </div>
         {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }}
-          style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
+          style={{ padding: '10px 20px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
           + Přidat kontakt
         </button>)}
       </div>
@@ -183,7 +183,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
           {['vse', ...TYPES].map(t => (
             <button key={t} onClick={() => setFilterType(t)}
               style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: 'none', cursor: 'pointer',
-                backgroundColor: filterType === t ? '#e05555' : 'var(--bg-card-dark)',
+                backgroundColor: filterType === t ? '#d15c49' : 'var(--bg-card-dark)',
                 color: filterType === t ? '#fff' : 'var(--text-secondary)' }}>
               {t === 'vse' ? 'Vše' : t}
             </button>
@@ -193,7 +193,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
 
       {/* Form */}
       {showForm && (
-        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #e05555', borderRadius: '12px' }}>
+        <form onSubmit={handleSave} style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid #d15c49', borderRadius: '12px' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '600', color: '#f4978e' }}>
             {editId ? 'Upravit kontakt' : 'Nový kontakt'}
           </h3>
@@ -227,7 +227,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button type="submit" disabled={saving}
-              style={{ padding: '8px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
+              style={{ padding: '8px 20px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
               {saving ? 'Ukládám...' : 'Uložit'}
             </button>
             <button type="button" onClick={() => { setShowForm(false); setEditId(null) }}
@@ -258,7 +258,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                     {canEdit && (<button onClick={() => startEdit(c)} style={{ fontSize: '11px', color: '#f4978e', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
-                    {canDelete && (<button onClick={() => handleDelete(c.id)} style={{ fontSize: '11px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
+                    {canDelete && (<button onClick={() => handleDelete(c.id)} style={{ fontSize: '11px', color: '#d15c49', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
                   </div>
                 </div>
 

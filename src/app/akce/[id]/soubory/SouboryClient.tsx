@@ -142,7 +142,7 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
           <button key={m} onClick={() => setUploader(m)} style={{
             padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
             border: 'none', cursor: 'pointer',
-            backgroundColor: uploader === m ? '#e05555' : 'var(--bg-card-dark)',
+            backgroundColor: uploader === m ? '#d15c49' : 'var(--bg-card-dark)',
             color: uploader === m ? '#fff' : 'var(--text-secondary)',
           }}>{m}</button>
         ))}
@@ -154,9 +154,9 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
         onDrop={e => { e.preventDefault(); setDragOver(false); uploadFiles(e.dataTransfer.files) }}
         onClick={() => fileRef.current?.click()}
         style={{
-          border: `2px dashed ${dragOver ? '#e05555' : 'var(--border)'}`,
+          border: `2px dashed ${dragOver ? '#d15c49' : 'var(--border)'}`,
           borderRadius: '12px', padding: '40px', textAlign: 'center',
-          backgroundColor: dragOver ? 'rgba(224,85,85,0.06)' : 'var(--bg-card-alt)',
+          backgroundColor: dragOver ? 'rgba(209,92,73,0.06)' : 'var(--bg-card-alt)',
           cursor: 'pointer', marginBottom: '24px', transition: 'all 0.15s',
         }}
       >
@@ -199,7 +199,7 @@ export default function SouboryClient({ id, initialDocuments, initialUploader }:
                   ⬇ Stáhnout
                 </button>
                 {canDelete && (<button onClick={() => handleDelete(doc)}
-                  style={{ fontSize: '12px', color: '#e05555', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  style={{ fontSize: '12px', color: '#d15c49', background: 'none', border: 'none', cursor: 'pointer' }}>
                   Smazat
                 </button>)}
               </div>
