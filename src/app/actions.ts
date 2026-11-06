@@ -1116,9 +1116,9 @@ async function denyAccountChange(supabase: Supa, admin: AdminClient, profileId: 
   return null
 }
 
-export async function assignRole(profileId: string, roleId: string | null) {
+export async function assignRole(profileId: string, roleId: string | null, forOrgId?: string) {
   const supabase = await requireAuth()
-  const orgId = await activeOrgId()
+  const orgId = forOrgId ?? await activeOrgId()
   const denied = await denyUnless(supabase, 'manageUsers', orgId)
   if (denied) return { error: denied }
 
@@ -1163,9 +1163,9 @@ export async function assignRole(profileId: string, roleId: string | null) {
 
 // Přidá do aktivní firmy člověka, který už účet má (je v jiné firmě) —
 // např. Jakuba z Třebassu do Horizonu s omezenou rolí.
-export async function addMember(profileId: string, roleId: string | null) {
+export async function addMember(profileId: string, roleId: string | null, forOrgId?: string) {
   const supabase = await requireAuth()
-  const orgId = await activeOrgId()
+  const orgId = forOrgId ?? await activeOrgId()
   const denied = await denyUnless(supabase, 'manageUsers', orgId)
   if (denied) return { error: denied }
 
@@ -1191,9 +1191,9 @@ export async function addMember(profileId: string, roleId: string | null) {
 }
 
 // Majitel = dělí se o výsledek ve vyrovnání (Firma → Vklady). Jen admin firmy.
-export async function setOwner(profileId: string, isOwner: boolean) {
+export async function setOwner(profileId: string, isOwner: boolean, forOrgId?: string) {
   const supabase = await requireAuth()
-  const orgId = await activeOrgId()
+  const orgId = forOrgId ?? await activeOrgId()
   const real = await realPermissions(supabase, orgId)
   if (real?.admin !== true) return { error: 'Majitele smí určovat jen administrátor.' }
   const admin = getAdminClient()
@@ -1202,6 +1202,45 @@ export async function setOwner(profileId: string, isOwner: boolean) {
     .eq('org_id', orgId).eq('profile_id', profileId).select('profile_id')
   if (error) return { error: error.message }
   if (!data?.length) return { error: 'Ten člověk v této firmě není.' }
+  return { data: true }
+}
+
+// Přístup člověka do jednoho světa (firmy) z přehledu v Adminu:
+// roleId = role v té firmě (přidá ho, pokud tam ještě není), 'none' = odebrat.
+// Kdo smí: správa lidí v TÉ firmě (admin Horizonu nemění přístup do Třebassu).
+export async function setOrgAccess(profileId: string, orgId: string, roleId: string | null | 'none') {
+  if (!orgId) return { error: 'Chybí firma.' }
+  if (roleId === 'none') return removeFromOrg(profileId, orgId)
+  const supabase = await requireAuth()
+  const { data: existing } = await supabase.from('org_members').select('profile_id')
+    .eq('org_id', orgId).eq('profile_id', profileId).maybeSingle()
+  if (existing) return assignRole(profileId, roleId, orgId)
+  return addMember(profileId, roleId, orgId)
+}
+
+// Odebere člověka z jedné firmy. Účet zůstává — když by mu nezůstala žádná
+// firma, odmítne se to (na to je „Smazat účet"). Pojistky jako u assignRole.
+async function removeFromOrg(profileId: string, orgId: string) {
+  const supabase = await requireAuth()
+  const denied = await denyUnless(supabase, 'manageUsers', orgId)
+  if (denied) return { error: denied }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user?.id === profileId) return { error: 'Nemůžeš odebrat sám sebe.' }
+
+  const admin = getAdminClient()
+  if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const members = await orgMembersWithRoles(admin, orgId)
+  const target = members.find(m => m.profile_id === profileId)
+  if (!target) return { data: true }
+  if (isAdminRow(target) && members.filter(m => m.profile_id !== profileId && isAdminRow(m)).length === 0) {
+    return { error: 'Musí zůstat aspoň jeden administrátor. Nejdřív povyš někoho jiného.' }
+  }
+  const { data: others } = await admin.from('org_members').select('org_id').eq('profile_id', profileId).neq('org_id', orgId)
+  if (!(others || []).length) {
+    return { error: 'Tohle je jeho jediný svět — bez něj by se nikam nedostal. Jestli ho chceš úplně pryč, použij „Smazat účet".' }
+  }
+  const { error } = await admin.from('org_members').delete().eq('org_id', orgId).eq('profile_id', profileId)
+  if (error) return { error: error.message }
   return { data: true }
 }
 
@@ -1232,11 +1271,25 @@ function randomPassword(): string {
 // rovnou zadá jméno, přihlašovací jméno a heslo a řekne mu je osobně, stejně
 // jako se dřív předávaly sdílené přístupy. must_change_password=true donutí
 // člověka si při prvním přihlášení nastavit heslo, které admin už neuvidí.
-export async function createUser(name: string, username: string, password: string, roleId: string | null) {
+// access = { orgId: roleId | null } — do kterých světů člověk patří a s jakou
+// rolí. Starší volání posílalo jen roleId (= aktivní firma).
+export async function createUser(name: string, username: string, password: string, accessOrRole: Record<string, string | null> | string | null) {
   const supabase = await requireAuth()
-  const orgId = await activeOrgId()
-  const denied = await denyUnless(supabase, 'manageUsers', orgId)
-  if (denied) return { error: denied }
+  const access: Record<string, string | null> = accessOrRole && typeof accessOrRole === 'object'
+    ? accessOrRole
+    : { [await activeOrgId()]: accessOrRole as string | null }
+  const orgIds = Object.keys(access)
+  if (orgIds.length === 0) return { error: 'Vyber aspoň jeden svět, do kterého bude mít přístup.' }
+  for (const oid of orgIds) {
+    const denied = await denyUnless(supabase, 'manageUsers', oid)
+    if (denied) return { error: denied }
+    const role = await roleInOrg(supabase, access[oid], oid)
+    if ('error' in role) return { error: role.error }
+    if (role.perms?.admin === true) {
+      const real = await realPermissions(supabase, oid)
+      if (real?.admin !== true) return { error: 'Jen administrátor smí založit účet s administrátorskou rolí.' }
+    }
+  }
 
   const trimmedName = name.trim()
   const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '')
@@ -1246,13 +1299,6 @@ export async function createUser(name: string, username: string, password: strin
 
   // manageUsers samo o sobě neopravňuje rovnou založit dalšího admina —
   // stejná pojistka jako u assignRole.
-  const role = await roleInOrg(supabase, roleId, orgId)
-  if ('error' in role) return { error: role.error }
-  if (role.perms?.admin === true) {
-    const real = await realPermissions(supabase, orgId)
-    if (real?.admin !== true) return { error: 'Jen administrátor smí založit účet s administrátorskou rolí.' }
-  }
-
   const admin = getAdminClient()
   if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local — bez něj nejde účty zakládat.' }
 
@@ -1275,16 +1321,17 @@ export async function createUser(name: string, username: string, password: strin
     .upsert([{ id: created.user.id, name: trimmedName, email, must_change_password: true }])
   if (profileError) return { error: profileError.message }
 
-  // Člověk patří jen do aktivní firmy. (Přechodový trigger z migrace ho
-  // mohl automaticky přidat do Třebassu — to se tu uklidí.)
-  const { error: cleanError } = await admin.from('org_members').delete()
-    .eq('profile_id', created.user.id).neq('org_id', orgId)
+  // Člověk patří přesně do vybraných světů (nic navíc).
+  const { error: cleanError } = await admin.from('org_members').delete().eq('profile_id', created.user.id)
   if (cleanError) return { error: cleanError.message }
   const { error: memberError } = await admin.from('org_members')
-    .upsert([{ org_id: orgId, profile_id: created.user.id, role_id: roleId }])
+    .insert(orgIds.map(oid => ({ org_id: oid, profile_id: created.user!.id, role_id: access[oid] })))
   if (memberError) return { error: memberError.message }
 
-  return { data: { id: created.user.id, name: trimmedName, email, phone: null, role_id: roleId, is_owner: false } }
+  return { data: {
+    id: created.user.id, name: trimmedName, email, phone: null,
+    access: Object.fromEntries(orgIds.map(oid => [oid, { role_id: access[oid], is_owner: false }])),
+  } }
 }
 
 // Upraví jméno, uživatelské jméno a telefon. Změna uživatelského jména =
@@ -1326,39 +1373,31 @@ export async function updateProfile(profileId: string, name: string, username: s
   return { data: { id: profileId, name: trimmedName, email, phone: trimmedPhone || null } }
 }
 
-// Odebere člověka z aktivní firmy. Když už není v žádné jiné, smaže se
-// i jeho účet (jinak by zůstal viset bez přístupu kamkoli). Pojistky proti
-// zamčení stejné jako u assignRole: nikdo neodebere sám sebe a ve firmě
-// musí zůstat aspoň jeden administrátor.
+// Smaže celý účet. Smí jen ten, kdo spravuje lidi ve VŠECH světech toho
+// člověka (z jednoho světa se odebírá volbou „bez přístupu"). Pojistky:
+// nikdo nesmaže sám sebe a v žádném světě nesmí zmizet poslední admin.
 export async function deleteUser(profileId: string) {
   const supabase = await requireAuth()
-  const orgId = await activeOrgId()
-  const denied = await denyUnless(supabase, 'manageUsers', orgId)
-  if (denied) return { error: denied }
-
   const { data: { user } } = await supabase.auth.getUser()
-  if (user?.id === profileId) return { error: 'Nemůžeš odebrat sám sebe.' }
+  if (user?.id === profileId) return { error: 'Nemůžeš smazat vlastní účet.' }
 
   const admin = getAdminClient()
   if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const accountDenied = await denyAccountChange(supabase, admin, profileId)
+  if (accountDenied) return { error: accountDenied }
 
-  const members = await orgMembersWithRoles(admin, orgId)
-  const target = members.find(m => m.profile_id === profileId)
-  if (!target) return { error: 'Ten člověk v této firmě není.' }
-  if (isAdminRow(target) && members.filter(m => m.profile_id !== profileId && isAdminRow(m)).length === 0) {
-    return { error: 'Musí zůstat aspoň jeden administrátor. Nejdřív povyš někoho jiného.' }
-  }
-
-  const { data: otherOrgs } = await admin.from('org_members').select('org_id').eq('profile_id', profileId).neq('org_id', orgId)
-  if ((otherOrgs || []).length > 0) {
-    const { error } = await admin.from('org_members').delete().eq('org_id', orgId).eq('profile_id', profileId)
-    if (error) return { error: error.message }
-    return { data: { removedFromOrgOnly: true } }
+  const { data: theirOrgs } = await admin.from('org_members').select('org_id').eq('profile_id', profileId)
+  for (const { org_id } of theirOrgs || []) {
+    const members = await orgMembersWithRoles(admin, org_id as string)
+    const target = members.find(m => m.profile_id === profileId)
+    if (target && isAdminRow(target) && members.filter(m => m.profile_id !== profileId && isAdminRow(m)).length === 0) {
+      return { error: 'V jednom ze světů je jediný administrátor. Nejdřív tam povyš někoho jiného.' }
+    }
   }
 
   const { error } = await admin.auth.admin.deleteUser(profileId)
   if (error) return { error: error.message }
-  return { data: { removedFromOrgOnly: false } }
+  return { data: true }
 }
 
 // Vygeneruje nové jednorázové heslo a donutí člověka si při přihlášení

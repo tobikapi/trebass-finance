@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { hasPermission, type Permissions } from '@/lib/permissions'
+import { hasPermission, type Permissions, type Role } from '@/lib/permissions'
 import { getActiveOrgId } from '@/lib/server-user'
 import AdminClient from './AdminClient'
 
@@ -33,20 +33,39 @@ export default async function AdminPage() {
   const role = (Array.isArray(rel) ? rel[0] : rel) as { permissions?: Permissions } | null | undefined
   if (!me || !hasPermission(role?.permissions ?? null, 'manageUsers')) redirect('/')
 
-  const [{ data: members }, { data: roles }, { data: visible }] = await Promise.all([
-    supabase.from('org_members').select('role_id, is_owner, profiles(id, name, email, phone)').eq('org_id', orgId),
-    supabase.from('roles').select('id, name, color, permissions, is_system').eq('org_id', orgId).order('name'),
-    // Lidé z mých ostatních firem — kandidáti na „Přidat do firmy"
-    supabase.from('profiles').select('id, name, email').order('name'),
+  // Světy (firmy), kde přihlášený spravuje lidi — v nich vidí a nastavuje
+  // přístupy. Role editor dole je jen pro aktivní firmu.
+  const { data: mine } = await supabase.from('org_members')
+    .select('org_id, organizations(name), roles(permissions)').eq('profile_id', user.id)
+  type Mine = { org_id: string; organizations: { name: string } | null; roles: { permissions?: Permissions } | null }
+  const worlds = ((mine || []) as unknown as Mine[])
+    .filter(m => hasPermission(m.roles?.permissions ?? null, 'manageUsers'))
+    .map(m => ({ id: m.org_id, name: m.organizations?.name || '?', isAdmin: m.roles?.permissions?.admin === true }))
+    .sort((a, b) => (a.id === orgId ? -1 : b.id === orgId ? 1 : a.name.localeCompare(b.name, 'cs')))
+  const worldIds = worlds.map(w => w.id)
+
+  const [{ data: members }, { data: allRoles }] = await Promise.all([
+    supabase.from('org_members').select('org_id, role_id, is_owner, profiles(id, name, email, phone)').in('org_id', worldIds),
+    supabase.from('roles').select('id, name, color, permissions, is_system, org_id').in('org_id', worldIds).order('name'),
   ])
 
-  type MemberRow = { role_id: string | null; is_owner: boolean; profiles: { id: string; name: string | null; email: string | null; phone: string | null } | null }
-  const profiles = ((members || []) as unknown as MemberRow[])
-    .filter(m => m.profiles)
-    .map(m => ({ ...m.profiles!, role_id: m.role_id, is_owner: m.is_owner }))
-    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'cs'))
-  const memberIds = new Set(profiles.map(p => p.id))
-  const candidates = (visible || []).filter(p => !memberIds.has(p.id))
+  type MemberRow = { org_id: string; role_id: string | null; is_owner: boolean; profiles: { id: string; name: string | null; email: string | null; phone: string | null } | null }
+  const byId = new Map<string, { id: string; name: string | null; email: string | null; phone: string | null; access: Record<string, { role_id: string | null; is_owner: boolean }> }>()
+  for (const m of (members || []) as unknown as MemberRow[]) {
+    if (!m.profiles) continue
+    const p = byId.get(m.profiles.id) ?? { ...m.profiles, access: {} }
+    p.access[m.org_id] = { role_id: m.role_id, is_owner: m.is_owner }
+    byId.set(p.id, p)
+  }
+  const profiles = [...byId.values()].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'cs'))
+  const rolesByOrg: Record<string, typeof allRoles> = Object.fromEntries(worldIds.map(id => [id, (allRoles || []).filter(r => r.org_id === id)]))
 
-  return <AdminClient initialProfiles={profiles} initialRoles={roles || []} candidates={candidates} />
+  return (
+    <AdminClient
+      initialProfiles={profiles}
+      initialRoles={rolesByOrg[orgId] || []}
+      worlds={worlds}
+      rolesByOrg={rolesByOrg as Record<string, Role[]>}
+    />
+  )
 }
