@@ -1,5 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getActiveOrgId } from '@/lib/server-user'
+import { orgPeople } from '@/lib/org-people'
 import FirmaClient from './FirmaClient'
 import { toContributionRows } from '@/lib/ledger'
 import { computeSettlement } from '@/lib/settlement'
@@ -19,12 +21,13 @@ export default async function FirmaPage() {
     }
   )
 
-  const [{ data: expenses }, { data: income }, { data: ledger }, { data: events }, { data: people }] = await Promise.all([
-    supabase.from('company_expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-    supabase.from('company_income').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-    supabase.from('owner_ledger').select('id, profile_id, counterparty_id, kind, amount, event_id, date, note, closing_id, created_at'),
-    supabase.from('events').select('id, name, date'),
-    supabase.from('profiles').select('id, name, is_owner'),
+  const orgId = (await getActiveOrgId()) ?? ''
+  const [{ data: expenses }, { data: income }, { data: ledger }, { data: events }, people] = await Promise.all([
+    supabase.from('company_expenses').select('*').eq('org_id', orgId).order('date', { ascending: false }).order('created_at', { ascending: false }),
+    supabase.from('company_income').select('*').eq('org_id', orgId).order('date', { ascending: false }).order('created_at', { ascending: false }),
+    supabase.from('owner_ledger').select('id, profile_id, counterparty_id, kind, amount, event_id, date, note, closing_id, created_at').eq('org_id', orgId),
+    supabase.from('events').select('id, name, date').eq('org_id', orgId),
+    orgPeople(supabase, orgId),
   ])
 
   const contributions = toContributionRows(ledger || [], people || [], events || [])

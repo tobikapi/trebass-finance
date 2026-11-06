@@ -51,20 +51,24 @@ export default function EventForm({ existing }: Props) {
   // Výjimky = oprávnění navíc k roli, jen v téhle akci (event_access.permissions).
   const [exceptions, setExceptions] = useState<Record<string, Permissions>>({})
   const [openExceptionsFor, setOpenExceptionsFor] = useState<string | null>(null)
-  const { user, realRole } = useUser()
+  const { user, realRole, orgId } = useUser()
   // Kdo akci vidí a s jakými výjimkami, smí měnit jen admin nebo zakladatel
   // (stejně jako server a databáze). Editor přes výjimku tuhle sekci nevidí.
   const canManageAccess = !existing || realRole?.permissions?.admin === true || existing.created_by === user?.id
 
   useEffect(() => {
     async function load() {
-      const { data: roles } = await supabase.from('roles').select('id, name')
-      const adminRoleIds = new Set((roles || []).filter(r => r.name === 'Admin').map(r => r.id))
-      const crewRoleIds = new Set((roles || []).filter(r => r.name !== 'Admin').map(r => r.id))
-
-      const { data: profiles } = await supabase.from('profiles').select('id, name, email, role_id')
-      setAdmins((profiles || []).filter(p => p.role_id && adminRoleIds.has(p.role_id)))
-      setCrew((profiles || []).filter(p => p.role_id && crewRoleIds.has(p.role_id)))
+      // Lidé firmy, do které akce patří (nová akce = aktivní firma).
+      // Admin = role s admin:true, ostatní s rolí jsou „crew".
+      const eventOrg = (existing as { org_id?: string } | undefined)?.org_id ?? orgId ?? ''
+      const { data: members } = await supabase.from('org_members')
+        .select('role_id, profiles(id, name, email), roles(permissions)').eq('org_id', eventOrg)
+      type M = { role_id: string | null; profiles: { id: string; name: string; email: string } | null; roles: { permissions?: { admin?: boolean } } | null }
+      const people = ((members || []) as unknown as M[]).filter(m => m.profiles && m.role_id)
+        .map(m => ({ ...m.profiles!, role_id: m.role_id, isAdmin: m.roles?.permissions?.admin === true }))
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'cs'))
+      setAdmins(people.filter(p => p.isAdmin))
+      setCrew(people.filter(p => !p.isAdmin))
 
       if (existing) {
         const { data: access } = await supabase.from('event_access').select('profile_id, permissions').eq('event_id', existing.id)
@@ -73,7 +77,7 @@ export default function EventForm({ existing }: Props) {
       }
     }
     load()
-  }, [existing])
+  }, [existing, orgId])
 
   function toggleSelected(id: string) {
     setSelectedIds(prev => {

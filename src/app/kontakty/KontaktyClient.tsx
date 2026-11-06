@@ -40,7 +40,7 @@ interface Props {
 export default function KontaktyClient({ initialContacts, initialMembers }: Props) {
   // Tlačítka podle role. Vynucuje to server a databáze — tady jde jen o to,
   // aby člověk neklikal na něco, co neprojde.
-  const { can } = useUser()
+  const { can, orgId, brand } = useUser()
   const canCreate = can('canCreate')
   const canEdit = can('canEdit')
   const canDelete = can('canDelete')
@@ -59,7 +59,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
   const [saving, setSaving] = useState(false)
 
   async function load() {
-    const { data } = await supabase.from('contacts').select('*').order('name')
+    const { data } = await supabase.from('contacts').select('*').eq('org_id', orgId ?? '').order('name')
     setContacts(data || [])
   }
 
@@ -125,7 +125,7 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Kontakty</h1>
-          <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Lidé z Třebassu a externí kontakty</p>
+          <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Lidé z {brand.name} a externí kontakty</p>
         </div>
         {canCreate && (<button onClick={() => { setForm(emptyForm); setEditId(null); setShowForm(true) }}
           style={{ padding: '10px 20px', backgroundColor: '#e05555', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
@@ -133,10 +133,10 @@ export default function KontaktyClient({ initialContacts, initialMembers }: Prop
         </button>)}
       </div>
 
-      {/* Lidé z Třebassu — organizátoři a crew, telefon/email se upravuje v Role → Upravit */}
+      {/* Lidé z firmy — organizátoři a crew, telefon/email se upravuje v Role → Upravit */}
       {members.length > 0 && (
         <div style={{ marginBottom: '32px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 4px' }}>Lidé z Třebassu</h2>
+          <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 4px' }}>Lidé z {brand.name}</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 12px' }}>
             Kontakt na organizátory a crew. Upravuje se v sekci Role.
           </p>

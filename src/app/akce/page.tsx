@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getActiveOrgId } from '@/lib/server-user'
 import AkceClient from './AkceClient'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,7 @@ export default async function AkcePage() {
       },
     }
   )
-  const { data } = await supabase.from('events').select('*').order('date', { ascending: false })
+  const orgId = await getActiveOrgId()
+  const { data } = await supabase.from('events').select('*').eq('org_id', orgId ?? '').order('date', { ascending: false })
   return <AkceClient initialEvents={data || []} />
 }

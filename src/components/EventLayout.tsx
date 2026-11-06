@@ -35,7 +35,7 @@ const eventCache = new Map<string, Event>()
 export default function EventLayout({ eventId, children }: Props) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, role, loading, viewAsRoleId } = useUser()
+  const { user, role, loading, viewAsRoleId, orgId, orgs, switchOrg } = useUser()
   // Záložky podle role NEBO výjimky v téhle akci (event_access.permissions).
   const { canInEvent: can } = useEventPermissions(eventId)
   const [event, setEvent] = useState<Event | null>(() => eventCache.get(eventId) ?? null)
@@ -53,6 +53,15 @@ export default function EventLayout({ eventId, children }: Props) {
     })
     return () => { active = false }
   }, [eventId, router])
+
+  // Akce jiné firmy (odkaz, záložka v prohlížeči): přepnout na její firmu,
+  // ať seznamy, lidé a vzhled sedí k akci. Přístup hlídá databáze.
+  const eventOrgId = (event as { org_id?: string } | null)?.org_id
+  useEffect(() => {
+    if (eventOrgId && orgId && eventOrgId !== orgId && orgs.some(o => o.id === eventOrgId)) {
+      switchOrg(eventOrgId, window.location.pathname)
+    }
+  }, [eventOrgId, orgId, orgs, switchOrg])
 
   useEffect(() => {
     if (!viewAsRoleId) return

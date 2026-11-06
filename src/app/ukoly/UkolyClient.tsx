@@ -37,7 +37,7 @@ interface Props {
 export default function UkolyClient({ initialTasks, initialEvents, initialMembers }: Props) {
   // Tlačítka podle role. Vynucuje to server a databáze — tady jde jen o to,
   // aby člověk neklikal na něco, co neprojde.
-  const { can } = useUser()
+  const { can, orgId } = useUser()
   const canCreate = can('canCreate')
   const canEdit = can('canEdit')
   const canDelete = can('canDelete')
@@ -56,8 +56,8 @@ export default function UkolyClient({ initialTasks, initialEvents, initialMember
 
   async function load() {
     const [{ data: t }, { data: e }] = await Promise.all([
-      supabase.from('tasks').select('*').order('due_date', { ascending: true, nullsFirst: false }).order('created_at'),
-      supabase.from('events').select('id, name, date, status').order('date', { ascending: false }),
+      supabase.from('tasks').select('*').eq('org_id', orgId ?? '').order('due_date', { ascending: true, nullsFirst: false }).order('created_at'),
+      supabase.from('events').select('id, name, date, status').eq('org_id', orgId ?? '').order('date', { ascending: false }),
     ])
     setTasks(t || []); setEvents(e || [])
   }

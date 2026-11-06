@@ -3,12 +3,13 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useRef, useTransition } from 'react'
 import { signOut } from '@/app/login/actions'
 import { useUser } from '@/lib/user-context'
 import type { PermissionKey } from '@/lib/permissions'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
+import { ORG_BRANDS } from '@/lib/orgs'
 
 const NAV_ITEMS: { href: string; label: string; permission: PermissionKey }[] = [
   { href: '/',          label: 'Dashboard', permission: 'viewDashboard' },
@@ -29,7 +30,7 @@ export default function Navigation() {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const { user, profile, can } = useUser()
+  const { user, profile, can, orgId, orgs, brand, switchOrg } = useUser()
   const { theme, toggleTheme } = useTheme()
 
   const visibleNavItems = NAV_ITEMS.filter(item => can(item.permission))
@@ -46,11 +47,12 @@ export default function Navigation() {
   const [refetchKey, setRefetchKey] = useState(0)
 
   useEffect(() => {
+    if (!orgId) return
     supabase.from('events').select('name, date, time_start')
-      .eq('status', 'pripravuje_se').not('date', 'is', null)
+      .eq('org_id', orgId ?? '').eq('status', 'pripravuje_se').not('date', 'is', null)
       .order('date', { ascending: true }).limit(1).single()
       .then(({ data }) => setNextEvent(data ?? null))
-  }, [refetchKey])
+  }, [refetchKey, orgId])
 
   useEffect(() => {
     if (!nextEvent?.date) return
@@ -80,10 +82,17 @@ export default function Navigation() {
     <header style={{ backgroundColor: 'var(--bg-nav)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 50, transition: 'background-color 0.2s' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', height: '64px', gap: '32px' }}>
 
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-          <Image src="/logo.png" alt="Třebass" width={120} height={45}
-            style={{ objectFit: 'contain', height: '36px', width: 'auto', filter: isLight ? 'brightness(0.85)' : 'none' }} />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center' }}>
+            {brand.logo ? (
+              <Image src={brand.logo} alt={brand.name} width={120} height={45}
+                style={{ objectFit: 'contain', height: '36px', width: 'auto', filter: isLight ? 'brightness(0.85)' : 'none' }} />
+            ) : (
+              <span className="org-wordmark" style={{ color: brand.accent }}>{brand.name}</span>
+            )}
+          </Link>
+          {orgs.length > 1 && <OrgSwitcher />}
+        </div>
 
         <nav className="nav-desktop">
           {visibleNavItems.map((item) => {
@@ -92,10 +101,10 @@ export default function Navigation() {
               <Link key={item.href} href={item.href} style={{
                 padding: '6px 16px', borderRadius: '6px', fontSize: '15px',
                 fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em',
-                color: isActive ? '#e05555' : 'var(--text-secondary)',
-                backgroundColor: isActive ? 'rgba(224,85,85,0.12)' : 'transparent',
+                color: isActive ? brand.accent : 'var(--text-secondary)',
+                backgroundColor: isActive ? brand.accentSoft : 'transparent',
                 textDecoration: 'none', transition: 'all 0.15s',
-                borderBottom: isActive ? '2px solid #e05555' : '2px solid transparent',
+                borderBottom: isActive ? `2px solid ${brand.accent}` : '2px solid transparent',
               }}>
                 {item.label}
               </Link>
@@ -117,7 +126,7 @@ export default function Navigation() {
               ).map(({ v, u }, i, arr) => (
                 <div key={u} style={{ display: 'flex', alignItems: 'flex-end', gap: '5px' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#e05555', fontFamily: "'Courier New', monospace", lineHeight: 1, minWidth: '26px', letterSpacing: '-1px' }}>
+                    <div style={{ fontSize: '20px', fontWeight: '800', color: brand.accent, fontFamily: "'Courier New', monospace", lineHeight: 1, minWidth: '26px', letterSpacing: '-1px' }}>
                       {String(v).padStart(2, '0')}
                     </div>
                     <div style={{ fontSize: '7px', color: 'var(--text-dim)', letterSpacing: '0.1em', marginTop: '1px' }}>{u}</div>
@@ -165,6 +174,30 @@ export default function Navigation() {
 
     {menuOpen && (
       <div className="nav-mobile-dropdown">
+        {orgs.length > 1 && (
+          <div style={{ padding: '14px 16px 4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>Firma</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {orgs.map(o => {
+                const b = ORG_BRANDS[o.slug]
+                const active = o.id === orgId
+                return (
+                  <button key={o.id} onClick={() => { if (!active) switchOrg(o.id) }} aria-pressed={active}
+                    style={{
+                      flex: 1, minHeight: '48px', borderRadius: '10px', fontSize: '15px', fontWeight: 700,
+                      fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.06em',
+                      cursor: active ? 'default' : 'pointer',
+                      color: active ? '#fff' : 'var(--text-secondary)',
+                      backgroundColor: active ? b.accent : 'var(--bg-card-alt)',
+                      border: `1px solid ${active ? b.accent : 'var(--border)'}`,
+                    }}>
+                    {o.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
         <div style={{ padding: '8px 16px', flex: 1 }}>
           {visibleNavItems.map((item) => {
             const isActive = pathname === item.href
@@ -201,5 +234,63 @@ export default function Navigation() {
       </div>
     )}
     </>
+  )
+}
+
+// Přepínač firmy (jen pro lidi ve více firmách). Přepnutí = plné načtení
+// appky v nové firmě (seznamy, role, vzhled i undo patří k firmě).
+function OrgSwitcher() {
+  const { orgs, orgId, brand, switchOrg } = useUser()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  return (
+    <div ref={ref} className="nav-user-desktop" style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open}
+        title="Přepnout firmu"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '8px',
+          fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer',
+          color: brand.accent, backgroundColor: brand.accentSoft, border: `1px solid ${brand.accent}55`,
+        }}>
+        {brand.name} <span style={{ fontSize: '10px', opacity: 0.8 }}>⇄</span>
+      </button>
+      {open && (
+        <div role="menu" style={{
+          position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '180px', zIndex: 60,
+          backgroundColor: 'var(--bg-nav)', border: '1px solid var(--border)', borderRadius: '10px',
+          boxShadow: 'var(--shadow)', padding: '6px',
+        }}>
+          {orgs.map(o => {
+            const b = ORG_BRANDS[o.slug]
+            const active = o.id === orgId
+            return (
+              <button key={o.id} role="menuitemradio" aria-checked={active}
+                onClick={() => { setOpen(false); if (!active) switchOrg(o.id) }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px',
+                  borderRadius: '7px', border: 'none', cursor: active ? 'default' : 'pointer', textAlign: 'left',
+                  fontSize: '14px', fontWeight: 600,
+                  color: active ? b.accent : 'var(--text-primary)',
+                  backgroundColor: active ? b.accentSoft : 'transparent',
+                }}>
+                <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: b.accent, flexShrink: 0 }} />
+                {o.name}
+                {active && <span style={{ marginLeft: 'auto', fontSize: '12px' }}>✓</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }

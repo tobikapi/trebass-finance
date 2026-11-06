@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import LineupClient from './LineupClient'
+import { getActiveOrgId } from '@/lib/server-user'
 import { LINEUP_SELECT, toArtist } from '@/lib/lineup'
 
 export const dynamic = 'force-dynamic'
@@ -16,9 +17,10 @@ export default async function LineupPage({ params }: Props) {
     { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
   )
 
+  const orgId = (await getActiveOrgId()) ?? ''
   const [{ data: artists }, { data: contacts }, { data: event }] = await Promise.all([
     supabase.from('lineup').select(LINEUP_SELECT).eq('event_id', id).order('set_time').order('artist_name'),
-    supabase.from('contacts').select('id, name, type, fee').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
+    supabase.from('contacts').select('id, name, type, fee').eq('org_id', orgId).in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
     supabase.from('events').select('stages, date, date_end').eq('id', id).single(),
   ])
 

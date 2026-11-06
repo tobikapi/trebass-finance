@@ -52,7 +52,7 @@ const labelStyle = { color: 'var(--text-secondary)', fontSize: '12px', display: 
 export default function VkladyClient({ initialLedger, people, events, initialBalance, eventResults, initialScope, initialClosings }: Props) {
   const { notify } = useDialog()
   const { pushUndo } = useUndo()
-  const { can } = useUser()
+  const { can, orgId } = useUser()
   const canCreate = can('canCreate')
   const canEdit = can('canEdit')
   const canDelete = can('canDelete')
@@ -83,8 +83,8 @@ export default function VkladyClient({ initialLedger, people, events, initialBal
     loadingRef.current = true
     try {
       const [{ data }, { data: cl }] = await Promise.all([
-        supabase.from('owner_ledger').select(LEDGER_SELECT),
-        supabase.from('ledger_closings').select('id, closed_on, note').order('closed_on', { ascending: false }).order('created_at', { ascending: false }),
+        supabase.from('owner_ledger').select(LEDGER_SELECT).eq('org_id', orgId ?? ''),
+        supabase.from('ledger_closings').select('id, closed_on, note').eq('org_id', orgId ?? '').order('closed_on', { ascending: false }).order('created_at', { ascending: false }),
       ])
       setLedger((data || []) as LedgerRow[])
       setClosings((cl || []) as LedgerClosing[])

@@ -1,5 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getActiveOrgId } from '@/lib/server-user'
+import { orgPeople } from '@/lib/org-people'
 import VkladyClient from './VkladyClient'
 import { LEDGER_SELECT } from '@/lib/ledger'
 
@@ -14,15 +16,16 @@ export default async function VkladyPage({ searchParams }: { searchParams: Promi
     { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
   )
 
-  const [{ data: ledger }, { data: people }, { data: events }, { data: balance }, { data: expenses }, { data: income }, { data: closings }] = await Promise.all([
-    supabase.from('owner_ledger').select(LEDGER_SELECT),
-    supabase.from('profiles').select('id, name, is_owner').order('name'),
-    supabase.from('events').select('id, name, date').order('date', { ascending: false }),
-    supabase.from('company_balance').select('id, amount, as_of, note').order('as_of', { ascending: false }).order('created_at', { ascending: false }).limit(1),
+  const orgId = (await getActiveOrgId()) ?? ''
+  const [{ data: ledger }, people, { data: events }, { data: balance }, { data: expenses }, { data: income }, { data: closings }] = await Promise.all([
+    supabase.from('owner_ledger').select(LEDGER_SELECT).eq('org_id', orgId),
+    orgPeople(supabase, orgId),
+    supabase.from('events').select('id, name, date').eq('org_id', orgId).order('date', { ascending: false }),
+    supabase.from('company_balance').select('id, amount, as_of, note').eq('org_id', orgId).order('as_of', { ascending: false }).order('created_at', { ascending: false }).limit(1),
     // Hospodaření akcí jen jako kontext ke kalkulačce (příjmy − výdaje)
-    supabase.from('expenses').select('event_id, price'),
-    supabase.from('income').select('event_id, amount'),
-    supabase.from('ledger_closings').select('id, closed_on, note').order('closed_on', { ascending: false }).order('created_at', { ascending: false }),
+    supabase.from('expenses').select('event_id, price, events!event_id!inner(org_id)').eq('events.org_id', orgId),
+    supabase.from('income').select('event_id, amount, events!event_id!inner(org_id)').eq('events.org_id', orgId),
+    supabase.from('ledger_closings').select('id, closed_on, note').eq('org_id', orgId).order('closed_on', { ascending: false }).order('created_at', { ascending: false }),
   ])
 
   const result: Record<string, number> = {}

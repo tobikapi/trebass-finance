@@ -7,6 +7,7 @@ import Collapse from '@/components/Collapse'
 import { callAction } from '@/lib/call-action'
 import { useRealtime } from '@/lib/use-realtime'
 import { supabase } from '@/lib/supabase'
+import { useUser } from '@/lib/user-context'
 import { useUndo } from '@/lib/undo-context'
 import { useDialog } from '@/lib/dialog-context'
 import { useEventPermissions } from '@/lib/event-permissions'
@@ -94,10 +95,12 @@ export default function LineupClient({ id, initialArtists, initialContacts, init
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState('')
 
+  const { orgId } = useUser()
+
   async function load() {
     const [{ data: lineup }, { data: ctc }, { data: ev }] = await Promise.all([
       supabase.from('lineup').select(LINEUP_SELECT).eq('event_id', id).order('set_time').order('artist_name'),
-      supabase.from('contacts').select('id, name, type, fee').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
+      supabase.from('contacts').select('id, name, type, fee').eq('org_id', orgId ?? '').in('type', ['DJ', 'MC', 'Stage manager', 'Technik', 'Produkce', 'Bednák', 'Security']).order('name'),
       supabase.from('events').select('stages, date, date_end').eq('id', id).single(),
     ])
     setArtists((lineup || []).map(toArtist))

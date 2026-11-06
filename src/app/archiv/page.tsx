@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Event, formatDateRange } from '@/lib/types'
+import { useUser } from '@/lib/user-context'
 
 export default function ArchivPage() {
+  const { orgId } = useUser()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<Record<string, { expenses: number; income: number }>>({})
@@ -15,6 +17,7 @@ export default function ArchivPage() {
       const { data } = await supabase
         .from('events')
         .select('*')
+        .eq('org_id', orgId ?? '')
         .in('status', ['dokonceno', 'archivovano'])
         .order('date', { ascending: false })
 
@@ -36,7 +39,7 @@ export default function ArchivPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [orgId])
 
   return (
     <div>

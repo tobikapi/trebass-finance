@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { todayPrague } from '@/lib/ledger'
 import { EVENT_PERMISSION_KEYS, hasPermission, type PermissionKey, type Permissions } from '@/lib/permissions'
+import { ACTIVE_ORG_COOKIE } from '@/lib/orgs'
 
 async function requireAuth() {
   const cookieStore = await cookies()
@@ -25,37 +26,59 @@ async function requireAuth() {
   return supabase
 }
 
-// Skutečná oprávnění podle role v DB — bez ohledu na „Zobrazit jako", ta
+type Supa = Awaited<ReturnType<typeof requireAuth>>
+
+// Aktivní firma z cookie (proxy ji ověřuje proti členství). Do ní se
+// zapisují nové záznamy mimo akce (akce, kontakty, Firma, obecné úkoly).
+async function activeOrgId(): Promise<string> {
+  const cookieStore = await cookies()
+  const id = cookieStore.get(ACTIVE_ORG_COOKIE)?.value
+  if (!id) throw new Error('Není vybraná firma — obnov stránku.')
+  return id
+}
+
+// Firma řádku v kořenové tabulce (akce, kontakt, Firma…). null = řádek
+// neexistuje nebo ho člověk nesmí vidět.
+async function orgIdOf(supabase: Supa, table: string, id: string): Promise<string | null> {
+  const { data } = await supabase.from(table).select('org_id').eq('id', id).maybeSingle()
+  return (data as { org_id: string } | null)?.org_id ?? null
+}
+
+// Skutečná oprávnění podle role ve firmě — bez ohledu na „Zobrazit jako", ta
 // existuje jen v currentPermissions() níž. Použij tuhle variantu všude, kde
 // jde o bezpečnostní rozhodnutí, u kterého by falšovaný náhled neměl mít
 // slovo (typicky: kdo smí udělit administrátorská práva).
-async function realPermissions(supabase: Awaited<ReturnType<typeof requireAuth>>): Promise<Permissions | null> {
+// Kdo ve firmě není, nemá nic (prázdná oprávnění, ne null = „vše").
+async function realPermissions(supabase: Supa, orgId?: string | null): Promise<Permissions | null> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data, error } = await supabase.from('profiles').select('roles(permissions)').eq('id', user.id).single()
-  if (error || !data) return null
+  if (!user) return {}
+  const oid = orgId ?? await activeOrgId()
+  const { data, error } = await supabase.from('org_members')
+    .select('roles(permissions)').eq('org_id', oid).eq('profile_id', user.id).maybeSingle()
+  if (error || !data) return {}
   const rel = (data as Record<string, unknown>).roles
   const role = (Array.isArray(rel) ? rel[0] : rel) as { permissions?: Permissions } | null | undefined
   return role?.permissions ?? null
 }
 
-// Načte oprávnění přihlášeného uživatele. Vrací null, když uživatel nemá
-// přiřazenou roli nebo role systém ještě není v DB — hasPermission() pak
-// povolí vše. Viz komentář u hasPermission v permissions.ts: zamykat lidi ven
-// kvůli nedoběhlé migraci by bylo horší než je nechat pracovat.
+// Oprávnění přihlášeného ve firmě (výchozí = aktivní). Vrací null, když
+// člověk ve firmě je, ale nemá roli — hasPermission() pak povolí vše
+// (databáze bez role nepustí nic, tohle je jen hláška).
 //
 // Admin si může v appce zapnout „Zobrazit jako [role]" — vynucuje se to
 // i tady na serveru (ne jen skrytí v UI), aby šlo reálně ověřit co která
 // role smí, ne jen co vidí. Cookie respektujeme jen když je skutečná role
-// admin — jinak by šlo obejít oprávnění tím, že si někdo nastaví cookie ručně.
-async function currentPermissions(supabase: Awaited<ReturnType<typeof requireAuth>>): Promise<Permissions | null> {
-  const real = await realPermissions(supabase)
+// admin a zobrazovaná role patří do téže firmy.
+async function currentPermissions(supabase: Supa, orgId?: string | null): Promise<Permissions | null> {
+  const oid = orgId ?? await activeOrgId()
+  const real = await realPermissions(supabase, oid)
 
   if (real?.admin === true) {
     const cookieStore = await cookies()
     const viewAsRoleId = cookieStore.get('trebass_view_as')?.value
     if (viewAsRoleId) {
-      const { data: viewRole } = await supabase.from('roles').select('permissions').eq('id', viewAsRoleId).single()
+      const { data: viewRole } = await supabase.from('roles').select('permissions')
+        .eq('id', viewAsRoleId).eq('org_id', oid).maybeSingle()
       if (viewRole) return viewRole.permissions ?? null
     }
   }
@@ -64,9 +87,17 @@ async function currentPermissions(supabase: Awaited<ReturnType<typeof requireAut
 }
 
 // Vrátí chybovou hlášku, když uživatel na akci nemá právo, jinak null.
-async function denyUnless(supabase: Awaited<ReturnType<typeof requireAuth>>, key: PermissionKey): Promise<string | null> {
-  const perms = await currentPermissions(supabase)
+// orgId: firma, které se akce týká (výchozí = aktivní).
+async function denyUnless(supabase: Supa, key: PermissionKey, orgId?: string | null): Promise<string | null> {
+  const perms = await currentPermissions(supabase, orgId)
   return hasPermission(perms, key) ? null : 'Na tuhle akci nemáš oprávnění.'
+}
+
+// Totéž pro existující řádek kořenové tabulky — platí role ve firmě řádku.
+async function denyUnlessRow(supabase: Supa, table: string, id: string, key: PermissionKey): Promise<string | null> {
+  const oid = await orgIdOf(supabase, table, id)
+  if (!oid) return 'Záznam neexistuje nebo k němu nemáš přístup.'
+  return denyUnless(supabase, key, oid)
 }
 
 // Oprávnění uvnitř konkrétní akce: role NEBO výjimka v event_access.permissions
@@ -74,12 +105,17 @@ async function denyUnless(supabase: Awaited<ReturnType<typeof requireAuth>>, key
 // vynucuje i sama — tady jde o srozumitelnou hlášku místo tichého „nic se
 // neuložilo". Bez event_id (úkol mimo akci) platí jen role. Při náhledu
 // „Zobrazit jako" se výjimky ignorují a platí jen zobrazovaná role.
+// orgId = firma pro případ bez akce (výchozí = aktivní); s akcí platí firma akce.
 async function denyUnlessEvent(
-  supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string | null | undefined, key: PermissionKey
+  supabase: Supa, eventId: string | null | undefined, key: PermissionKey, orgId?: string | null
 ): Promise<string | null> {
-  if (!eventId) return denyUnless(supabase, key)
+  if (!eventId) return denyUnless(supabase, key, orgId)
   const cookieStore = await cookies()
-  if (cookieStore.get('trebass_view_as')?.value) return denyUnless(supabase, key)
+  if (cookieStore.get('trebass_view_as')?.value) {
+    const eventOrg = await orgIdOf(supabase, 'events', eventId)
+    if (!eventOrg) return 'Akce neexistuje nebo k ní nemáš přístup.'
+    return denyUnless(supabase, key, eventOrg)
+  }
   const { data, error } = await supabase.rpc('has_event_perm', { eid: eventId, key })
   if (error) return error.message
   return data === true ? null : 'Na tuhle akci nemáš oprávnění.'
@@ -122,12 +158,13 @@ function sanitizeEventPermissions(perms: Permissions | undefined): Permissions {
 
 // Kdo smí měnit, kdo má k akci přístup a s jakými výjimkami: admin nebo
 // zakladatel akce (stejně jako politika event_access_write v DB).
-async function canManageEventAccess(supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string): Promise<boolean> {
-  const real = await realPermissions(supabase)
+async function canManageEventAccess(supabase: Supa, eventId: string): Promise<boolean> {
+  const { data } = await supabase.from('events').select('created_by, org_id').eq('id', eventId).maybeSingle()
+  if (!data) return false
+  const real = await realPermissions(supabase, data.org_id)
   if (real?.admin === true) return true
   const { data: { user } } = await supabase.auth.getUser()
-  const { data } = await supabase.from('events').select('created_by').eq('id', eventId).maybeSingle()
-  return !!user && data?.created_by === user.id
+  return !!user && data.created_by === user.id
 }
 
 // EVENTS
@@ -139,9 +176,11 @@ export async function createEvent(form: {
   include_in_totals?: boolean
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'canCreate', orgId)
   if (denied) return { error: denied }
   const payload = {
+    org_id: orgId,
     name: form.name,
     date: form.date || null,
     date_end: form.date_end || null,
@@ -575,10 +614,15 @@ interface LedgerPayload {
 
 // Pohyby akce smí měnit i kdo má Tým v akci, pohyby Firmy jen kdo má Firmu.
 // Stejné pravidlo jako can_ledger() v databázi (ta ho vynucuje i sama).
-async function denyLedger(supabase: Awaited<ReturnType<typeof requireAuth>>, eventId: string | null, action: PermissionKey) {
-  const { data, error } = await supabase.rpc('can_ledger', { eid: eventId, action })
+async function denyLedger(supabase: Supa, orgId: string, eventId: string | null, action: PermissionKey) {
+  const { data, error } = await supabase.rpc('can_ledger', { oid: orgId, eid: eventId, action })
   if (error) return error.message
   return data === true ? null : 'Na tuhle akci nemáš oprávnění.'
+}
+
+// Firma pohybu: akce → firma akce, bez akce (Firma obecně) → aktivní firma.
+async function ledgerOrg(supabase: Supa, eventId: string | null): Promise<string | null> {
+  return eventId ? orgIdOf(supabase, 'events', eventId) : activeOrgId()
 }
 
 function invalidLedger(p: LedgerPayload): string | null {
@@ -607,9 +651,11 @@ export async function createLedgerEntry(payload: LedgerPayload) {
   const invalid = invalidLedger(payload)
   if (invalid) return { error: invalid }
   const supabase = await requireAuth()
-  const denied = await denyLedger(supabase, payload.event_id || null, 'canCreate')
+  const orgId = await ledgerOrg(supabase, payload.event_id || null)
+  if (!orgId) return { error: 'Akce neexistuje nebo k ní nemáš přístup.' }
+  const denied = await denyLedger(supabase, orgId, payload.event_id || null, 'canCreate')
   if (denied) return { error: denied }
-  const { data, error } = await supabase.from('owner_ledger').insert([{ ...cleanLedger(payload), source: 'rucne' }]).select().single()
+  const { data, error } = await supabase.from('owner_ledger').insert([{ ...cleanLedger(payload), org_id: orgId, source: 'rucne' }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }
@@ -618,11 +664,14 @@ export async function updateLedgerEntry(id: string, payload: LedgerPayload) {
   const invalid = invalidLedger(payload)
   if (invalid) return { error: invalid }
   const supabase = await requireAuth()
-  const { data: prev } = await supabase.from('owner_ledger').select('event_id').eq('id', id).maybeSingle()
+  const { data: prev } = await supabase.from('owner_ledger').select('event_id, org_id').eq('id', id).maybeSingle()
   if (!prev) return { error: 'Pohyb neexistuje nebo k němu nemáš přístup.' }
-  // Přesun mezi akcemi / Firmou: smět upravit v původním i v novém místě
-  const denied = await denyLedger(supabase, prev.event_id, 'canEdit')
-    ?? await denyLedger(supabase, payload.event_id || null, 'canEdit')
+  // Přesun mezi akcemi / Firmou: smět upravit v původním i v novém místě.
+  // Jen v rámci jedné firmy — cizí akci databáze stejně nevydá.
+  const newOrg = payload.event_id ? await ledgerOrg(supabase, payload.event_id) : prev.org_id
+  if (newOrg !== prev.org_id) return { error: 'Pohyb nejde přesunout do jiné firmy.' }
+  const denied = await denyLedger(supabase, prev.org_id, prev.event_id, 'canEdit')
+    ?? await denyLedger(supabase, prev.org_id, payload.event_id || null, 'canEdit')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('owner_ledger').update(cleanLedger(payload)).eq('id', id).select('id')
   if (error) return { error: error.message }
@@ -632,9 +681,9 @@ export async function updateLedgerEntry(id: string, payload: LedgerPayload) {
 
 export async function deleteLedgerEntry(id: string) {
   const supabase = await requireAuth()
-  const { data: prev } = await supabase.from('owner_ledger').select('event_id').eq('id', id).maybeSingle()
+  const { data: prev } = await supabase.from('owner_ledger').select('event_id, org_id').eq('id', id).maybeSingle()
   if (!prev) return { error: 'Pohyb neexistuje nebo k němu nemáš přístup.' }
-  const denied = await denyLedger(supabase, prev.event_id, 'canDelete')
+  const denied = await denyLedger(supabase, prev.org_id, prev.event_id, 'canDelete')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('owner_ledger').delete().eq('id', id).select('id')
   if (error) return { error: error.message }
@@ -654,10 +703,12 @@ export async function recordSettlement(eventId: string | null, transfers: { from
     if (invalid) return { error: invalid }
   }
   const supabase = await requireAuth()
-  const denied = await denyLedger(supabase, eventId, 'canCreate')
+  const orgId = await ledgerOrg(supabase, eventId)
+  if (!orgId) return { error: 'Akce neexistuje nebo k ní nemáš přístup.' }
+  const denied = await denyLedger(supabase, orgId, eventId, 'canCreate')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('owner_ledger')
-    .insert(rows.map(r => ({ ...cleanLedger(r), source: 'kalkulacka' }))).select('id')
+    .insert(rows.map(r => ({ ...cleanLedger(r), org_id: orgId, source: 'kalkulacka' }))).select('id')
   if (error) return { error: error.message }
   return { data: (data || []).map(d => d.id as string) }
 }
@@ -667,15 +718,17 @@ export async function recordSettlement(eventId: string | null, transfers: { from
 // uzávěrky je zase otevře (closing_id on delete set null).
 export async function closeLedger(closedOn: string | null, note: string | null) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'viewFirma') ?? await denyUnless(supabase, 'canEdit')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'viewFirma', orgId) ?? await denyUnless(supabase, 'canEdit', orgId)
   if (denied) return { error: denied }
-  const { count } = await supabase.from('owner_ledger').select('id', { count: 'exact', head: true }).is('closing_id', null)
+  const { count } = await supabase.from('owner_ledger').select('id', { count: 'exact', head: true })
+    .eq('org_id', orgId).is('closing_id', null)
   if (!count) return { error: 'Není co uzavřít — žádné otevřené pohyby.' }
   const { data: closing, error } = await supabase.from('ledger_closings')
-    .insert([{ closed_on: closedOn || todayPrague(), note: note || null }]).select().single()
+    .insert([{ org_id: orgId, closed_on: closedOn || todayPrague(), note: note || null }]).select().single()
   if (error) return { error: error.message }
   const { data: updated, error: updError } = await supabase.from('owner_ledger')
-    .update({ closing_id: closing.id }).is('closing_id', null).select('id')
+    .update({ closing_id: closing.id }).eq('org_id', orgId).is('closing_id', null).select('id')
   if (updError) {
     await supabase.from('ledger_closings').delete().eq('id', closing.id)
     return { error: updError.message }
@@ -691,7 +744,9 @@ export async function closeLedger(closedOn: string | null, note: string | null) 
 
 export async function reopenLedgerClosing(closingId: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'viewFirma') ?? await denyUnless(supabase, 'canDelete')
+  const orgId = await orgIdOf(supabase, 'ledger_closings', closingId)
+  if (!orgId) return { error: 'Uzávěrka neexistuje nebo k ní nemáš přístup.' }
+  const denied = await denyUnless(supabase, 'viewFirma', orgId) ?? await denyUnless(supabase, 'canDelete', orgId)
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('ledger_closings').delete().eq('id', closingId).select('id')
   if (error) return { error: error.message }
@@ -703,17 +758,18 @@ export async function reopenLedgerClosing(closingId: string) {
 export async function setCompanyBalance(amount: number, asOf: string, note: string | null) {
   if (!Number.isFinite(amount)) return { error: 'Zůstatek musí být číslo.' }
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'viewFirma') ?? await denyUnless(supabase, 'canCreate')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'viewFirma', orgId) ?? await denyUnless(supabase, 'canCreate', orgId)
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('company_balance')
-    .insert([{ amount: roundMoney(amount), as_of: asOf || todayPrague(), note: note || null }]).select().single()
+    .insert([{ org_id: orgId, amount: roundMoney(amount), as_of: asOf || todayPrague(), note: note || null }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }
 
 export async function deleteEvent(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDeleteEvent')
+  const denied = await denyUnlessRow(supabase, 'events', id, 'canDeleteEvent')
   if (denied) return { error: denied }
   const { data, error } = await supabase.from('events').delete().eq('id', id).select('id')
   if (error) return { error: error.message }
@@ -757,9 +813,10 @@ export async function createContact(payload: {
   name: string; type: string; fee: number; email: string | null; phone: string | null; note: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'canCreate', orgId)
   if (denied) return { error: denied }
-  const { data, error } = await supabase.from('contacts').insert([payload]).select().single()
+  const { data, error } = await supabase.from('contacts').insert([{ ...payload, org_id: orgId }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }
@@ -768,7 +825,7 @@ export async function updateContact(id: string, payload: {
   name: string; type: string; fee: number; email: string | null; phone: string | null; note: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessRow(supabase, 'contacts', id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('contacts').update(payload).eq('id', id)
   if (error) return { error: error.message }
@@ -777,7 +834,7 @@ export async function updateContact(id: string, payload: {
 
 export async function deleteContact(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessRow(supabase, 'contacts', id, 'canDelete')
   if (denied) return { error: denied }
   const { error } = await supabase.from('contacts').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -785,14 +842,23 @@ export async function deleteContact(id: string) {
 }
 
 // TASKS
+// Úkol v akci → oprávnění v akci, úkol mimo akci → role ve firmě úkolu.
+async function denyTask(supabase: Supa, id: string, key: PermissionKey) {
+  const { data } = await supabase.from('tasks').select('event_id, org_id').eq('id', id).maybeSingle()
+  if (!data) return 'Úkol neexistuje nebo k němu nemáš přístup.'
+  return denyUnlessEvent(supabase, data.event_id, key, data.org_id)
+}
+
 export async function createTask(payload: {
   title: string; description: string | null; assigned_to_members: string[];
   status: string; priority: string; due_date: string | null; event_id: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate')
+  const orgId = await activeOrgId()
+  const denied = await denyUnlessEvent(supabase, payload.event_id, 'canCreate', orgId)
   if (denied) return { error: denied }
-  const { data, error } = await supabase.from('tasks').insert([{ ...payload, assigned_to: null }]).select().single()
+  // U úkolu v akci databáze firmu přepíše na firmu akce (trigger).
+  const { data, error } = await supabase.from('tasks').insert([{ ...payload, org_id: orgId, assigned_to: null }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }
@@ -802,7 +868,7 @@ export async function updateTask(id: string, payload: {
   status: string; priority: string; due_date: string | null; event_id: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'tasks', id), 'canEdit')
+  const denied = await denyTask(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('tasks').update({ ...payload, assigned_to: null }).eq('id', id)
   if (error) return { error: error.message }
@@ -811,7 +877,7 @@ export async function updateTask(id: string, payload: {
 
 export async function updateTaskStatus(id: string, status: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'tasks', id), 'canEdit')
+  const denied = await denyTask(supabase, id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('tasks').update({ status }).eq('id', id)
   if (error) return { error: error.message }
@@ -820,7 +886,7 @@ export async function updateTaskStatus(id: string, status: string) {
 
 export async function deleteTask(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnlessEvent(supabase, await eventIdOf(supabase, 'tasks', id), 'canDelete')
+  const denied = await denyTask(supabase, id, 'canDelete')
   if (denied) return { error: denied }
   const { error } = await supabase.from('tasks').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -832,9 +898,10 @@ export async function createCompanyExpense(payload: {
   category: string; item: string; note: string | null; amount: number; paid: boolean; date: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'canCreate', orgId)
   if (denied) return { error: denied }
-  const { data, error } = await supabase.from('company_expenses').insert([payload]).select().single()
+  const { data, error } = await supabase.from('company_expenses').insert([{ ...payload, org_id: orgId }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }
@@ -843,7 +910,7 @@ export async function updateCompanyExpense(id: string, payload: {
   category: string; item: string; note: string | null; amount: number; paid: boolean; date: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessRow(supabase, 'company_expenses', id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('company_expenses').update(payload).eq('id', id)
   if (error) return { error: error.message }
@@ -852,7 +919,7 @@ export async function updateCompanyExpense(id: string, payload: {
 
 export async function deleteCompanyExpense(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessRow(supabase, 'company_expenses', id, 'canDelete')
   if (denied) return { error: denied }
   const { error } = await supabase.from('company_expenses').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -861,7 +928,7 @@ export async function deleteCompanyExpense(id: string) {
 
 export async function toggleCompanyExpensePaid(id: string, paid: boolean) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessRow(supabase, 'company_expenses', id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('company_expenses').update({ paid }).eq('id', id)
   if (error) return { error: error.message }
@@ -872,9 +939,10 @@ export async function createCompanyIncome(payload: {
   source: string; name: string | null; amount: number; note: string | null; date: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canCreate')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'canCreate', orgId)
   if (denied) return { error: denied }
-  const { data, error } = await supabase.from('company_income').insert([payload]).select().single()
+  const { data, error } = await supabase.from('company_income').insert([{ ...payload, org_id: orgId }]).select().single()
   if (error) return { error: error.message }
   return { data }
 }
@@ -883,7 +951,7 @@ export async function updateCompanyIncome(id: string, payload: {
   source: string; name: string | null; amount: number; note: string | null; date: string | null
 }) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canEdit')
+  const denied = await denyUnlessRow(supabase, 'company_income', id, 'canEdit')
   if (denied) return { error: denied }
   const { error } = await supabase.from('company_income').update(payload).eq('id', id)
   if (error) return { error: error.message }
@@ -892,7 +960,7 @@ export async function updateCompanyIncome(id: string, payload: {
 
 export async function deleteCompanyIncome(id: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'canDelete')
+  const denied = await denyUnlessRow(supabase, 'company_income', id, 'canDelete')
   if (denied) return { error: denied }
   const { error } = await supabase.from('company_income').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -958,13 +1026,18 @@ const RESTORABLE_TABLES = [
   'owner_ledger', 'company_expenses', 'company_income', 'event_equipment',
 ] as const
 type RestorableTable = typeof RESTORABLE_TABLES[number]
+const ORG_TABLES: readonly string[] = ['contacts', 'tasks', 'owner_ledger', 'company_expenses', 'company_income']
 
 export async function restoreRow(table: RestorableTable, row: Record<string, unknown>) {
   const supabase = await requireAuth()
-  const denied = await denyUnlessEvent(supabase, row.event_id as string | undefined, 'canCreate')
-  if (denied) return { error: denied }
   if (!RESTORABLE_TABLES.includes(table)) return { error: 'Neplatná tabulka pro obnovení' }
-  const { error } = await supabase.from(table).insert([row])
+  // Kořenové tabulky mají firmu v řádku; kdyby ji uložený řádek neměl
+  // (starší undo záznam), vrací se do aktivní firmy.
+  const restored = ORG_TABLES.includes(table) && !row.org_id ? { ...row, org_id: await activeOrgId() } : row
+  const denied = await denyUnlessEvent(supabase, restored.event_id as string | undefined, 'canCreate',
+    (restored.org_id as string | undefined) ?? null)
+  if (denied) return { error: denied }
+  const { error } = await supabase.from(table).insert([restored])
   if (error) return { error: error.message }
   if (table === 'event_equipment' && row.expense_id) {
     await recalcExpensePrice(supabase, row.expense_id as string)
@@ -1001,23 +1074,63 @@ export async function restoreArtist(row: ArtistInfo & { id: string; fees?: Artis
 }
 
 // SPRÁVA UŽIVATELŮ A ROLÍ
+// Všechno se týká AKTIVNÍ firmy: admin Třebassu spravuje lidi a role
+// Třebassu, admin Horizonu Horizonu. Účet (jméno, heslo) je ale společný
+// pro všechny firmy, ve kterých člověk je — ten smí měnit jen ten, kdo má
+// správu lidí ve VŠECH jeho firmách (jinak by admin Horizonu mohl převzít
+// účet člověka z Třebassu přes reset hesla).
+//
 // Pojistky proti zamčení jsou tu podstatnější než samotné přiřazení: minulý
 // pokus o role se musel druhý den vypnout, protože se lidi nedostali dovnitř.
+
+type AdminClient = NonNullable<ReturnType<typeof getAdminClient>>
+
+interface MemberRow { profile_id: string; role_id: string | null; roles: { permissions?: Permissions } | null }
+
+async function orgMembersWithRoles(admin: AdminClient, orgId: string): Promise<MemberRow[]> {
+  const { data } = await admin.from('org_members').select('profile_id, role_id, roles(permissions)').eq('org_id', orgId)
+  return (data || []) as unknown as MemberRow[]
+}
+
+const isAdminRow = (m: MemberRow) => m.roles?.permissions?.admin === true
+
+// Role musí patřit do firmy. Vrací její oprávnění, nebo chybu.
+async function roleInOrg(supabase: Supa, roleId: string | null, orgId: string): Promise<{ perms: Permissions | null } | { error: string }> {
+  if (!roleId) return { perms: null }
+  const { data } = await supabase.from('roles').select('permissions, org_id').eq('id', roleId).maybeSingle()
+  if (!data || data.org_id !== orgId) return { error: 'Tahle role do této firmy nepatří.' }
+  return { perms: (data.permissions as Permissions) ?? null }
+}
+
+// Smí přihlášený měnit účet (jméno, heslo) člověka? = správa lidí ve všech
+// firmách, kde ten člověk je.
+async function denyAccountChange(supabase: Supa, admin: AdminClient, profileId: string): Promise<string | null> {
+  const { data } = await admin.from('org_members').select('org_id').eq('profile_id', profileId)
+  const orgIds = (data || []).map(r => r.org_id as string)
+  if (orgIds.length === 0) return 'Ten člověk není v žádné firmě.'
+  for (const oid of orgIds) {
+    if (await denyUnless(supabase, 'manageUsers', oid)) {
+      return 'Tenhle člověk je i v jiné firmě — jeho účet (jméno, heslo) může měnit jen ten, kdo spravuje lidi ve všech jeho firmách.'
+    }
+  }
+  return null
+}
+
 export async function assignRole(profileId: string, roleId: string | null) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'manageUsers')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'manageUsers', orgId)
   if (denied) return { error: denied }
 
-  const { data: newRole } = roleId
-    ? await supabase.from('roles').select('permissions').eq('id', roleId).single()
-    : { data: null }
-  const wouldBeAdmin = (newRole as { permissions?: Permissions } | null)?.permissions?.admin === true
+  const role = await roleInOrg(supabase, roleId, orgId)
+  if ('error' in role) return { error: role.error }
+  const wouldBeAdmin = role.perms?.admin === true
 
   // Pojistka 0: manageUsers samo o sobě neopravňuje udělit roli s admin:true
   // (typicky přímo roli Admin) — bez tohohle by šlo obejít manageRoles
   // a rovnou se (nebo někoho jiného) povýšit na plného administrátora.
   if (wouldBeAdmin) {
-    const real = await realPermissions(supabase)
+    const real = await realPermissions(supabase, orgId)
     if (real?.admin !== true) {
       return { error: 'Jen administrátor smí přiřadit administrátorskou roli.' }
     }
@@ -1026,28 +1139,69 @@ export async function assignRole(profileId: string, roleId: string | null) {
   // Pojistka 1: nikdo si nesmí sebrat vlastní administrátorská práva.
   const { data: { user } } = await supabase.auth.getUser()
   if (user?.id === profileId && !wouldBeAdmin) {
-    const perms = await currentPermissions(supabase)
+    const perms = await currentPermissions(supabase, orgId)
     if (perms?.admin === true) {
       return { error: 'Nemůžeš si sebrat vlastní administrátorská práva. Ať ti roli změní jiný admin.' }
     }
   }
 
-  // Pojistka 2: v systému musí zůstat aspoň jeden administrátor.
-  const { data: everyone } = await supabase.from('profiles').select('id, roles(permissions)')
-  const adminsAfter = (everyone || []).filter(row => {
-    const rel = (row as Record<string, unknown>).roles
-    const role = (Array.isArray(rel) ? rel[0] : rel) as { permissions?: Permissions } | null | undefined
-    const isAdmin = role?.permissions?.admin === true
-    return (row as { id: string }).id === profileId ? wouldBeAdmin : isAdmin
-  }).length
+  const admin = getAdminClient()
+  if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+
+  // Pojistka 2: ve firmě musí zůstat aspoň jeden administrátor.
+  const members = await orgMembersWithRoles(admin, orgId)
+  if (!members.some(m => m.profile_id === profileId)) return { error: 'Ten člověk v této firmě není.' }
+  const adminsAfter = members.filter(m => (m.profile_id === profileId ? wouldBeAdmin : isAdminRow(m))).length
   if (adminsAfter === 0) {
     return { error: 'Musí zůstat aspoň jeden administrátor. Nejdřív povyš někoho jiného.' }
   }
 
+  const { error } = await admin.from('org_members').update({ role_id: roleId }).eq('org_id', orgId).eq('profile_id', profileId)
+  if (error) return { error: error.message }
+  return { data: true }
+}
+
+// Přidá do aktivní firmy člověka, který už účet má (je v jiné firmě) —
+// např. Jakuba z Třebassu do Horizonu s omezenou rolí.
+export async function addMember(profileId: string, roleId: string | null) {
+  const supabase = await requireAuth()
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'manageUsers', orgId)
+  if (denied) return { error: denied }
+
+  const role = await roleInOrg(supabase, roleId, orgId)
+  if ('error' in role) return { error: role.error }
+  if (role.perms?.admin === true) {
+    const real = await realPermissions(supabase, orgId)
+    if (real?.admin !== true) return { error: 'Jen administrátor smí přiřadit administrátorskou roli.' }
+  }
+
+  // Přidat jde jen člověka, kterého přihlášený vidí (sdílí s ním jinou firmu).
+  const { data: person } = await supabase.from('profiles').select('id, name, email, phone').eq('id', profileId).maybeSingle()
+  if (!person) return { error: 'Toho člověka nevidíš — přidat jde jen někoho z tvých firem.' }
+
   const admin = getAdminClient()
   if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
-  const { error } = await admin.from('profiles').update({ role_id: roleId }).eq('id', profileId)
+  const { error } = await admin.from('org_members').insert([{ org_id: orgId, profile_id: profileId, role_id: roleId }])
+  if (error) {
+    if (error.message.toLowerCase().includes('duplicate')) return { error: 'Ten člověk už v této firmě je.' }
+    return { error: error.message }
+  }
+  return { data: { ...person, role_id: roleId, is_owner: false } }
+}
+
+// Majitel = dělí se o výsledek ve vyrovnání (Firma → Vklady). Jen admin firmy.
+export async function setOwner(profileId: string, isOwner: boolean) {
+  const supabase = await requireAuth()
+  const orgId = await activeOrgId()
+  const real = await realPermissions(supabase, orgId)
+  if (real?.admin !== true) return { error: 'Majitele smí určovat jen administrátor.' }
+  const admin = getAdminClient()
+  if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const { data, error } = await admin.from('org_members').update({ is_owner: isOwner })
+    .eq('org_id', orgId).eq('profile_id', profileId).select('profile_id')
   if (error) return { error: error.message }
+  if (!data?.length) return { error: 'Ten člověk v této firmě není.' }
   return { data: true }
 }
 
@@ -1080,7 +1234,8 @@ function randomPassword(): string {
 // člověka si při prvním přihlášení nastavit heslo, které admin už neuvidí.
 export async function createUser(name: string, username: string, password: string, roleId: string | null) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'manageUsers')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'manageUsers', orgId)
   if (denied) return { error: denied }
 
   const trimmedName = name.trim()
@@ -1091,12 +1246,11 @@ export async function createUser(name: string, username: string, password: strin
 
   // manageUsers samo o sobě neopravňuje rovnou založit dalšího admina —
   // stejná pojistka jako u assignRole.
-  if (roleId) {
-    const { data: newRole } = await supabase.from('roles').select('permissions').eq('id', roleId).single()
-    if ((newRole as { permissions?: Permissions } | null)?.permissions?.admin === true) {
-      const real = await realPermissions(supabase)
-      if (real?.admin !== true) return { error: 'Jen administrátor smí založit účet s administrátorskou rolí.' }
-    }
+  const role = await roleInOrg(supabase, roleId, orgId)
+  if ('error' in role) return { error: role.error }
+  if (role.perms?.admin === true) {
+    const real = await realPermissions(supabase, orgId)
+    if (real?.admin !== true) return { error: 'Jen administrátor smí založit účet s administrátorskou rolí.' }
   }
 
   const admin = getAdminClient()
@@ -1118,10 +1272,19 @@ export async function createUser(name: string, username: string, password: strin
   // (bez role), takže tady jen doplňujeme jméno/e-mail/roli na existující řádek.
   const { error: profileError } = await admin
     .from('profiles')
-    .upsert([{ id: created.user.id, name: trimmedName, email, role_id: roleId, must_change_password: true }])
+    .upsert([{ id: created.user.id, name: trimmedName, email, must_change_password: true }])
   if (profileError) return { error: profileError.message }
 
-  return { data: { id: created.user.id, name: trimmedName, email, phone: null, role_id: roleId } }
+  // Člověk patří jen do aktivní firmy. (Přechodový trigger z migrace ho
+  // mohl automaticky přidat do Třebassu — to se tu uklidí.)
+  const { error: cleanError } = await admin.from('org_members').delete()
+    .eq('profile_id', created.user.id).neq('org_id', orgId)
+  if (cleanError) return { error: cleanError.message }
+  const { error: memberError } = await admin.from('org_members')
+    .upsert([{ org_id: orgId, profile_id: created.user.id, role_id: roleId }])
+  if (memberError) return { error: memberError.message }
+
+  return { data: { id: created.user.id, name: trimmedName, email, phone: null, role_id: roleId, is_owner: false } }
 }
 
 // Upraví jméno, uživatelské jméno a telefon. Změna uživatelského jména =
@@ -1131,6 +1294,10 @@ export async function updateProfile(profileId: string, name: string, username: s
   const supabase = await requireAuth()
   const denied = await denyUnless(supabase, 'manageUsers')
   if (denied) return { error: denied }
+  const adminForCheck = getAdminClient()
+  if (!adminForCheck) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const accountDenied = await denyAccountChange(supabase, adminForCheck, profileId)
+  if (accountDenied) return { error: accountDenied }
 
   const trimmedName = name.trim()
   const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '')
@@ -1159,37 +1326,39 @@ export async function updateProfile(profileId: string, name: string, username: s
   return { data: { id: profileId, name: trimmedName, email, phone: trimmedPhone || null } }
 }
 
-// Pojistky proti zamčení stejné jako u assignRole: nikdo si nesmí smazat sám
-// sebe a musí zůstat aspoň jeden administrátor.
+// Odebere člověka z aktivní firmy. Když už není v žádné jiné, smaže se
+// i jeho účet (jinak by zůstal viset bez přístupu kamkoli). Pojistky proti
+// zamčení stejné jako u assignRole: nikdo neodebere sám sebe a ve firmě
+// musí zůstat aspoň jeden administrátor.
 export async function deleteUser(profileId: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'manageUsers')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'manageUsers', orgId)
   if (denied) return { error: denied }
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (user?.id === profileId) return { error: 'Nemůžeš smazat vlastní účet.' }
-
-  const { data: everyone } = await supabase.from('profiles').select('id, roles(permissions)')
-  const adminsAfter = (everyone || []).filter(row => {
-    const rel = (row as Record<string, unknown>).roles
-    const role = (Array.isArray(rel) ? rel[0] : rel) as { permissions?: Permissions } | null | undefined
-    return (row as { id: string }).id !== profileId && role?.permissions?.admin === true
-  }).length
-  const wasAdmin = (everyone || []).some(row => {
-    const rel = (row as Record<string, unknown>).roles
-    const role = (Array.isArray(rel) ? rel[0] : rel) as { permissions?: Permissions } | null | undefined
-    return (row as { id: string }).id === profileId && role?.permissions?.admin === true
-  })
-  if (wasAdmin && adminsAfter === 0) {
-    return { error: 'Musí zůstat aspoň jeden administrátor. Nejdřív povyš někoho jiného.' }
-  }
+  if (user?.id === profileId) return { error: 'Nemůžeš odebrat sám sebe.' }
 
   const admin = getAdminClient()
   if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
 
+  const members = await orgMembersWithRoles(admin, orgId)
+  const target = members.find(m => m.profile_id === profileId)
+  if (!target) return { error: 'Ten člověk v této firmě není.' }
+  if (isAdminRow(target) && members.filter(m => m.profile_id !== profileId && isAdminRow(m)).length === 0) {
+    return { error: 'Musí zůstat aspoň jeden administrátor. Nejdřív povyš někoho jiného.' }
+  }
+
+  const { data: otherOrgs } = await admin.from('org_members').select('org_id').eq('profile_id', profileId).neq('org_id', orgId)
+  if ((otherOrgs || []).length > 0) {
+    const { error } = await admin.from('org_members').delete().eq('org_id', orgId).eq('profile_id', profileId)
+    if (error) return { error: error.message }
+    return { data: { removedFromOrgOnly: true } }
+  }
+
   const { error } = await admin.auth.admin.deleteUser(profileId)
   if (error) return { error: error.message }
-  return { data: true }
+  return { data: { removedFromOrgOnly: false } }
 }
 
 // Vygeneruje nové jednorázové heslo a donutí člověka si při přihlášení
@@ -1202,6 +1371,8 @@ export async function resetPassword(profileId: string) {
 
   const admin = getAdminClient()
   if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const accountDenied = await denyAccountChange(supabase, admin, profileId)
+  if (accountDenied) return { error: accountDenied }
 
   const newPassword = randomPassword()
   const { error: authError } = await admin.auth.admin.updateUserById(profileId, { password: newPassword })
@@ -1216,16 +1387,24 @@ export async function resetPassword(profileId: string) {
   return { data: { password: newPassword } }
 }
 
+// Firma role (role vždy patří jedné firmě). null = neexistuje / nevidím.
+async function roleOrg(supabase: Supa, roleId: string): Promise<string | null> {
+  const { data } = await supabase.from('roles').select('org_id').eq('id', roleId).maybeSingle()
+  return (data?.org_id as string | undefined) ?? null
+}
+
 export async function updateRolePermissions(roleId: string, permissions: Permissions) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'manageRoles')
+  const orgId = await roleOrg(supabase, roleId)
+  if (!orgId) return { error: 'Role neexistuje nebo k ní nemáš přístup.' }
+  const denied = await denyUnless(supabase, 'manageRoles', orgId)
   if (denied) return { error: denied }
 
   // manageRoles bez admin:true nesmí udělit admin:true — jinak by role
   // "spravovat role" + "přiřazovat role lidem" dohromady byla tichá cesta
   // k plným admin právům. Kontroluje se skutečná role, ne aktivní náhled.
   if (permissions?.admin === true) {
-    const real = await realPermissions(supabase)
+    const real = await realPermissions(supabase, orgId)
     if (real?.admin !== true) {
       return { error: 'Jen administrátor smí roli udělit administrátorská práva.' }
     }
@@ -1240,7 +1419,9 @@ export async function updateRolePermissions(roleId: string, permissions: Permiss
 
 export async function renameRole(roleId: string, name: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'manageRoles')
+  const orgId = await roleOrg(supabase, roleId)
+  if (!orgId) return { error: 'Role neexistuje nebo k ní nemáš přístup.' }
+  const denied = await denyUnless(supabase, 'manageRoles', orgId)
   if (denied) return { error: denied }
   const trimmedName = name.trim()
   if (!trimmedName) return { error: 'Název role je povinný.' }
@@ -1256,7 +1437,8 @@ export async function renameRole(roleId: string, name: string) {
 
 export async function createRole(name: string, color: string) {
   const supabase = await requireAuth()
-  const denied = await denyUnless(supabase, 'manageRoles')
+  const orgId = await activeOrgId()
+  const denied = await denyUnless(supabase, 'manageRoles', orgId)
   if (denied) return { error: denied }
   const trimmedName = name.trim()
   if (!trimmedName) return { error: 'Název role je povinný.' }
@@ -1264,7 +1446,7 @@ export async function createRole(name: string, color: string) {
   if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
   const { data, error } = await admin
     .from('roles')
-    .insert([{ name: trimmedName, color, permissions: {}, is_system: false }])
+    .insert([{ org_id: orgId, name: trimmedName, color, permissions: {}, is_system: false }])
     .select()
     .single()
   if (error) {

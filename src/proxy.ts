@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
+import { ACTIVE_ORG_COOKIE, pickActiveOrg } from '@/lib/orgs'
 
 export async function proxy(req: NextRequest) {
   let supabaseResponse = NextResponse.next({ request: req })
@@ -38,7 +39,21 @@ export async function proxy(req: NextRequest) {
   // Nové/resetnuté heslo je jednorázové (admin ho zná a řekl ho osobně) —
   // dokud si člověk nenastaví vlastní, appka ho pustí jen na tuhle stránku.
   if (user) {
-    const { data: profile } = await supabase.from('profiles').select('must_change_password').eq('id', user.id).single()
+    // Jedním dotazem i firmy, ve kterých člověk je — podle nich se ohlídá
+    // cookie s aktivní firmou (stránky jí pak věří a filtrují podle ní;
+    // databáze cizí firmu stejně nevydá).
+    const { data: profile } = await supabase.from('profiles')
+      .select('must_change_password, org_members(org_id)').eq('id', user.id).single()
+    const memberOrgIds = ((profile?.org_members as { org_id: string }[] | null) || []).map(m => m.org_id)
+    const current = req.cookies.get(ACTIVE_ORG_COOKIE)?.value
+    const active = pickActiveOrg(memberOrgIds, current)
+    if (active && active !== current) {
+      req.cookies.set(ACTIVE_ORG_COOKIE, active)
+      const fixed = NextResponse.next({ request: req })
+      supabaseResponse.cookies.getAll().forEach(c => fixed.cookies.set(c))
+      fixed.cookies.set(ACTIVE_ORG_COOKIE, active, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
+      supabaseResponse = fixed
+    }
     const mustChange = profile?.must_change_password === true
     if (mustChange && req.nextUrl.pathname !== '/zmena-hesla') {
       const url = req.nextUrl.clone()

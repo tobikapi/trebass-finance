@@ -14,11 +14,15 @@ interface ProfileRow {
   email: string | null
   phone: string | null
   role_id: string | null
+  is_owner: boolean
 }
+
+interface Candidate { id: string; name: string | null; email: string | null }
 
 interface Props {
   initialProfiles: ProfileRow[]
   initialRoles: Role[]
+  candidates: Candidate[]   // lidé z mých ostatních firem, kteří v téhle ještě nejsou
 }
 
 function RoleBadge({ role }: { role: Role | undefined }) {
@@ -182,6 +186,15 @@ function PersonRow({ profile, role, roles, isMe, disabled, saving, onChangeRole,
   onDeleted: () => void
 }) {
   const { notify } = useDialog()
+  const { brand, realRole } = useUser()
+  const canSetOwner = realRole?.permissions?.admin === true
+
+  async function toggleOwner() {
+    const next = !profile.is_owner
+    onUpdated({ ...profile, is_owner: next })
+    const result = await callAction<{ data?: boolean; error?: string }>('setOwner', profile.id, next)
+    if (result.error) { onUpdated({ ...profile, is_owner: !next }); notify(result.error) }
+  }
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(profile.name || '')
   const [username, setUsername] = useState(profile.email?.replace(/@trebass\.cz$/, '') || '')
@@ -209,11 +222,14 @@ function PersonRow({ profile, role, roles, isMe, disabled, saving, onChangeRole,
   }
 
   async function del() {
-    if (!confirm(`Smazat účet „${profile.name || username}"? Nevratné.`)) return
+    if (!confirm(`Odebrat „${profile.name || username}" z firmy ${brand.name}? Pokud není v žádné jiné firmě, smaže se i jeho účet (nevratné).`)) return
     setBusy(true)
-    const result = await callAction<{ data?: boolean; error?: string }>('deleteUser', profile.id)
+    const result = await callAction<{ data?: { removedFromOrgOnly: boolean }; error?: string }>('deleteUser', profile.id)
     setBusy(false)
     if (result.error) { notify(result.error); return }
+    notify(result.data?.removedFromOrgOnly
+      ? `${profile.name || username} odebrán z firmy ${brand.name}. Účet mu zůstal — je i v jiné firmě.`
+      : `Účet ${profile.name || username} smazán.`)
     onDeleted()
   }
 
@@ -246,7 +262,17 @@ function PersonRow({ profile, role, roles, isMe, disabled, saving, onChangeRole,
           </div>
         </div>
       )}
-      <div><RoleBadge role={role} /></div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+        <RoleBadge role={role} />
+        <label title="Majitel se dělí o výsledek ve vyrovnání (Firma → Vklady)" style={{
+          display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px',
+          color: profile.is_owner ? 'var(--text-primary)' : 'var(--text-dim)',
+          cursor: canSetOwner ? 'pointer' : 'default',
+        }}>
+          <input type="checkbox" checked={profile.is_owner} disabled={!canSetOwner || busy} onChange={toggleOwner} />
+          majitel
+        </label>
+      </div>
       <div>
         <select
           value={profile.role_id || ''}
@@ -272,7 +298,7 @@ function PersonRow({ profile, role, roles, isMe, disabled, saving, onChangeRole,
           <>
             <button onClick={() => setEditing(true)} disabled={busy} style={actionBtnStyle()}>Upravit</button>
             <button onClick={resetPassword} disabled={busy} style={actionBtnStyle()}>Reset heslo</button>
-            {!isMe && <button onClick={del} disabled={busy} style={actionBtnStyle('#e05555')}>Smazat</button>}
+            {!isMe && <button onClick={del} disabled={busy} style={actionBtnStyle('#e05555')}>Odebrat</button>}
           </>
         )}
       </div>
@@ -288,9 +314,27 @@ function actionBtnStyle(color?: string): React.CSSProperties {
   }
 }
 
-export default function AdminClient({ initialProfiles, initialRoles }: Props) {
+export default function AdminClient({ initialProfiles, initialRoles, candidates: initialCandidates }: Props) {
   const { notify } = useDialog()
-  const { user } = useUser()
+  const { user, brand } = useUser()
+  const [candidates, setCandidates] = useState<Candidate[]>(initialCandidates)
+  const [addId, setAddId] = useState('')
+  const [addRoleId, setAddRoleId] = useState(initialRoles.find(r => r.name === 'Crew Member' || r.name === 'Člen')?.id || '')
+  const [adding, setAdding] = useState(false)
+
+  async function addExisting(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!addId) return
+    setAdding(true)
+    const result = await callAction<{ data?: ProfileRow; error?: string }>('addMember', addId, addRoleId || null)
+    setAdding(false)
+    if (result.error) { notify(result.error); return }
+    if (result.data) {
+      setProfiles(prev => [...prev, result.data as ProfileRow].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'cs')))
+      setCandidates(prev => prev.filter(c => c.id !== addId))
+    }
+    setAddId('')
+  }
   const [profiles, setProfiles] = useState<ProfileRow[]>(initialProfiles)
   const [roles, setRoles] = useState<Role[]>(initialRoles)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -367,10 +411,11 @@ export default function AdminClient({ initialProfiles, initialRoles }: Props) {
         fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em',
         fontSize: '30px', color: 'var(--text-primary)', margin: '0 0 6px',
       }}>
-        Role a práva
+        Role a práva · {brand.name}
       </h1>
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 28px' }}>
-        Kdo co smí. Omezení se vynucuje na serveru, skrytí v menu je jen doplněk.
+        Kdo co smí ve firmě {brand.name}. Role a lidé jsou v každé firmě zvlášť — jiná firma se
+        nastavuje po přepnutí v menu. Omezení se vynucuje na serveru, skrytí v menu je jen doplněk.
       </p>
 
       {migrationMissing && (
@@ -447,6 +492,45 @@ export default function AdminClient({ initialProfiles, initialRoles }: Props) {
             }}
           >
             {creating ? 'Zakládám…' : '+ Založit'}
+          </button>
+        </form>
+      )}
+
+      {/* Přidat člověka, který už účet má (z jiné mé firmy) */}
+      {!migrationMissing && candidates.length > 0 && (
+        <form onSubmit={addExisting} style={{
+          display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'end',
+          padding: '16px 18px', borderRadius: '12px', border: '1px solid var(--border-card)',
+          backgroundColor: 'var(--bg-card-alt)', marginBottom: '20px',
+        }}>
+          <div style={{ flex: '2 1 220px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              Přidat do {brand.name} někoho z tvých jiných firem
+            </label>
+            <select value={addId} onChange={e => setAddId(e.target.value)} style={{
+              width: '100%', padding: '8px 10px', borderRadius: '8px', fontSize: '13px',
+              backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-primary)', border: '1px solid var(--border-card)',
+            }}>
+              <option value="">— vyber člověka —</option>
+              {candidates.map(c => <option key={c.id} value={c.id}>{c.name || c.email}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: '1 1 140px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Role v {brand.name}</label>
+            <select value={addRoleId} onChange={e => setAddRoleId(e.target.value)} style={{
+              width: '100%', padding: '8px 10px', borderRadius: '8px', fontSize: '13px',
+              backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-primary)', border: '1px solid var(--border-card)',
+            }}>
+              <option value="">— bez role —</option>
+              {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+          <button type="submit" disabled={adding || !addId} style={{
+            padding: '9px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+            backgroundColor: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-card)',
+            cursor: adding || !addId ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+          }}>
+            {adding ? 'Přidávám…' : '+ Přidat'}
           </button>
         </form>
       )}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUser } from '@/lib/user-context'
 import { Event, Expense, Income, LineupArtist, TeamContribution, EventEquipment, CATEGORIES, formatDateRange } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
@@ -59,6 +60,7 @@ function TotalRow({ items }: { label: string; items: { label: string; value: str
 }
 
 export default function TiskClient({ event, expenses, income, lineup, team, notes, equipment, vendors }: Props) {
+  const { brand } = useUser()
   const router = useRouter()
 
   const [sections, setSections] = useState<Record<SectionKey, boolean>>({
@@ -427,7 +429,9 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #e05555', paddingBottom: '16px', marginBottom: '0' }}>
             <div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="Třebass" style={{ height: '28px', width: 'auto', marginBottom: '8px', display: 'block', filter: 'invert(1)' }} />
+              {brand.logo
+                ? <img src={brand.logo} alt={brand.name} style={{ height: '28px', width: 'auto', marginBottom: '8px', display: 'block', filter: 'invert(1)' }} />
+                : <div className="org-wordmark" style={{ fontSize: '20px', marginBottom: '8px', color: '#111' }}>{brand.name}</div>}
               <div style={{ fontSize: '26px', fontWeight: '800', color: '#111', lineHeight: 1.1 }}>{event.name}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginTop: '6px', fontSize: '12px', color: '#666' }}>
                 {event.date && <span>📅 {formatDateRange(event.date, event.date_end, event.time_start, event.time_end)}</span>}
@@ -731,7 +735,7 @@ export default function TiskClient({ event, expenses, income, lineup, team, note
 
         {/* Footer */}
         <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '12px', marginTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#bbb' }}>
-          <span>Třebass Finance System</span>
+          <span>{brand.appTitle}</span>
           <span>Vygenerováno {new Date().toLocaleDateString('cs-CZ')} | {event.name}</span>
         </div>
       </div>

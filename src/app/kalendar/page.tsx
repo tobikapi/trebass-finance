@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useUser } from '@/lib/user-context'
 
 interface CalEvent { id: string; name: string; date: string | null; date_end: string | null; location: string | null; status: string }
 interface Task { id: string; title: string; assigned_to: string | null; assigned_to_members: string[] | null; status: string; priority: string; due_date: string | null }
@@ -20,6 +21,7 @@ function parseLocal(dateStr: string): Date {
 }
 
 export default function KalendarPage() {
+  const { orgId } = useUser()
   const [events, setEvents] = useState<CalEvent[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,15 +35,15 @@ export default function KalendarPage() {
   useEffect(() => {
     async function load() {
       const [{ data: e }, { data: t }] = await Promise.all([
-        supabase.from('events').select('id, name, date, date_end, location, status').not('date', 'is', null),
-        supabase.from('tasks').select('id, title, assigned_to, assigned_to_members, status, priority, due_date').not('due_date', 'is', null),
+        supabase.from('events').select('id, name, date, date_end, location, status').eq('org_id', orgId ?? '').not('date', 'is', null),
+        supabase.from('tasks').select('id, title, assigned_to, assigned_to_members, status, priority, due_date').eq('org_id', orgId ?? '').not('due_date', 'is', null),
       ])
       setEvents(e || [])
       setTasks(t || [])
       setLoading(false)
     }
     load()
-  }, [])
+  }, [orgId])
 
   function prevMonth() { setSelectedDay(null); if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
   function nextMonth() { setSelectedDay(null); if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }

@@ -5,6 +5,7 @@ import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { hasPermission, type PermissionKey, type Role } from '@/lib/permissions'
 import type { InitialUser } from '@/lib/server-user'
+import { ACTIVE_ORG_COOKIE, brandOf, type OrgBrand, type OrgMembership } from '@/lib/orgs'
 
 export interface Profile {
   id: string
@@ -15,10 +16,10 @@ export interface Profile {
 
 const VIEW_AS_COOKIE = 'trebass_view_as'
 
-function setCookie(name: string, value: string | null) {
+function setCookie(name: string, value: string | null, maxAge = 86400) {
   document.cookie = value === null
     ? `${name}=; path=/; max-age=0`
-    : `${name}=${encodeURIComponent(value)}; path=/; max-age=86400`
+    : `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`
 }
 
 interface UserContextType {
@@ -31,62 +32,32 @@ interface UserContextType {
   can: (key: PermissionKey) => boolean
   viewAsRoleId: string | null
   setViewAs: (roleId: string | null) => void
+  orgs: OrgMembership[]          // firmy, ve kterých člověk je
+  orgId: string | null           // aktivní firma — podle ní se filtrují seznamy a zapisují nové záznamy
+  brand: OrgBrand                // vzhled aktivní firmy
+  isOwner: boolean               // majitel v aktivní firmě
+  switchOrg: (orgId: string, path?: string) => void
 }
 
 const UserContext = createContext<UserContextType>({
   user: null, profile: null, role: null, realRole: null, allRoles: [],
   loading: true, can: () => true, viewAsRoleId: null, setViewAs: () => {},
+  orgs: [], orgId: null, brand: brandOf(null), isOwner: false, switchOrg: () => {},
 })
 
 export function UserProvider({ children, initial }: { children: React.ReactNode; initial: InitialUser }) {
   // Výchozí stav přichází ze serveru (root layout) — první vykreslení tak
   // rovnou zná jméno i roli a nic neproblikne v omezeném pohledu.
-  const [user, setUser] = useState<User | null>(initial.user)
-  const [profile, setProfile] = useState<Profile | null>(initial.profile)
-  const [realRole, setRealRole] = useState<Role | null>(initial.realRole)
-  const [allRoles, setAllRoles] = useState<Role[]>(initial.allRoles)
-  const [loading, setLoading] = useState(false)
+  const user = initial.user
+  const profile = initial.profile
+  const realRole = initial.realRole
+  const allRoles = initial.allRoles
+  const loading = false
   const [viewAsRoleId, setViewAsRoleId] = useState<string | null>(initial.viewAsRoleId)
   const userIdRef = useRef<string | null>(initial.user?.id ?? null)
-  const loadSeq = useRef(0)
 
   useEffect(() => {
     let mounted = true
-
-    // Profil a role se načítají zvlášť schválně: kdyby tabulka `roles` ještě
-    // neexistovala (nedoběhlá migrace), nesmí to shodit i načtení jména a e-mailu.
-    // loadSeq: když se dvě načtení překryjí, uloží se jen to poslední —
-    // dřív starší (pomalejší) načtení umělo přepsat novější výsledek.
-    async function loadFor(currentUser: User | null) {
-      const seq = ++loadSeq.current
-      const isCurrent = () => mounted && seq === loadSeq.current
-      if (!currentUser) {
-        if (isCurrent()) { setProfile(null); setRealRole(null); setAllRoles([]) }
-        return
-      }
-      setLoading(true)
-      try {
-        const { data } = await supabase.from('profiles')
-          .select('id, name, email, role_id').eq('id', currentUser.id).maybeSingle()
-        let roleRow: Role | null = null
-        if (data?.role_id) {
-          const res = await supabase.from('roles')
-            .select('id, name, color, permissions, is_system').eq('id', data.role_id).maybeSingle()
-          roleRow = res.data
-        }
-        let roles: Role[] = []
-        if (roleRow?.permissions?.admin === true) {
-          const res = await supabase.from('roles').select('id, name, color, permissions, is_system').order('name')
-          roles = res.data || []
-        }
-        if (isCurrent()) { setProfile(data); setRealRole(roleRow); setAllRoles(roles) }
-      } catch {
-        // Role se nenačetla — necháváme předchozí stav.
-        // Server a databáze mají vlastní kontrolu, tohle je jen skrývání v UI.
-      } finally {
-        if (isCurrent()) setLoading(false)
-      }
-    }
 
     // Znovu načítat jen při skutečné změně přihlášeného člověka. Obnovení
     // tokenu (TOKEN_REFRESHED) ani úvodní INITIAL_SESSION pro stejného
@@ -102,9 +73,9 @@ export function UserProvider({ children, initial }: { children: React.ReactNode;
         window.location.assign('/login')
         return
       }
-      setUser(currentUser)
-      // Supabase doporučuje v callbacku nevolat další dotazy synchronně.
-      setTimeout(() => { loadFor(currentUser) }, 0)
+      // Přihlásil se někdo jiný (např. v jiné záložce) — role a firmy se
+      // počítají na serveru, nejjistější je načíst appku znovu.
+      window.location.reload()
     })
 
     return () => {
@@ -114,6 +85,15 @@ export function UserProvider({ children, initial }: { children: React.ReactNode;
   }, [])
 
   const isRealAdmin = realRole?.permissions?.admin === true
+
+  // Přepnutí firmy: cookie + plné načtení. Všechno (seznamy, role, vzhled,
+  // undo historie) patří k firmě, takže čistý start je nejbezpečnější.
+  // Náhled „Zobrazit jako" se ruší — role jsou v každé firmě jiné.
+  const switchOrg = useCallback((orgId: string, path = '/') => {
+    setCookie(ACTIVE_ORG_COOKIE, orgId, 60 * 60 * 24 * 365)
+    setCookie(VIEW_AS_COOKIE, null)
+    window.location.assign(path)
+  }, [])
 
   const setViewAs = useCallback((roleId: string | null) => {
     setViewAsRoleId(roleId)
@@ -143,6 +123,8 @@ export function UserProvider({ children, initial }: { children: React.ReactNode;
     <UserContext.Provider value={{
       user, profile, role, realRole, allRoles, loading, can,
       viewAsRoleId: effectiveViewAsId, setViewAs,
+      orgs: initial.orgs, orgId: initial.activeOrgId, brand: brandOf(initial.activeOrgId),
+      isOwner: initial.isOwner, switchOrg,
     }}>
       {children}
     </UserContext.Provider>

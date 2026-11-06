@@ -13,6 +13,7 @@ import { useRealtime } from '@/lib/use-realtime'
 import PermissionGuard from '@/components/PermissionGuard'
 import MyDashboard from '@/components/MyDashboard'
 import { useUser } from '@/lib/user-context'
+import { ORG_IDS } from '@/lib/orgs'
 import { canAccessEvent, fetchEventAccessMap } from '@/lib/event-access'
 
 interface RawExpense { event_id: string; price: number; category: string; paid: boolean; deposit: number }
@@ -113,7 +114,7 @@ export default function Dashboard() {
 }
 
 function FinancialDashboard() {
-  const { user, role, viewAsRoleId, can } = useUser()
+  const { user, role, viewAsRoleId, can, orgId } = useUser()
   const [allEvents,   setAllEvents]   = useState<Event[]>([])
   const [allExpenses, setAllExpenses] = useState<RawExpense[]>([])
   const [allIncome,   setAllIncome]   = useState<RawIncome[]>([])
@@ -127,13 +128,14 @@ function FinancialDashboard() {
     setDbError(null)
     try {
       const [evtsRes, expsRes, incsRes, actExpsRes, actIncsRes, actLineupRes, actNotesRes, accessMap] = await Promise.all([
-        supabase.from('events').select('*').order('date', { ascending: false }),
-        supabase.from('expenses').select('price, event_id, category, paid, deposit'),
-        supabase.from('income').select('amount, event_id'),
-        supabase.from('expenses').select('event_id, category, item, price, created_at').order('created_at', { ascending: false }).limit(8),
-        supabase.from('income').select('event_id, source, amount, created_at').order('created_at', { ascending: false }).limit(8),
-        supabase.from('lineup').select('event_id, artist_name, created_at, lineup_fees(fee)').order('created_at', { ascending: false }).limit(8),
-        supabase.from('notes').select('event_id, author, content, created_at').order('created_at', { ascending: false }).limit(5),
+        // Jen aktivní firma: akce přímo, ostatní tabulky přes firmu své akce.
+        supabase.from('events').select('*').eq('org_id', orgId ?? '').order('date', { ascending: false }),
+        supabase.from('expenses').select('price, event_id, category, paid, deposit, events!event_id!inner(org_id)').eq('events.org_id', orgId ?? ''),
+        supabase.from('income').select('amount, event_id, events!event_id!inner(org_id)').eq('events.org_id', orgId ?? ''),
+        supabase.from('expenses').select('event_id, category, item, price, created_at, events!event_id!inner(org_id)').eq('events.org_id', orgId ?? '').order('created_at', { ascending: false }).limit(8),
+        supabase.from('income').select('event_id, source, amount, created_at, events!event_id!inner(org_id)').eq('events.org_id', orgId ?? '').order('created_at', { ascending: false }).limit(8),
+        supabase.from('lineup').select('event_id, artist_name, created_at, lineup_fees(fee), events!event_id!inner(org_id)').eq('events.org_id', orgId ?? '').order('created_at', { ascending: false }).limit(8),
+        supabase.from('notes').select('event_id, author, content, created_at, events!event_id!inner(org_id)').eq('events.org_id', orgId ?? '').order('created_at', { ascending: false }).limit(5),
         // Přístup k akcím vynucuje databáze; mapa je potřeba jen pro náhled „Zobrazit jako".
         viewAsRoleId ? fetchEventAccessMap() : Promise.resolve(null),
       ])
@@ -482,8 +484,8 @@ function FinancialDashboard() {
         </div>
       )}
 
-      {/* Foto strip */}
-      <div>
+      {/* Foto strip — fotky jsou z Třebassu, jiná firma je zatím nemá */}
+      {orgId === ORG_IDS.trebass && <div>
         <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '10px', letterSpacing: '0.12em', fontFamily: 'var(--font-awakenning), sans-serif' }}>TŘEBASS 2025</div>
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
           {[1,2,3,4,5,6,7,8].map((n) => (
@@ -492,7 +494,7 @@ function FinancialDashboard() {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   )
 }

@@ -48,7 +48,7 @@ interface Props {
 export default function FirmaClient({ initialExpenses, initialIncome, initialContributions, ledgerStatus }: Props) {
   // Tlačítka podle role. Vynucuje to server a databáze — tady jde jen o to,
   // aby člověk neklikal na něco, co neprojde.
-  const { can } = useUser()
+  const { can, orgId } = useUser()
   const canCreate = can('canCreate')
   const canEdit = can('canEdit')
   const canDelete = can('canDelete')
@@ -74,10 +74,10 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
 
   async function load() {
     const [{ data: exp }, { data: inc }, { data: ledger }, { data: events }, { data: people }] = await Promise.all([
-      supabase.from('company_expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-      supabase.from('company_income').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-      supabase.from('owner_ledger').select('id, profile_id, kind, amount, event_id, date, note, created_at'),
-      supabase.from('events').select('id, name, date'),
+      supabase.from('company_expenses').select('*').eq('org_id', orgId ?? '').order('date', { ascending: false }).order('created_at', { ascending: false }),
+      supabase.from('company_income').select('*').eq('org_id', orgId ?? '').order('date', { ascending: false }).order('created_at', { ascending: false }),
+      supabase.from('owner_ledger').select('id, profile_id, kind, amount, event_id, date, note, created_at').eq('org_id', orgId ?? ''),
+      supabase.from('events').select('id, name, date').eq('org_id', orgId ?? ''),
       supabase.from('profiles').select('id, name'),
     ])
     setExpenses(exp || [])
