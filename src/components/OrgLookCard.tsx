@@ -6,6 +6,7 @@ import { callAction } from '@/lib/call-action'
 import { useDialog } from '@/lib/dialog-context'
 import { useUser } from '@/lib/user-context'
 import { defaultBg, type OrgLook } from '@/lib/orgs'
+export type { OrgLook }
 
 // Zmenší fotku v prohlížeči (max 2400 px, JPEG), ať se pozadí rychle načítá
 // i na mobilu — fotka z telefonu má běžně 4–8 MB.
@@ -29,9 +30,9 @@ async function shrink(file: File): Promise<Blob> {
 // Vzhled světa — jen pro admina aktivní firmy. Změna se projeví po obnovení
 // stránky u všech členů firmy (nastavení se načítá na serveru).
 export default function OrgLookCard() {
-  const { orgId, orgLook, brand, realRole } = useUser()
+  // Stav je společný s pozadím appky (UserProvider) — každá změna je hned vidět.
+  const { orgId, orgLook: look, setOrgLook: setLook, brand, realRole } = useUser()
   const { notify } = useDialog()
-  const [look, setLook] = useState<OrgLook>(orgLook)
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -59,7 +60,9 @@ export default function OrgLookCard() {
       const { error } = await supabase.storage.from('branding').upload(path, blob, { contentType: 'image/jpeg', upsert: false })
       if (error) { notify(`Nahrání se nepovedlo: ${error.message}`); return }
       const url = supabase.storage.from('branding').getPublicUrl(path).data.publicUrl
-      if (await save({ bgUrl: url }, { ...look, bgUrl: url })) notify('Pozadí uloženo. Ostatním se projeví po obnovení stránky.')
+      // První vlastní obrázek: rozumné ztmavení, ať je hned vidět (výchozí 82 % je pro fotku pódia)
+      const dim = look.bgUrl ? look.bgDim : 55
+      if (await save({ bgUrl: url, bgDim: dim }, { ...look, bgUrl: url, bgDim: dim })) notify('Pozadí uloženo. Ostatním se projeví po obnovení stránky.')
     } catch (err) {
       notify(err instanceof Error ? err.message : String(err))
     } finally {
@@ -100,7 +103,7 @@ export default function OrgLookCard() {
       <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px', maxWidth: '520px' }}>
         <span style={{ display: 'flex', justifyContent: 'space-between' }}><span>Ztmavení (čitelnost textu)</span><span className="num">{look.bgDim} %</span></span>
         <input type="range" min={0} max={95} step={1} value={look.bgDim} disabled={busy}
-          onChange={e => setLook(l => ({ ...l, bgDim: Number(e.target.value) }))}
+          onChange={e => setLook({ ...look, bgDim: Number(e.target.value) })}
           onPointerUp={e => save({ bgDim: Number((e.target as HTMLInputElement).value) }, { ...look, bgDim: Number((e.target as HTMLInputElement).value) })}
           onKeyUp={e => save({ bgDim: Number((e.target as HTMLInputElement).value) }, { ...look, bgDim: Number((e.target as HTMLInputElement).value) })}
           style={{ width: '100%', marginTop: '8px', accentColor: 'var(--accent)' }} />

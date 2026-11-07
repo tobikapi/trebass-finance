@@ -37,13 +37,14 @@ interface UserContextType {
   brand: OrgBrand                // vzhled aktivní firmy
   isOwner: boolean               // majitel v aktivní firmě
   orgLook: OrgLook               // vzhled aktivní firmy (pozadí)
+  setOrgLook: (look: OrgLook) => void  // okamžitá změna (karta Vzhled světa)
   switchOrg: (orgId: string, path?: string) => void
 }
 
 const UserContext = createContext<UserContextType>({
   user: null, profile: null, role: null, realRole: null, allRoles: [],
   loading: true, can: () => true, viewAsRoleId: null, setViewAs: () => {},
-  orgs: [], orgId: null, brand: brandOf(null), isOwner: false, orgLook: LOOK_DEFAULT, switchOrg: () => {},
+  orgs: [], orgId: null, brand: brandOf(null), isOwner: false, orgLook: LOOK_DEFAULT, setOrgLook: () => {}, switchOrg: () => {},
 })
 
 export function UserProvider({ children, initial }: { children: React.ReactNode; initial: InitialUser }) {
@@ -55,6 +56,8 @@ export function UserProvider({ children, initial }: { children: React.ReactNode;
   const allRoles = initial.allRoles
   const loading = false
   const [viewAsRoleId, setViewAsRoleId] = useState<string | null>(initial.viewAsRoleId)
+  // Vzhled světa se po úpravě adminem projeví hned (bez obnovení stránky)
+  const [orgLook, setOrgLook] = useState<OrgLook>(initial.orgLook)
   const userIdRef = useRef<string | null>(initial.user?.id ?? null)
 
   useEffect(() => {
@@ -125,7 +128,7 @@ export function UserProvider({ children, initial }: { children: React.ReactNode;
       user, profile, role, realRole, allRoles, loading, can,
       viewAsRoleId: effectiveViewAsId, setViewAs,
       orgs: initial.orgs, orgId: initial.activeOrgId, brand: brandOf(initial.activeOrgId),
-      isOwner: initial.isOwner, orgLook: initial.orgLook, switchOrg,
+      isOwner: initial.isOwner, orgLook, setOrgLook, switchOrg,
     }}>
       {children}
     </UserContext.Provider>
