@@ -5,8 +5,14 @@ import Navigation from './Navigation'
 import IdleTimer from './IdleTimer'
 import EmberParticles from './EmberParticles'
 import ViewAsBanner from './ViewAsBanner'
+import { useUser } from '@/lib/user-context'
+import { ORG_IDS } from '@/lib/orgs'
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { orgId } = useUser()
+  // Fotka pódia je z Třebassu — jiná firma ji nemá; na telefonu čisté pozadí
+  // (podle návrhu, a obrázek přes celou obrazovku zbytečně zatěžuje).
+  const showPhoto = orgId === ORG_IDS.trebass
   const isLogin = pathname === '/login'
 
   if (isLogin) return <>{children}</>
@@ -15,12 +21,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {/* Background foto s overlayem */}
       <div className="no-print" style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
-        <div style={{
+        {showPhoto && <div className="app-bg-photo" style={{
           position: 'absolute', inset: 0,
           backgroundImage: "url('/photos/photo-7.jpg')",
           backgroundSize: 'cover',
           backgroundPosition: 'center 40%',
-        }} />
+        }} />}
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'var(--overlay)', transition: 'background-color 0.2s' }} />
       </div>
 

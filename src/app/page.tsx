@@ -72,9 +72,9 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
 
 function StatCard({ label, value, sub, color, loading }: { label: string; value: string | number; sub?: string; color: string; loading: boolean }) {
   return (
-    <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+    <div className="stat-card" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
       <div style={{ fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: '700', color: loading ? 'var(--text-faint)' : color }}>{loading ? '...' : value}</div>
+      <div className="stat-value" style={{ fontSize: '22px', fontWeight: '700', color: loading ? 'var(--text-faint)' : color }}>{loading ? '...' : value}</div>
       {sub && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>{sub}</div>}
     </div>
   )
@@ -262,7 +262,7 @@ function FinancialDashboard() {
   return (
     <div>
       {/* Header + quick action */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="dash-head" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Dashboard</h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
@@ -270,7 +270,7 @@ function FinancialDashboard() {
             {excludedCount > 0 && ` · ${excludedCount} mimo součty`}
           </p>
         </div>
-        {can('canCreate') && <Link href="/akce/nova" style={{ padding: '9px 20px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.05em' }}>
+        {can('canCreate') && <Link href="/akce/nova" style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '9px 20px', backgroundColor: '#d15c49', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.05em' }}>
           + Nová akce
         </Link>}
       </div>
