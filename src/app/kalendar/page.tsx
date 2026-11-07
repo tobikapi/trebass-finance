@@ -7,7 +7,9 @@ import { useUser } from '@/lib/user-context'
 interface CalEvent { id: string; name: string; date: string | null; date_end: string | null; location: string | null; status: string }
 interface Task { id: string; title: string; assigned_to: string | null; assigned_to_members: string[] | null; status: string; priority: string; due_date: string | null }
 
-const PRIORITY_COLOR: Record<string, string> = { low: '#6b7280', medium: '#f4978e', high: '#d15c49' }
+const PRIORITY_COLOR: Record<string, string> = { low: '#8b93a3', medium: '#e3b341', high: '#d15c49' }
+const EVENT_COLOR = 'var(--accent)'
+const fmtD = (iso: string) => { const [y, m, d] = iso.split('-'); return `${Number(d)}. ${Number(m)}. ${y}` }
 const STATUS_COLOR: Record<string, string> = { todo: '#9ca3af', in_progress: '#f4978e', done: '#34d399' }
 const STATUS_LABEL: Record<string, string> = { todo: 'Čeká', in_progress: 'Probíhá', done: 'Hotovo' }
 
@@ -96,31 +98,39 @@ export default function KalendarPage() {
 
   return (
     <div>
-      <div className="kalendar-page-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
-        <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Kalendář</h1>
+      <div className="kalendar-page-title" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '24px' }}>
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            Kalendář <span aria-hidden="true" style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent)', boxShadow: '0 0 10px var(--accent)' }} />
+          </h1>
           <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-muted)', marginBottom: 0 }}>Přehled akcí a termínů úkolů</p>
         </div>
+        {overdueTasks.length > 0 && (
+          <a href="#po-terminu" className="num" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '7px', minHeight: '34px', padding: '0 12px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#d15c49', border: '1px solid rgba(209,92,73,0.55)', backgroundColor: 'rgba(209,92,73,0.10)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#d15c49' }} />{overdueTasks.length} po termínu
+          </a>
+        )}
       </div>
 
       <div className="kalendar-grid">
         {/* Hlavní kalendář */}
-        <div className="kalendar-card" style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px' }}>
+        <div className="kalendar-card" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px' }}>
           {/* Navigace měsíce */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div style={{ display: 'flex', gap: '4px' }}>
-              <button onClick={prevMonth} style={{ padding: '6px 14px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}>‹</button>
-              <button onClick={nextMonth} style={{ padding: '6px 14px', backgroundColor: 'var(--bg-card-dark)', color: 'var(--text-secondary)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px' }}>›</button>
+              <button onClick={prevMonth} aria-label="Předchozí měsíc" style={{ width: '44px', height: '44px', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '10px', cursor: 'pointer', fontSize: '20px' }}>‹</button>
+              <button onClick={nextMonth} aria-label="Další měsíc" style={{ width: '44px', height: '44px', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '10px', cursor: 'pointer', fontSize: '20px' }}>›</button>
             </div>
             <span className="kalendar-month-title" style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)' }}>{MONTHS[month]} {year}</span>
             <button
               onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); setSelectedDay(null) }}
               style={{
-                padding: '6px 14px',
-                backgroundColor: isCurrentMonth ? 'rgba(209,92,73,0.15)' : 'var(--bg-card-dark)',
-                color: isCurrentMonth ? '#d15c49' : 'var(--text-secondary)',
-                border: `1px solid ${isCurrentMonth ? '#d15c49' : 'transparent'}`,
-                borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600',
+                minHeight: '40px', padding: '0 14px',
+                backgroundColor: 'var(--accent-soft)',
+                color: 'var(--accent)',
+                border: '1px solid var(--accent)',
+                borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '700',
+                opacity: isCurrentMonth ? 1 : 0.85,
               }}
             >
               Dnes
@@ -130,7 +140,7 @@ export default function KalendarPage() {
           {/* Záhlaví dnů */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
             {DAYS.map(d => (
-              <div key={d} style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', padding: '4px 0' }}>{d}</div>
+              <div key={d} style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', padding: '4px 0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{d}</div>
             ))}
           </div>
 
@@ -151,36 +161,36 @@ export default function KalendarPage() {
                   <div
                     key={i}
                     onClick={() => hasContent && setSelectedDay(isSel ? null : day)}
-                    className="kalendar-cell"
+                    className={`kalendar-cell${tod ? ' is-today' : ''}${isSel ? ' is-sel' : ''}`}
                     style={{
-                      padding: '5px 4px', borderRadius: '6px',
-                      backgroundColor: isSel ? 'var(--bg-card-dark)' : tod ? 'rgba(209,92,73,0.08)' : 'var(--bg-card)',
-                      border: `1px solid ${isSel ? '#d15c49' : tod ? 'rgba(209,92,73,0.4)' : 'var(--border-subtle)'}`,
+                      padding: '5px 4px', borderRadius: '10px',
+                      backgroundColor: isSel ? 'rgba(209,92,73,0.18)' : tod ? 'var(--accent-soft)' : 'var(--bg-card-alt)',
+                      border: `1px solid ${isSel ? '#d15c49' : tod ? 'var(--accent)' : 'var(--border-subtle)'}`,
                       cursor: hasContent ? 'pointer' : 'default',
                       overflow: 'hidden', display: 'flex', flexDirection: 'column',
                       transition: 'border-color 0.12s, background-color 0.12s',
                     }}
                   >
-                    <div style={{
-                      fontSize: '12px', fontWeight: tod ? '700' : '400',
-                      color: tod ? '#d15c49' : 'var(--text-muted)',
+                    <div className="kal-day num" style={{
+                      fontSize: '13px', fontWeight: tod || isSel ? '700' : '500',
+                      color: isSel ? '#f0a597' : tod ? 'var(--accent)' : 'var(--text-secondary)',
                       marginBottom: '4px', flexShrink: 0,
                     }}>{day}</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', flex: 1, alignContent: 'flex-start', overflow: 'hidden' }}>
+                    <div className="kal-dots" style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', flex: 1, alignContent: 'flex-start', overflow: 'hidden' }}>
                       {dayEvents.map(ev => (
-                        <div key={ev.id} title={ev.name} style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#d15c49', flexShrink: 0 }} />
+                        <div key={ev.id} title={ev.name} style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: EVENT_COLOR, flexShrink: 0 }} />
                       ))}
                       {dayTasks.map(task => (
-                        <div key={task.id} title={task.title} style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: PRIORITY_COLOR[task.priority] || '#6b7280', flexShrink: 0 }} />
+                        <div key={task.id} title={task.title} style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: PRIORITY_COLOR[task.priority] || '#8b93a3', flexShrink: 0 }} />
                       ))}
                     </div>
                     {dayEvents.length > 0 && (
-                      <div style={{ fontSize: '9px', color: 'var(--text-secondary)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0 }}>
+                      <div className="kal-label" style={{ fontSize: '9px', color: 'var(--text-secondary)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0 }}>
                         {dayEvents[0].name}{total > 1 ? ` +${total - 1}` : ''}
                       </div>
                     )}
                     {dayEvents.length === 0 && dayTasks.length > 0 && (
-                      <div style={{ fontSize: '9px', color: 'var(--text-dim)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0 }}>
+                      <div className="kal-label" style={{ fontSize: '9px', color: 'var(--text-dim)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0 }}>
                         {dayTasks.length} úkol{dayTasks.length > 1 ? 'y' : ''}
                       </div>
                     )}
@@ -236,77 +246,73 @@ export default function KalendarPage() {
           )}
 
           {/* Legenda */}
-          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: '#d15c49', display: 'inline-block' }} />
-              Akce
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f4978e', display: 'inline-block' }} />
-              Úkol střední
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#d15c49', display: 'inline-block' }} />
-              Úkol vysoký
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#6b7280', display: 'inline-block' }} />
-              Úkol nízký
-            </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
+            {[{ c: EVENT_COLOR, l: 'Akce' }, { c: PRIORITY_COLOR.high, l: 'Úkol vysoký' }, { c: PRIORITY_COLOR.medium, l: 'Úkol střední' }, { c: PRIORITY_COLOR.low, l: 'Úkol nízký' }].map(x => (
+              <div key={x.l} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: x.c, display: 'inline-block' }} />{x.l}
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Postranní panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {overdueTasks.length > 0 && (
-            <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
-              <div className="kalendar-sidebar-title" style={{ fontSize: '12px', fontWeight: '600', color: '#d15c49', marginBottom: '10px' }}>⚠️ Po termínu ({overdueTasks.length})</div>
-              {overdueTasks.map(t => (
-                <div key={t.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{t.title}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {memberLabel(t) && <span>{memberLabel(t)} · </span>}
-                    <span style={{ color: '#d15c49' }}>{parseLocal(t.due_date!).toLocaleDateString('cs-CZ')}</span>
+            <section id="po-terminu" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid rgba(209,92,73,0.45)', borderRadius: '16px', overflow: 'hidden', scrollMarginTop: '120px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', backgroundColor: 'rgba(209,92,73,0.12)', borderBottom: '1px solid rgba(209,92,73,0.35)' }}>
+                <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.08em', color: '#d15c49' }}>⚠ PO TERMÍNU</span>
+                <span className="num" style={{ fontSize: '12px', fontWeight: 700, color: '#d15c49', border: '1px solid rgba(209,92,73,0.55)', borderRadius: '999px', padding: '1px 9px' }}>{overdueTasks.length}</span>
+              </div>
+              <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
+                {overdueTasks.map((t, i) => (
+                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '8px 16px', borderTop: i ? '1px solid var(--border-subtle)' : 'none' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#d15c49', flexShrink: 0 }} />
+                    <span style={{ flex: 1, minWidth: 0, fontSize: '14px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
+                    <span className="num" style={{ fontSize: '13px', color: '#d15c49', flexShrink: 0 }}>{fmtD(t.due_date!)}</span>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </section>
           )}
 
-          <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
-            <div className="kalendar-sidebar-title" style={{ fontSize: '12px', fontWeight: '600', color: '#d15c49', marginBottom: '10px' }}>Nadcházející akce</div>
+          <section style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--accent)' }}>NADCHÁZEJÍCÍ AKCE</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{upcomingEvents.length} {upcomingEvents.length === 1 ? 'akce' : upcomingEvents.length < 5 ? 'akce' : 'akcí'}</span>
+            </div>
             {upcomingEvents.length === 0 ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Žádné plánované akce</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-dim)' }}>Žádné plánované akce</div>
             ) : upcomingEvents.map(ev => (
-              <div key={ev.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{ev.name}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {ev.date_end
-                    ? `${parseLocal(ev.date!).toLocaleDateString('cs-CZ')} – ${parseLocal(ev.date_end).toLocaleDateString('cs-CZ')}`
-                    : parseLocal(ev.date!).toLocaleDateString('cs-CZ')}
-                  {ev.location && <span> · {ev.location}</span>}
+              <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', marginBottom: '8px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.name}</div>
+                  {ev.location && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.location}</div>}
                 </div>
+                <span className="num" style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, color: 'var(--accent)', border: '1px solid var(--accent)', backgroundColor: 'var(--accent-soft)', borderRadius: '8px', padding: '5px 10px' }}>
+                  {fmtD(ev.date!)}{ev.date_end && ev.date_end !== ev.date ? ` – ${fmtD(ev.date_end)}` : ''}
+                </span>
               </div>
             ))}
-          </div>
+          </section>
 
-          <div style={{ backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-card)', borderRadius: '12px', padding: '16px' }}>
-            <div className="kalendar-sidebar-title" style={{ fontSize: '12px', fontWeight: '600', color: '#d15c49', marginBottom: '10px' }}>Nadcházející úkoly</div>
+          <section style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>NADCHÁZEJÍCÍ ÚKOLY</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{upcomingTasks.length} {upcomingTasks.length === 1 ? 'úkol' : upcomingTasks.length < 5 ? 'úkoly' : 'úkolů'}</span>
+            </div>
             {upcomingTasks.length === 0 ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Žádné blížící se termíny</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-dim)' }}>Žádné blížící se termíny</div>
             ) : upcomingTasks.map(t => (
-              <div key={t.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: PRIORITY_COLOR[t.priority], flexShrink: 0, display: 'inline-block' }} />
-                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{t.title}</span>
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '48px', padding: '8px 14px', marginBottom: '8px', borderRadius: '12px', backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border-subtle)' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: PRIORITY_COLOR[t.priority], flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+                  {memberLabel(t) && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '1px' }}>{memberLabel(t)}</div>}
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', paddingLeft: '12px' }}>
-                  {memberLabel(t) && <span>{memberLabel(t)} · </span>}
-                  {parseLocal(t.due_date!).toLocaleDateString('cs-CZ')}
-                </div>
+                <span className="num" style={{ fontSize: '13px', color: 'var(--text-muted)', flexShrink: 0 }}>{fmtD(t.due_date!)}</span>
               </div>
             ))}
-          </div>
+          </section>
         </div>
       </div>
     </div>

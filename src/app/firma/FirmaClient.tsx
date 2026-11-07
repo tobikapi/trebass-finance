@@ -305,9 +305,9 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
           { label: 'Bilance',         value: balance,       color: balance >= 0 ? '#34d399' : '#f87171', prefix: balance >= 0 ? '+' : '' },
           { label: 'Zbývá zaplatit',  value: totalUnpaid,   color: '#fbbf24' },
         ].map(s => (
-          <div key={s.label} style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+          <div key={s.label} className="stat-card" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', minWidth: 0 }}>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>{s.label}</div>
-            <div style={{ fontSize: '22px', fontWeight: '700', color: s.color, marginTop: '4px' }}>
+            <div className="stat-value num" style={{ fontSize: '22px', fontWeight: '700', color: s.color, marginTop: '4px' }}>
               {(s.prefix || '') + fmt(s.value)}
             </div>
           </div>
@@ -396,35 +396,35 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
                         <span style={{ fontSize: '11px', fontWeight: '700', color: cc.color, letterSpacing: '0.06em' }}>{cat}</span>
                         {isCollapsed && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>{items.length} pol.</span>}
                       </div>
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: cc.color }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
+                      <span className="num" style={{ fontSize: '13px', fontWeight: '700', color: cc.color }}>{catTotal.toLocaleString('cs-CZ')} Kč</span>
                     </div>
                     <Collapse open={!isCollapsed}>
                       <div>
                         {items.map(exp => (
-                          <div key={exp.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '10px', alignItems: 'center' }}>
-                            <div>
-                              <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{exp.item}</div>
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
-                                {exp.date && <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{fmtDate(exp.date)}</span>}
-                                {exp.note && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{exp.note}</span>}
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                              <span style={{ fontSize: '13px', fontWeight: '600', color: exp.paid ? '#34d399' : '#f87171' }}>
+                          <div key={exp.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                              <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', minWidth: 0 }}>{exp.item}</span>
+                              <span className="num" style={{ fontSize: '15px', fontWeight: 700, color: exp.paid ? 'var(--text-primary)' : '#f87171', flexShrink: 0, whiteSpace: 'nowrap' }}>
                                 {exp.amount.toLocaleString('cs-CZ')} Kč
                               </span>
-                              <button onClick={canEdit ? () => handleToggleExpPaid(exp) : undefined} disabled={!canEdit} style={{
-                                backgroundColor: exp.paid ? '#14532d' : 'var(--bg-badge)',
-                                color: exp.paid ? '#34d399' : '#f87171',
-                                fontSize: '10px', fontWeight: '600', padding: '2px 7px',
-                                borderRadius: '4px', border: 'none', cursor: 'pointer',
-                              }}>
+                            </div>
+                            {exp.date && <span className="num" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{fmtDate(exp.date)}</span>}
+                            {exp.note && <span style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.35 }}>{exp.note}</span>}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginTop: '4px' }}>
+                              <button onClick={canEdit ? () => handleToggleExpPaid(exp) : undefined} disabled={!canEdit}
+                                aria-label={exp.paid ? 'Zaplaceno — klepnutím označit jako nezaplacené' : 'Nezaplaceno — klepnutím označit jako zaplacené'}
+                                className="num" style={{
+                                  minHeight: '32px', padding: '0 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', cursor: canEdit ? 'pointer' : 'default',
+                                  color: exp.paid ? '#34d399' : '#f87171',
+                                  backgroundColor: exp.paid ? 'rgba(52,211,153,0.10)' : 'rgba(248,113,113,0.10)',
+                                  border: `1px solid ${exp.paid ? 'rgba(52,211,153,0.45)' : 'rgba(248,113,113,0.45)'}`,
+                                }}>
                                 {exp.paid ? 'ANO' : 'NE'}
                               </button>
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                              {canEdit && (<button onClick={() => startEditExp(exp)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
-                              {canDelete && (<button onClick={() => handleExpDelete(exp.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                {canEdit && (<button onClick={() => startEditExp(exp)} style={{ minHeight: '36px', padding: '0 8px', fontSize: '14px', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>)}
+                                {canDelete && (<button onClick={() => handleExpDelete(exp.id)} style={{ minHeight: '36px', padding: '0 8px', fontSize: '14px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>)}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -437,7 +437,7 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
               {/* Total */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', padding: '10px 16px', borderRadius: '8px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', fontSize: '12px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>
-                  Celkem: <strong style={{ color: 'var(--text-primary)' }}>{fmt(totalExpenses)}</strong>
+                  Celkem: <strong className="num" style={{ color: 'var(--text-primary)' }}>{fmt(totalExpenses)}</strong>
                 </span>
                 {totalUnpaid > 0 && (
                   <span style={{ color: 'var(--text-muted)' }}>
@@ -516,20 +516,16 @@ export default function FirmaClient({ initialExpenses, initialIncome, initialCon
                       <span style={{ fontSize: '12px', fontWeight: '700', color: '#34d399' }}>{srcTotal.toLocaleString('cs-CZ')} Kč</span>
                     </div>
                     {items.map(inc => (
-                      <div key={inc.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '10px', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{inc.name || '—'}</div>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
-                            {inc.note && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{inc.note}</span>}
-                            {inc.date && <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{fmtDate(inc.date)}</span>}
-                          </div>
+                      <div key={inc.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                          <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', minWidth: 0 }}>{inc.name || '—'}</span>
+                          <span className="num" style={{ fontSize: '15px', fontWeight: 700, color: '#34d399', flexShrink: 0, whiteSpace: 'nowrap' }}>{inc.amount.toLocaleString('cs-CZ')} Kč</span>
                         </div>
-                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#34d399', flexShrink: 0 }}>
-                          {inc.amount.toLocaleString('cs-CZ')} Kč
-                        </span>
-                        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                          {canEdit && (<button onClick={() => startEditInc(inc)} style={{ fontSize: '12px', color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Upravit</button>)}
-                          {canDelete && (<button onClick={() => handleIncDelete(inc.id)} style={{ fontSize: '12px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Smazat</button>)}
+                        {inc.date && <span className="num" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{fmtDate(inc.date)}</span>}
+                        {inc.note && <span style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.35 }}>{inc.note}</span>}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
+                          {canEdit && (<button onClick={() => startEditInc(inc)} style={{ minHeight: '36px', padding: '0 8px', fontSize: '14px', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>Upravit</button>)}
+                          {canDelete && (<button onClick={() => handleIncDelete(inc.id)} style={{ minHeight: '36px', padding: '0 8px', fontSize: '14px', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer' }}>Smazat</button>)}
                         </div>
                       </div>
                     ))}

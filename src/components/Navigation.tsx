@@ -75,6 +75,18 @@ export default function Navigation() {
   }, [nextEvent])
 
   const isLight = theme === 'light'
+  const [sheetOpen, setSheetOpen] = useState(false)
+
+  // Počet úkolů po termínu (červená tečka u Úkolů ve spodní liště)
+  const [overdueCount, setOverdueCount] = useState(0)
+  useEffect(() => {
+    if (!orgId || !can('viewUkoly')) return
+    const t = new Date(); const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+    supabase.from('tasks').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId).neq('status', 'done').lt('due_date', today)
+      .then(({ count }) => setOverdueCount(count ?? 0))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, pathname])
 
   return (
     <>
@@ -169,60 +181,57 @@ export default function Navigation() {
       {/* ===== Mobil a tablet (≤1100 px) — podle návrhu z iPhonu ===== */}
       <div className="nav-bar-mobile">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', minHeight: '56px' }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} aria-label={`${brand.name} – Dashboard`}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} aria-label={`${brand.name} – přehled`}>
             {brand.logo ? (
               <Image src={brand.logo} alt={brand.name} width={96} height={36}
-                style={{ objectFit: 'contain', height: '30px', width: 'auto', filter: isLight ? 'brightness(0.85)' : 'none' }} />
+                style={{ objectFit: 'contain', height: '28px', width: 'auto', filter: isLight ? 'brightness(0.85)' : 'none' }} />
             ) : (
-              <span className="org-wordmark" style={{ color: brand.accent, fontSize: '21px' }}>{brand.name}</span>
+              <span className="org-wordmark" style={{ color: brand.accent, fontSize: '20px' }}>{brand.name}</span>
             )}
           </Link>
           {orgs.length > 1 && <OrgSwitcher compact />}
           <div style={{ flex: 1 }} />
-          <button onClick={toggleTheme} aria-label={isLight ? 'Tmavý režim' : 'Světlý režim'}
-            style={{ width: '44px', height: '44px', borderRadius: '10px', flexShrink: 0, backgroundColor: 'var(--bg-card-alt)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '17px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {isLight ? '🌙' : '☀️'}
-          </button>
+          {nextEvent && cdParts && (
+            <div className="num" title={`${nextEvent.name} — odpočet`} aria-label={`Do akce ${nextEvent.name}: ${cdParts.d} dní ${cdParts.h} hodin ${cdParts.m} minut`}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 10px', minHeight: '32px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', fontSize: '13px', flexShrink: 0 }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{eventAbbr(nextEvent.name)}:</span>
+              <span style={{ color: brand.accent, fontWeight: 700 }}>
+                {(cdParts.d > 0 ? [cdParts.d, cdParts.h, cdParts.m] : [cdParts.h, cdParts.m, cdParts.s]).map(v => String(v).padStart(2, '0')).join(':')}
+              </span>
+            </div>
+          )}
           {user && (
-            <>
-              <div title={userName} aria-label={userName} style={{ width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0, backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
+            <button onClick={() => setSheetOpen(true)} aria-label={`Účet: ${userName}`} aria-haspopup="dialog"
+              style={{ width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0, border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
                 {initials}
-              </div>
-              <button disabled={isPending} onClick={() => startTransition(async () => { await signOut(); window.location.assign('/login') })}
-                style={{ minHeight: '44px', padding: '0 12px', fontSize: '13px', color: brand.accent, background: 'none', border: `1px solid ${brand.accent}55`, borderRadius: '10px', cursor: 'pointer', flexShrink: 0 }}>
-                {isPending ? '…' : 'Odhlásit'}
-              </button>
-            </>
+              </span>
+            </button>
           )}
         </div>
-
-        {nextEvent && cdParts && (
-          <div style={{ padding: '0 14px 10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)' }}>
-              <div style={{ flex: 1, minWidth: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {nextEvent.name}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', flexShrink: 0, fontFamily: "'Courier New', monospace", fontWeight: 800, color: brand.accent, fontSize: '15px' }} aria-label="Odpočet do akce">
-                {(cdParts.d > 0
-                  ? [{ v: cdParts.d, u: 'd' }, { v: cdParts.h, u: 'h' }, { v: cdParts.m, u: 'm' }, { v: cdParts.s, u: 's' }]
-                  : [{ v: cdParts.h, u: 'h' }, { v: cdParts.m, u: 'm' }, { v: cdParts.s, u: 's' }]
-                ).map(({ v, u }, i, arr) => (
-                  <span key={u} style={{ display: 'inline-flex', alignItems: 'baseline', gap: '1px' }}>
-                    {String(v).padStart(2, '0')}<span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: 600 }}>{u}</span>
-                    {i < arr.length - 1 && <span style={{ color: 'var(--text-dim)', margin: '0 1px' }}>:</span>}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </header>
 
-    {/* Záložky sekcí — na mobilu místo hamburgeru, přilepené nahoře */}
+    {/* Záložky sekcí (mobil/tablet) — text s podtržením, posuvné, přilepené nahoře */}
     <MobileTabs items={visibleNavItems} pathname={pathname} />
+
+    {/* Spodní lišta jako u nativní appky + panel „Více“ */}
+    <BottomBar items={visibleNavItems} pathname={pathname} overdue={overdueCount} onMore={() => setSheetOpen(true)} />
+    {sheetOpen && (
+      <MoreSheet
+        items={visibleNavItems} pathname={pathname} userName={userName} initials={initials} avatarColor={avatarColor}
+        isLight={isLight} onToggleTheme={toggleTheme} pending={isPending}
+        onSignOut={() => startTransition(async () => { await signOut(); window.location.assign('/login') })}
+        onClose={() => setSheetOpen(false)} />
+    )}
     </>
   )
+}
+
+// „SALT & BASS - XMAS EDITION“ → „S&B“ (do kapsle s odpočtem)
+function eventAbbr(name: string) {
+  const parts = name.split(/\s+/).map(w => w === '&' ? '&' : (w.match(/[A-Za-zÁ-Žá-ž0-9]/)?.[0] ?? '')).filter(Boolean)
+  return parts.join('').slice(0, 3).toUpperCase() || name.slice(0, 3).toUpperCase()
 }
 
 // Přepínač firmy (jen pro lidi ve více firmách). Přepnutí = plné načtení
@@ -287,9 +296,7 @@ function OrgSwitcher({ compact = false }: { compact?: boolean }) {
 // Vodorovně posuvné záložky sekcí (mobil/tablet). Aktivní se po načtení
 // posune do viditelné části, ať je vidět, kde člověk je.
 function MobileTabs({ items, pathname }: { items: { href: string; label: string }[]; pathname: string }) {
-  const { brand } = useUser()
   const ref = useRef<HTMLDivElement>(null)
-  const isActive = (href: string) => href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
   useEffect(() => {
     const el = ref.current?.querySelector('[aria-current="page"]') as HTMLElement | null
     el?.scrollIntoView({ block: 'nearest', inline: 'center' })
@@ -299,22 +306,121 @@ function MobileTabs({ items, pathname }: { items: { href: string; label: string 
     <nav className="nav-m-tabs" aria-label="Sekce">
       <div ref={ref} className="nav-m-tabs-inner">
         {items.map(item => {
-          const active = isActive(item.href)
+          const active = isActivePath(item.href, pathname)
           return (
-            <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined}
-              style={{
-                display: 'inline-flex', alignItems: 'center', minHeight: '40px', padding: '0 14px', borderRadius: '10px',
-                fontSize: '14px', fontFamily: 'var(--font-awakenning), sans-serif', letterSpacing: '0.08em',
-                textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
-                color: active ? brand.accent : 'var(--text-secondary)',
-                backgroundColor: active ? brand.accentSoft : 'transparent',
-                border: `1px solid ${active ? brand.accent + '66' : 'transparent'}`,
-              }}>
+            <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={`nav-m-tab${active ? ' active' : ''}`}>
               {item.label}
             </Link>
           )
         })}
       </div>
     </nav>
+  )
+}
+
+function isActivePath(href: string, pathname: string) {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
+}
+
+// Ikony spodní lišty (jednoduché SVG, barva podle currentColor)
+const ICONS: Record<string, React.ReactNode> = {
+  '/': <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
+  '/akce': <><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z" /><path d="M10 5v12" strokeDasharray="2 2" /></>,
+  '/kalendar': <><rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></>,
+  '/ukoly': <><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1M9 12l2 2 4-4" /></>,
+  '/firma': <><path d="M4 21V8l8-5 8 5v13" /><path d="M9 21v-6h6v6" /></>,
+  '/kontakty': <><circle cx="9" cy="8" r="3.2" /><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.6M18 20a5 5 0 0 0-2.5-4.3" /></>,
+  '/archiv': <><rect x="3" y="4" width="18" height="5" rx="1" /><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4" /></>,
+  '/admin': <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+  more: <path d="M4 7h16M4 12h16M4 17h16" />,
+}
+function Icon({ name }: { name: string }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name] ?? ICONS.more}
+    </svg>
+  )
+}
+
+const BOTTOM_PRIORITY = ['/', '/akce', '/kalendar', '/ukoly', '/firma', '/kontakty']
+const BOTTOM_LABEL: Record<string, string> = { '/': 'Přehled' }
+
+function BottomBar({ items, pathname, overdue, onMore }: { items: { href: string; label: string }[]; pathname: string; overdue: number; onMore: () => void }) {
+  const primary = BOTTOM_PRIORITY.map(h => items.find(i => i.href === h)).filter((i): i is { href: string; label: string } => !!i).slice(0, 4)
+  return (
+    <nav className="nav-bottom" aria-label="Rychlá navigace">
+      {primary.map(item => {
+        const active = isActivePath(item.href, pathname)
+        return (
+          <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={`nav-bottom-item${active ? ' active' : ''}`}>
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <Icon name={item.href} />
+              {item.href === '/ukoly' && overdue > 0 && (
+                <span aria-label={`${overdue} po termínu`} style={{ position: 'absolute', top: '-2px', right: '-4px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#d15c49', border: '2px solid var(--bg-nav)' }} />
+              )}
+            </span>
+            <span>{BOTTOM_LABEL[item.href] ?? item.label}</span>
+          </Link>
+        )
+      })}
+      <button type="button" onClick={onMore} className="nav-bottom-item">
+        <Icon name="more" />
+        <span>Více</span>
+      </button>
+    </nav>
+  )
+}
+
+// Panel „Více“ (zespodu): ostatní sekce, firma, motiv, odhlášení
+function MoreSheet({ items, pathname, userName, initials, avatarColor, isLight, onToggleTheme, onSignOut, pending, onClose }: {
+  items: { href: string; label: string }[]; pathname: string; userName: string; initials: string; avatarColor: string
+  isLight: boolean; onToggleTheme: () => void; onSignOut: () => void; pending: boolean; onClose: () => void
+}) {
+  const { orgs, orgId, switchOrg } = useUser()
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow; document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+  }, [onClose])
+  const row: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '14px', width: '100%', minHeight: '52px', padding: '0 14px', borderRadius: '12px', fontSize: '16px', color: 'var(--text-primary)', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Více" onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 80, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end' }}>
+      <div onClick={e => e.stopPropagation()} className="sheet"
+        style={{ width: '100%', maxHeight: '85vh', overflowY: 'auto', backgroundColor: 'var(--bg-nav)', borderTop: '1px solid var(--border)', borderRadius: '18px 18px 0 0', padding: '8px 12px calc(16px + env(safe-area-inset-bottom))' }}>
+        <div style={{ width: '40px', height: '5px', borderRadius: '3px', backgroundColor: 'var(--border)', margin: '4px auto 12px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 14px 14px' }}>
+          <span style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: avatarColor, color: '#0c0c0c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700 }}>{initials}</span>
+          <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{userName}</span>
+        </div>
+        {orgs.length > 1 && (
+          <div style={{ display: 'flex', gap: '8px', padding: '0 2px 12px' }}>
+            {orgs.map(o => {
+              const b = ORG_BRANDS[o.slug]; const active = o.id === orgId
+              return (
+                <button key={o.id} onClick={() => { if (!active) switchOrg(o.id) }} aria-pressed={active}
+                  style={{ flex: 1, minHeight: '48px', borderRadius: '12px', fontSize: '15px', fontWeight: 700, letterSpacing: '0.04em', cursor: active ? 'default' : 'pointer',
+                    color: active ? b.accent : 'var(--text-secondary)', backgroundColor: active ? b.accentSoft : 'var(--bg-card)', border: `1px solid ${active ? b.accent + '88' : 'var(--border)'}` }}>
+                  {o.name}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {items.map(item => (
+          <Link key={item.href} href={item.href} onClick={onClose} style={{ ...row, color: isActivePath(item.href, pathname) ? 'var(--accent)' : 'var(--text-primary)' }}>
+            <Icon name={item.href} />{item.label}
+          </Link>
+        ))}
+        <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '8px 0' }} />
+        <button onClick={onToggleTheme} style={row}>
+          <span style={{ width: '24px', textAlign: 'center' }}>{isLight ? '🌙' : '☀️'}</span>{isLight ? 'Tmavý režim' : 'Světlý režim'}
+        </button>
+        <button onClick={onSignOut} disabled={pending} style={{ ...row, color: '#d15c49' }}>
+          <span style={{ width: '24px', textAlign: 'center' }}>⎋</span>{pending ? 'Odhlašuji…' : 'Odhlásit se'}
+        </button>
+      </div>
+    </div>
   )
 }
