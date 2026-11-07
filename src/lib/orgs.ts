@@ -54,3 +54,26 @@ export function pickActiveOrg(memberOrgIds: string[], cookieValue: string | null
   if (memberOrgIds.includes(ORG_IDS.trebass)) return ORG_IDS.trebass
   return memberOrgIds[0] ?? null
 }
+
+// Vzhled světa nastavitelný adminem (organizations.look, viz sql/2026-11-07_vzhled_sveta.sql)
+export interface OrgLook {
+  bgUrl: string | null   // vlastní obrázek v pozadí; null = výchozí
+  bgDim: number          // ztmavení 0–95 %
+  bgMobile: boolean      // zobrazit i na mobilu
+}
+export const LOOK_DEFAULT: OrgLook = { bgUrl: null, bgDim: 82, bgMobile: false }
+
+export function parseLook(raw: unknown): OrgLook {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const dim = Number(o.bg_dim)
+  return {
+    bgUrl: typeof o.bg_url === 'string' && o.bg_url ? o.bg_url : null,
+    bgDim: Number.isFinite(dim) ? Math.min(95, Math.max(0, Math.round(dim))) : LOOK_DEFAULT.bgDim,
+    bgMobile: o.bg_mobile === true,
+  }
+}
+
+// Výchozí pozadí, když admin nic nenahrál: Třebass má fotku pódia, ostatní nic.
+export function defaultBg(orgId: string | null | undefined): string | null {
+  return orgId === ORG_IDS.trebass ? '/photos/photo-7.jpg' : null
+}

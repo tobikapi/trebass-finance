@@ -7,6 +7,7 @@ import { useDialog } from '@/lib/dialog-context'
 import { useUser } from '@/lib/user-context'
 import { PERMISSION_GROUPS, type Permissions, type Role } from '@/lib/permissions'
 import Collapse from '@/components/Collapse'
+import OrgLookCard from '@/components/OrgLookCard'
 import { brandOf } from '@/lib/orgs'
 
 interface Access { role_id: string | null; is_owner: boolean }
@@ -411,6 +412,8 @@ export default function AdminClient({ initialProfiles, initialRoles, worlds, rol
           <strong>Role zatím nejsou v databázi.</strong> V tomhle světě nejsou žádné role — přidej je dole.
         </div>
       )}
+
+      <OrgLookCard />
 
       {/* Založit nového člověka */}
       <form onSubmit={createNewUser} style={{

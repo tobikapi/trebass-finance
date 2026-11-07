@@ -1494,3 +1494,45 @@ export async function createRole(name: string, color: string) {
   }
   return { data }
 }
+
+// VZHLED SVĚTA — pozadí si mění admin aktivní firmy (viz sql/2026-11-07_vzhled_sveta.sql).
+// Obrázek nahrává prohlížeč přímo do úložiště „branding“ (databáze pustí jen
+// admina té firmy do její složky); tady se jen uloží odkaz a nastavení.
+export async function updateOrgLook(patch: { bgUrl?: string | null; bgDim?: number; bgMobile?: boolean }) {
+  const supabase = await requireAuth()
+  const orgId = await activeOrgId()
+  const real = await realPermissions(supabase, orgId)
+  if (real?.admin !== true) return { error: 'Vzhled světa smí měnit jen administrátor.' }
+
+  const next: Record<string, unknown> = {}
+  if (patch.bgUrl !== undefined) {
+    if (patch.bgUrl === null) next.bg_url = null
+    else {
+      const base = `${process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\s/g, '')}/storage/v1/object/public/branding/${orgId}/`
+      if (typeof patch.bgUrl !== 'string' || !patch.bgUrl.startsWith(base)) return { error: 'Neplatný obrázek.' }
+      next.bg_url = patch.bgUrl
+    }
+  }
+  if (patch.bgDim !== undefined) {
+    if (!Number.isFinite(patch.bgDim) || patch.bgDim < 0 || patch.bgDim > 95) return { error: 'Ztmavení musí být 0–95 %.' }
+    next.bg_dim = Math.round(patch.bgDim)
+  }
+  if (patch.bgMobile !== undefined) next.bg_mobile = patch.bgMobile === true
+
+  const admin = getAdminClient()
+  if (!admin) return { error: 'SUPABASE_SERVICE_ROLE_KEY není nastavený v .env.local.' }
+  const { data: cur, error: readError } = await admin.from('organizations').select('look').eq('id', orgId).single()
+  if (readError) return { error: readError.message.includes('look') ? 'Chybí databázová migrace 2026-11-07_vzhled_sveta.sql.' : readError.message }
+  const prevUrl = (cur?.look as Record<string, unknown> | null)?.bg_url as string | undefined
+  const look = { ...((cur?.look as Record<string, unknown>) || {}), ...next }
+  const { error } = await admin.from('organizations').update({ look }).eq('id', orgId)
+  if (error) return { error: error.message }
+
+  // Starý vlastní obrázek uklidit (jen z vlastní složky firmy)
+  if (patch.bgUrl !== undefined && prevUrl && prevUrl !== patch.bgUrl) {
+    const marker = `/storage/v1/object/public/branding/`
+    const path = prevUrl.split(marker)[1]
+    if (path?.startsWith(`${orgId}/`)) await admin.storage.from('branding').remove([path])
+  }
+  return { data: look }
+}

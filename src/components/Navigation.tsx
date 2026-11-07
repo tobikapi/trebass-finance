@@ -10,6 +10,7 @@ import type { PermissionKey } from '@/lib/permissions'
 import { useTheme } from '@/lib/theme-context'
 import { supabase } from '@/lib/supabase'
 import { ORG_BRANDS } from '@/lib/orgs'
+import IdlePicker from './IdlePicker'
 
 const NAV_ITEMS: { href: string; label: string; permission: PermissionKey }[] = [
   { href: '/',          label: 'Dashboard', permission: 'viewDashboard' },
@@ -169,6 +170,7 @@ export default function Navigation() {
                 {userName}
               </span>
             </div>
+            <IdlePicker variant="select" />
             <button disabled={isPending} onClick={() => startTransition(async () => { await signOut(); window.location.assign('/login') })}
               style={{ fontSize: '12px', color: '#d15c49', background: 'none', border: '1px solid #3d1515', borderRadius: '6px', cursor: 'pointer', padding: '5px 14px', transition: 'all 0.15s' }}>
               Odhlásit
@@ -414,6 +416,7 @@ function MoreSheet({ items, pathname, userName, initials, avatarColor, isLight, 
           </Link>
         ))}
         <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '8px 0' }} />
+        <IdlePicker />
         <button onClick={onToggleTheme} style={row}>
           <span style={{ width: '24px', textAlign: 'center' }}>{isLight ? '🌙' : '☀️'}</span>{isLight ? 'Tmavý režim' : 'Světlý režim'}
         </button>

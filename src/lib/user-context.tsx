@@ -5,7 +5,7 @@ import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { hasPermission, type PermissionKey, type Role } from '@/lib/permissions'
 import type { InitialUser } from '@/lib/server-user'
-import { ACTIVE_ORG_COOKIE, brandOf, type OrgBrand, type OrgMembership } from '@/lib/orgs'
+import { ACTIVE_ORG_COOKIE, brandOf, LOOK_DEFAULT, type OrgBrand, type OrgLook, type OrgMembership } from '@/lib/orgs'
 
 export interface Profile {
   id: string
@@ -36,13 +36,14 @@ interface UserContextType {
   orgId: string | null           // aktivní firma — podle ní se filtrují seznamy a zapisují nové záznamy
   brand: OrgBrand                // vzhled aktivní firmy
   isOwner: boolean               // majitel v aktivní firmě
+  orgLook: OrgLook               // vzhled aktivní firmy (pozadí)
   switchOrg: (orgId: string, path?: string) => void
 }
 
 const UserContext = createContext<UserContextType>({
   user: null, profile: null, role: null, realRole: null, allRoles: [],
   loading: true, can: () => true, viewAsRoleId: null, setViewAs: () => {},
-  orgs: [], orgId: null, brand: brandOf(null), isOwner: false, switchOrg: () => {},
+  orgs: [], orgId: null, brand: brandOf(null), isOwner: false, orgLook: LOOK_DEFAULT, switchOrg: () => {},
 })
 
 export function UserProvider({ children, initial }: { children: React.ReactNode; initial: InitialUser }) {
@@ -124,7 +125,7 @@ export function UserProvider({ children, initial }: { children: React.ReactNode;
       user, profile, role, realRole, allRoles, loading, can,
       viewAsRoleId: effectiveViewAsId, setViewAs,
       orgs: initial.orgs, orgId: initial.activeOrgId, brand: brandOf(initial.activeOrgId),
-      isOwner: initial.isOwner, switchOrg,
+      isOwner: initial.isOwner, orgLook: initial.orgLook, switchOrg,
     }}>
       {children}
     </UserContext.Provider>

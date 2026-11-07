@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import type { User } from '@supabase/supabase-js'
 import type { Role } from '@/lib/permissions'
 import type { Profile } from '@/lib/user-context'
-import { ACTIVE_ORG_COOKIE, pickActiveOrg, slugOf, type OrgMembership } from '@/lib/orgs'
+import { ACTIVE_ORG_COOKIE, pickActiveOrg, slugOf, parseLook, LOOK_DEFAULT, type OrgMembership, type OrgLook } from '@/lib/orgs'
 
 export interface InitialUser {
   user: User | null
@@ -14,6 +14,7 @@ export interface InitialUser {
   orgs: OrgMembership[]      // firmy, ve kterých člověk je (přepínač)
   activeOrgId: string | null
   isOwner: boolean           // majitel v aktivní firmě
+  orgLook: OrgLook           // vzhled aktivní firmy (pozadí)
 }
 
 const ROLE_COLUMNS = 'id, name, color, permissions, is_system'
@@ -22,7 +23,7 @@ interface MembershipRow {
   org_id: string
   role_id: string | null
   is_owner: boolean
-  organizations: { id: string; slug: string; name: string } | null
+  organizations: { id: string; slug: string; name: string; look?: unknown } | null
   roles: Role | null
 }
 
@@ -41,7 +42,7 @@ export async function getActiveOrgId(): Promise<string | null> {
 export async function getInitialUser(): Promise<InitialUser> {
   const empty: InitialUser = {
     user: null, profile: null, realRole: null, allRoles: [], viewAsRoleId: null,
-    orgs: [], activeOrgId: null, isOwner: false,
+    orgs: [], activeOrgId: null, isOwner: false, orgLook: LOOK_DEFAULT,
   }
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -61,7 +62,7 @@ export async function getInitialUser(): Promise<InitialUser> {
   const [{ data: profileRow }, { data: memberRows }] = await Promise.all([
     supabase.from('profiles').select('id, name, email').eq('id', user.id).maybeSingle(),
     supabase.from('org_members')
-      .select(`org_id, role_id, is_owner, organizations(id, slug, name), roles(${ROLE_COLUMNS})`)
+      .select(`org_id, role_id, is_owner, organizations(*), roles(${ROLE_COLUMNS})`)
       .eq('profile_id', user.id),
   ])
 
@@ -92,5 +93,6 @@ export async function getInitialUser(): Promise<InitialUser> {
   return {
     user, profile, realRole, allRoles, viewAsRoleId,
     orgs, activeOrgId, isOwner: active?.is_owner === true,
+    orgLook: parseLook(active?.organizations?.look),
   }
 }
